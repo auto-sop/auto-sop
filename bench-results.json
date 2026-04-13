@@ -1,0 +1,14 @@
+{
+  "iterations": 200,
+  "warmup": 10,
+  "p50": 36.68,
+  "p95": 40.83,
+  "p99": 48.57,
+  "min": 35.56,
+  "max": 84.18,
+  "mean": 37.44,
+  "timestamp": "2026-04-13T17:32:39.785Z",
+  "platform": "darwin",
+  "arch": "arm64",
+  "nodeVersion": "v18.20.5"
+}

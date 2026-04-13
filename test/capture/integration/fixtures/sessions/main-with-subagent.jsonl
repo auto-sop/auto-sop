@@ -1,0 +1,8 @@
+{"hook_event_name":"UserPromptSubmit","session_id":"s-sub-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","prompt":"Review this code for quality"}
+{"hook_event_name":"PreToolUse","session_id":"s-sub-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Task","tool_input":{"prompt":"review this diff"},"tool_use_id":"tu-task"}
+{"hook_event_name":"UserPromptSubmit","session_id":"s-sub-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","agent_id":"agt-1","agent_type":"code-reviewer","prompt":"review this diff"}
+{"hook_event_name":"PreToolUse","session_id":"s-sub-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Read","tool_input":{"file_path":"/src/main.ts"},"tool_use_id":"tu-sub-1","agent_id":"agt-1","agent_type":"code-reviewer"}
+{"hook_event_name":"PostToolUse","session_id":"s-sub-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Read","tool_input":{"file_path":"/src/main.ts"},"tool_response":{"content":"console.log('hello');"},"tool_use_id":"tu-sub-1","agent_id":"agt-1","agent_type":"code-reviewer"}
+{"hook_event_name":"SubagentStop","session_id":"s-sub-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","agent_id":"agt-1","agent_type":"code-reviewer","last_assistant_message":"LGTM"}
+{"hook_event_name":"PostToolUse","session_id":"s-sub-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Task","tool_input":{"prompt":"review this diff"},"tool_response":"LGTM","tool_use_id":"tu-task"}
+{"hook_event_name":"Stop","session_id":"s-sub-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>"}

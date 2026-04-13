@@ -1,0 +1,4 @@
+{"hook_event_name":"UserPromptSubmit","session_id":"s-main-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","prompt":"Write a function that adds two numbers"}
+{"hook_event_name":"PreToolUse","session_id":"s-main-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Read","tool_input":{"file_path":"/src/add.ts"},"tool_use_id":"tu-1"}
+{"hook_event_name":"PostToolUse","session_id":"s-main-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Read","tool_input":{"file_path":"/src/add.ts"},"tool_response":{"content":"export const add = (a,b)=>a+b;"},"tool_use_id":"tu-1"}
+{"hook_event_name":"Stop","session_id":"s-main-1","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>"}

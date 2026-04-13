@@ -31,7 +31,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . && prettier --check .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bench:shim": "node scripts/bench-shim.mjs",
+    "bench:shim:ci": "npm run build && node scripts/bench-shim.mjs"
   },
   "dependencies": {
     "commander": "^14",

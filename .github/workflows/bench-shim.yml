@@ -1,0 +1,44 @@
+name: Shim Latency Bench
+
+on:
+  push:
+    paths:
+      - 'src/capture/shim/**'
+      - 'scripts/bench-shim.mjs'
+      - 'package.json'
+      - 'tsup.config.ts'
+  pull_request:
+    paths:
+      - 'src/capture/shim/**'
+      - 'scripts/bench-shim.mjs'
+      - 'package.json'
+      - 'tsup.config.ts'
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      - name: Build and bench
+        run: npm run bench:shim:ci
+
+      - name: Verify production shim has no test branches
+        run: |
+          if grep -q 'CLAUDE_SOP_BENCH_WRITER' dist/capture/shim.cjs; then
+            echo "ERROR: Production shim contains CLAUDE_SOP_BENCH_WRITER (test-branch pollution)"
+            exit 1
+          fi
+          echo "Production shim is test-branch-free"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-results
+          path: bench-results.json

@@ -1,0 +1,12 @@
+{"hook_event_name":"UserPromptSubmit","session_id":"s-conc-a","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","prompt":"Concurrent session A"}
+{"hook_event_name":"UserPromptSubmit","session_id":"s-conc-b","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","prompt":"Concurrent session B"}
+{"hook_event_name":"PreToolUse","session_id":"s-conc-a","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Read","tool_input":{"file_path":"/a1.ts"},"tool_use_id":"tu-a1"}
+{"hook_event_name":"PreToolUse","session_id":"s-conc-b","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Write","tool_input":{"file_path":"/b1.ts"},"tool_use_id":"tu-b1"}
+{"hook_event_name":"PostToolUse","session_id":"s-conc-a","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Read","tool_input":{"file_path":"/a1.ts"},"tool_response":{"content":"a1"},"tool_use_id":"tu-a1"}
+{"hook_event_name":"PostToolUse","session_id":"s-conc-b","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Write","tool_input":{"file_path":"/b1.ts"},"tool_response":{"content":"b1"},"tool_use_id":"tu-b1"}
+{"hook_event_name":"PreToolUse","session_id":"s-conc-a","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Read","tool_input":{"file_path":"/a2.ts"},"tool_use_id":"tu-a2"}
+{"hook_event_name":"PreToolUse","session_id":"s-conc-b","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Write","tool_input":{"file_path":"/b2.ts"},"tool_use_id":"tu-b2"}
+{"hook_event_name":"PostToolUse","session_id":"s-conc-a","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Read","tool_input":{"file_path":"/a2.ts"},"tool_response":{"content":"a2"},"tool_use_id":"tu-a2"}
+{"hook_event_name":"PostToolUse","session_id":"s-conc-b","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","tool_name":"Write","tool_input":{"file_path":"/b2.ts"},"tool_response":{"content":"b2"},"tool_use_id":"tu-b2"}
+{"hook_event_name":"Stop","session_id":"s-conc-a","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>"}
+{"hook_event_name":"Stop","session_id":"s-conc-b","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>"}

@@ -1,147 +1,119 @@
-# claude-sop Phase 0: Distribution Decision + Foundations
+# Phase 1: Capture Foundation — Commander Execution Plan
 
 ## Overview
 
-Bootstrap the claude-sop project: write the distribution-model ADR, stand up the TypeScript + tsup + vitest skeleton, and build three pure-logic libraries that every later phase depends on — **PathResolver**, **Config** (with reserved license namespace), and **Scrubber** (with >95% recall gate against a secret-corpus fixture). Zero Claude Code runtime integration, zero network egress, everything fixture-testable.
+Ships the Claude Code hook shim binary + detached writer that together take raw stdin from hook events (UserPromptSubmit, PreToolUse, PostToolUse, Stop, SubagentStop) and produce scrubbed, atomically-visible turn directories on disk. Uses Phase 0 libraries (PathResolver, Config, Scrubber, zero-network test harness) that are already shipped. Does NOT wire hooks into `settings.json` (Phase 2), does NOT run a learner (Phase 3), does NOT touch CLAUDE.md (Phase 4).
 
-This is a greenfield project at `/Users/ugurgokdere/Developer/claude-sop` — the directory is empty. ARCHITECT starts from scratch.
+## Architecture Decisions (from CONTEXT.md + RESEARCH.md)
 
-## Architecture Decisions (LOCKED — do not re-decide)
-
-- **Distribution:** Hybrid. Ship as both a pure npm CLI (`npx claude-sop install`) AND a Claude Code Marketplace plugin entry (marketplace source type `npm`). ADR documents this as accepted.
-- **Stack:** TypeScript ^5.6, tsup ^8.5 (dual ESM+CJS), Node ≥18.17, macOS + Linux only, Windows refused.
-- **Test:** vitest@4 + memfs + zero-network harness (stubs fetch/http/https/net/dns).
-- **Libraries:** commander@14 (CLI), execa@9 (spawn git), nanoid@5 (IDs), zod@3 (schemas), proper-lockfile@4 (locks), `yaml` (eemeli) for YAML parsing.
-- **PathResolver:** Git remote URL → git toplevel → cwd hierarchy; `sha256[:12]` directory hash; project.json anchor file for move detection.
-- **Config:** Zod strict schemas, global (`~/.claude-sop/config.json`) + project (`<proj>/.claude-sop/config.json`) merge, fail-loud on unknown keys, `license` namespace reserved for Phase 6, `secrets.enc` via Node built-in crypto (scrypt KDF + aes-256-gcm + machine-id salt).
-- **Scrubber:** Build-time extract secretlint patterns into `baseline.generated.ts` (inline TS string constant — NO __dirname/import.meta.url), 4-stage pipeline (path exclusion → regex pack → Shannon entropy ≥4.5 → redaction), output format `[REDACTED:<sha4>]`.
-- **Build constraints:** Zero postinstall scripts. Zero network egress in Phase 0 code paths (enforced by test harness).
-- **CI:** GitHub Actions matrix Node 18.17/20.x/22.x × ubuntu-latest + macos-latest. Windows explicitly excluded.
-
-Full context: `.planning/phases/00-distribution-decision-foundations/00-CONTEXT.md`
-Full research: `.planning/phases/00-distribution-decision-foundations/00-RESEARCH.md`
-Task atoms: `.planning/phases/00-distribution-decision-foundations/00-{01..06}-PLAN.md`
+- **Double-fork detached writer.** Shim writes raw stdin to `~/.claude-sop/tmp/<nanoid>.json` (0600), spawns writer via `spawn({detached:true, stdio:'ignore'}).unref()`, exits 0. Shim has zero Phase 0 imports — hot path stays trivial.
+- **CRITICAL: A1 reframe.** Node cold-start is ~30ms; `<10ms` target is unreachable. Enforce **A3 CI gate**: p50<20ms, p95<35ms, p99<50ms (all under CAPT-06's 50ms hard gate). Plan 01-02 ships the bench harness with **pre-authorized Go shim escape hatch** if the gate fails.
+- **main.ts frozen after 01-03.** Wave 2 plans use a `routes/index.ts` thin-barrel pattern — each plan adds ONE re-export line. No main.ts collisions.
+- **Turn dir lifecycle:** `<ts>-<agent>-<filehash>.pending/` created on UserPromptSubmit, renamed (dropped `.pending`) atomically on Stop/SubagentStop. 30s timeout fallback + 30min quarantine to `yarim-kalan/` for orphans.
+- **tool-calls.jsonl** = separate `pre`/`post` lines joined on `tool_use_id` (stable Pre→Post per research). Single-writer-per-turn means no lockfile needed for turn-local files.
+- **Large outputs** (>256KB) stream to `large-outputs/<tool_use_id>.txt.gz`, JSONL carries pointer.
+- **Subagent linking:** bidirectional `parent_turn_id` + `children_turn_ids`, dual representation (flat in parent tool-calls AND own turn dir).
+- **Errors:** project + global `errors.jsonl` with 10MB→.1 rotation. 50% disk auto-pause via `paused.flag`.
+- **Global mirror:** JSONL index only (`~/.claude/sop/<hash12>/index.jsonl`), NOT full copy. Auto-migrate on `PathResolver.detectMove()`.
+- **dev-army namespace (F4):** when project path is under `~/.claude/dev-army/`, global mirror namespace becomes `~/.claude/sop/dev-army/<agent-name>/`.
+- **Kill-switch (D3):** `CLAUDE_SOP_LEARNER=1` → shim exits immediately, writer exits immediately. Defense in depth.
+- **Zero new npm deps** — everything already in package.json from Phase 0.
 
 ## Implementation Tasks
 
-### Wave 1 — Foundation (parallel, no dependencies)
+### Wave 1 — Foundations (parallel)
 
-**1. ARCHITECT: Project skeleton + platform check + zero-network harness** — plan `00-01`
-   Files: `package.json`, `tsconfig.json`, `tsup.config.ts`, `vitest.config.ts`, `.eslintrc.cjs`, `.prettierrc`, `.gitignore`, `.github/workflows/ci.yml`, `src/platform-check.ts`, `src/index.ts` (pure library re-export), `src/cli.ts` (CLI entry with shebang calling `assertPlatformSupported()`), `test/setup/no-network.ts`, `test/platform-check.test.ts`, `test/setup/no-network.test.ts`
-   Requirements:
-   - Initialize npm project with `engines.node ">=18.17"`, `type: "module"`, dual ESM+CJS via tsup with TWO entries (`src/index.ts` as library, `src/cli.ts` as `bin`), NO `postinstall`/`preinstall`/`install` scripts anywhere.
-   - `src/platform-check.ts` exports `assertPlatformSupported()` which calls `process.exit(1)` on win32 (support `CLAUDE_SOP_FAKE_PLATFORM` env var for testing). `src/index.ts` is a PURE re-export with ZERO side effects at import time. `src/cli.ts` imports and calls `assertPlatformSupported()` at startup.
-   - `test/setup/no-network.ts` installs global guards: override `globalThis.fetch`, `http.request`, `https.request`, `net.Socket.prototype.connect`, `dns.lookup` — any network attempt throws. Expose `installNoNetworkGuards()` / `restoreNetworkGuards()`. Wire into `vitest.config.ts` setupFiles.
-   - CI matrix: Node 18.17 / 20.x / 22.x × ubuntu-latest + macos-latest. Jobs: `lint`, `typecheck`, `test`, `build`, `no-lifecycle-check` (greps `package.json` to prove no postinstall), `windows-refusal-check` (runs `CLAUDE_SOP_FAKE_PLATFORM=win32 node dist/cli.cjs` and asserts exit 1; ALSO asserts `node -e "require('./dist/index.cjs')"` does NOT exit on win32 — proves library is side-effect-free).
-   Acceptance:
-   - `npm install && npm run build && npm test && npm run lint && npm run typecheck` all green
-   - `grep -E '"(pre|post)?install"' package.json` returns nothing
-   - `windows-refusal-check` CI job exits 1 from CLI and exits 0 from library on simulated win32
-   - no-network harness unit test proves every stubbed primitive throws
+**1. ARCHITECT: Plan 01-01 — Types, schemas, kill-switch, paths**
+Ref: `.planning/phases/01-capture-foundation/01-01-PLAN.md`
+Files: `src/capture/{events,types,kill-switch,paths}.ts` + unit tests
+Requirements: Pure-logic leaf modules (Zod schemas for all 5 hook events, TurnMeta type matching CONTEXT C3, kill-switch check function, capture path derivation). Zero-dep. No Phase 0 imports.
+Acceptance: All unit tests pass; source-level imports verified; no build output required at this wave.
 
-**2. ARCHITECT: Distribution ADR document** — plan `00-02`
-   Files: `.planning/phases/00-distribution-decision-foundations/ADR-0001-distribution-model.md`
-   Requirements:
-   - Write an ADR following MADR 4.0 minimal structure with sections: Status (Accepted), Context, Decision Drivers, Considered Options, Decision Outcome, Consequences, Confirmation, Open Questions.
-   - Document the hybrid decision: npm CLI + Claude Code Marketplace plugin entry (source type `npm`, pointing at a dedicated marketplace.json repo). Project-local hooks only. Total-within-scope uninstall.
-   - List at least 4 open questions for Phase 2 spike: (1) marketplace orchestration mechanism, (2) which settings.json key manages hooks, (3) plugin update propagation behavior, (4) project-local hook stacking with existing user hooks.
-   Acceptance: ADR file exists at the path above, contains all 8 MADR sections, ≥4 open questions enumerated.
+**2. ARCHITECT: Plan 01-02 — Shim skeleton + bench harness + CI gate**
+Ref: `.planning/phases/01-capture-foundation/01-02-PLAN.md`
+Files: `src/capture/shim/{main,main-bench,handoff,shim-config}.ts` + `scripts/bench-shim.mjs` + `.github/workflows/bench-shim.yml`
+Requirements: Two tsup entrypoints (prod `shim.cjs` + `shim-bench.cjs`). Prod shim has ZERO test branches — grep assertion on dist/. Bench spawns real minimal Node writer stub (`/tmp/bench-writer-stub.cjs` with `process.exit(0)`) to measure true Node→Node spawn cost. CI enforces A3 gate (p50<20 / p95<35 / p99<50) on ubuntu-latest.
+Acceptance: Bench passes A3 gate on local+CI. **ESCAPE HATCH:** if p95>35ms, switch shim to Go binary (`go build -ldflags='-s -w'`) dropped into `dist/bin/claude-sop-shim-<platform>` — Wave 2 plans are unaffected (only shim language changes).
 
-### Wave 2 — Pure libraries (parallel, all depend on Wave 1 project skeleton)
+### Wave 2 — Writer features (parallel, enabled by routes/ barrel)
 
-**3. ARCHITECT: PathResolver** — plan `00-03`
-   Files: `src/path-resolver/index.ts`, `src/path-resolver/normalize-remote-url.ts`, `src/path-resolver/git-runner.ts`, `src/path-resolver/identity.ts`, `src/path-resolver/project-json.ts`, `src/path-resolver/types.ts`, plus matching `test/path-resolver/*.test.ts`
-   Requirements:
-   - `normalize-remote-url.ts`: hand-roll ~40 LOC normalization — strip `.git` suffix, lowercase, handle ssh (`git@github.com:foo/bar.git`), https (`https://github.com/foo/bar`), and git protocol variants. No npm dep (`normalize-git-url` is abandoned).
-   - `git-runner.ts`: thin DI wrapper around `execa('git', [...])` so tests can inject a fake. Expose `getRemoteOriginUrl()`, `getToplevel()`, `isGitRepo()`.
-   - `identity.ts`: hierarchy resolver. (1) Try `git remote get-url origin` → normalize → `sha256[:12]`; (2) fallback `git rev-parse --show-toplevel` → absolute path → `sha256[:12]`; (3) last-resort `process.cwd()` → absolute path → `sha256[:12]`. Also compute human slug: repo name if git, else `basename(cwd)`.
-   - `project-json.ts`: atomic read/write (`writeFile` to temp + rename) of `<project>/.claude-sop/project.json` containing `{remoteUrl, toplevel, cwd, projectId, slug}`. Expose `detectMove(currentProjectJson, currentContext)` returning `{moved: true, oldProjectId, newProjectId}` when remote/toplevel/cwd differ from stored.
-   - Tests use memfs + DI'd git-runner — zero real disk, zero real git.
-   Acceptance:
-   - All PathResolver unit tests pass; identity hierarchy handles all 3 cases deterministically; move detection returns correct old/new project IDs; remote URL normalization matches golden fixtures for ssh/https/git-protocol.
+**3. ARCHITECT: Plan 01-03 — Writer core + routes dispatcher**
+Ref: `.planning/phases/01-capture-foundation/01-03-PLAN.md`
+Files: `src/capture/writer/{main,turn-dir,meta,session-state,prompt-response,files-changed}.ts` + `src/capture/writer/routes/{index,types,main-thread-route,pre-start-hooks,finalize-hooks}.ts` + `src/capture/writer/errors.ts` (stub, overwritten by 01-05) + unit tests
+Requirements: Owns `main.ts` — **frozen after this plan**. Ships typed route dispatcher `const routes: Record<HookEventName, Handler>`. Handles UserPromptSubmit (turn-dir `.pending` creation) + Stop (finalize + rename). Pre/Post/SubagentStop are stubs that call `logUnhandled(eventName)` writing sentinel file `unhandled-event.<name>`. Integrates Phase 0 Scrubber on prompt.md + response.md. `files-changed.txt` via `git diff --name-only HEAD`. meta.json matches CONTEXT C3 byte-exact. 0600/0700 perms enforced.
+Acceptance: UserPromptSubmit + Stop round-trip test produces correct turn directory with scrubbed content; `.pending` → rename atomic; SUMMARY documents "readers MUST ignore `.pending` entries".
 
-**4. ARCHITECT: Config library + secrets.enc encryption primitives** — plan `00-04`
-   Files: `src/config/schema.ts`, `src/config/merge.ts`, `src/config/loader.ts`, `src/config/machine-id.ts`, `src/config/secrets.ts`, `src/config/index.ts`, plus `test/config/*.test.ts`
-   Requirements:
-   - `schema.ts`: Zod strict schemas — global config (`.strict()` at every level), project override schema (partial overlay), top-level version field `z.literal(1)`, and a RESERVED `license` namespace (schema exists from day one even though Phase 6 populates it): `license: z.object({ apiKey: z.string().optional(), trialStartIso: z.string().optional(), lastValidationIso: z.string().optional() }).strict()`. Export `ConfigError` class with `.file` and `.unknownKeys` fields.
-   - `merge.ts`: merge global + project, project wins where present, fail-loud on unknown keys at every depth.
-   - `machine-id.ts`: wrap `node-machine-id` with sha256 + per-install salt fallback chain: (1) `node-machine-id` if available; (2) hash of `os.hostname() + os.userInfo().uid`; never throw.
-   - `secrets.ts`: Pure Node built-in crypto — `scryptSync(password, salt, 32)` KDF + `aes-256-gcm` + 12-byte IV. On-disk format is a versioned JSON envelope: `{v: 1, iv: base64, tag: base64, salt: base64, ciphertext: base64}`. Expose `readSecretsFile(path)` / `writeSecretsFile(path, plaintext)` / `createDefaultSecrets()`. Forward-compat via `v` field so Phase 6 can migrate.
-   - `loader.ts`: read global + project files, validate via schema, merge, return typed config. On unknown keys throw `ConfigError` listing the offending file and the unknown keys.
-   - Zero network usage (harness from Wave 1 enforces in tests).
-   Acceptance:
-   - All Config tests pass; schema rejects unknown keys with descriptive ConfigError; merge prefers project overrides; `readSecretsFile(writeSecretsFile(x))` round-trips; encryption format versioned and forward-compatible.
+**4. ARCHITECT: Plan 01-04 — tool-calls + large-outputs route**
+Ref: `.planning/phases/01-capture-foundation/01-04-PLAN.md`
+Files: `src/capture/writer/tool-calls.ts` + `src/capture/writer/large-outputs.ts` + `src/capture/writer/routes/tool-calls-route.ts` + ONE LINE re-export added to `routes/index.ts`
+Requirements: Pre/post JSONL lines joined on `tool_use_id`. Single-writer-per-turn — plain `appendFileSync`, NO lockfile. Large output threshold 256KB → `large-outputs/<tool_use_id>.txt.gz` with `{"output_ref":"...","bytes":N}` pointer in JSONL. Scrubber runs on both inline + large outputs. **main.ts is NEVER edited.**
+Acceptance: Unit tests verify pre/post join, large-output offload, scrubbing; grep assertion confirms `proper-lockfile` NOT imported by this plan.
 
-**5. ARCHITECT: Scrubber primitives** — plan `00-05a`
-   Files: `src/scrubber/types.ts`, `src/scrubber/yaml-loader.ts`, `src/scrubber/path-exclusion.ts`, `src/scrubber/entropy.ts`, `src/scrubber/redaction.ts`, plus `test/scrubber/*.test.ts` for each
-   Requirements:
-   - `types.ts`: rule shape `{id, pattern (string regex), replacement?, severity}`, `ScrubbedResult`, `ScrubberOptions`.
-   - `yaml-loader.ts`: parse YAML rule packs via `yaml` (eemeli); validate shape via Zod; support layered loading (baseline first, then user pack from `~/.claude-sop/rules/*.yaml`).
-   - `path-exclusion.ts`: skip binary and cache dirs (`.git`, `node_modules`, `dist`, `.next`, common image extensions, etc.) — exported list, not hard-coded in pipeline.
-   - `entropy.ts`: Shannon entropy implementation; `ENTROPY_THRESHOLD = 4.5` const (strict); `shannonEntropy(s: string): number` function.
-   - `redaction.ts`: format redacted values as `[REDACTED:${sha256(original).slice(0,4)}]` (4 hex chars). Exports `redact(original: string): string`.
-   Acceptance: all primitives unit-tested; YAML loader rejects malformed shapes; entropy returns expected values for known-entropy strings; redaction format matches exactly.
+**5. ARCHITECT: Plan 01-05 — errors + disk-budget**
+Ref: `.planning/phases/01-capture-foundation/01-05-PLAN.md`
+Files: `src/capture/writer/errors.ts` (overwrites 01-03's stub) + `src/capture/writer/disk-budget.ts` + appends `registerPreStartHook` call in `src/capture/writer/routes/pre-start-hooks.ts` + unit tests
+Requirements: Project + global `errors.jsonl`, 10MB cap → single `.1` rotation. `disk-budget.ts` sums `.claude-sop/captures/` via `du` equivalent; 50% threshold (default 1GB of 2GB cap) flips `paused.flag`; writer checks on pre-start hook and skips capture if flag present. Shim still exits 0 (CAPT-07). **main.ts is NEVER edited** — 01-03 already has `let errorWriter: ErrorWriter | null = null; try{…}catch(e){errorWriter?.(e)}` late-binding; this plan ships `initErrorWriter()`.
+Acceptance: Error lines append with rotation; disk pause triggers; status integration-testable.
 
-**6. ARCHITECT: Scrubber pipeline + baseline extractor + NOTICES** — plan `00-05b` (depends on Wave 2 plan 5 above)
-   Files: `scripts/extract-secretlint-rules.ts`, `src/scrubber/baseline.generated.ts` (generated), `src/scrubber/regex-pipeline.ts`, `src/scrubber/scrubber.ts`, `src/scrubber/index.ts`, `NOTICES.md`, plus integration tests
-   Requirements:
-   - `scripts/extract-secretlint-rules.ts`: Node script that imports `@secretlint/secretlint-rule-preset-recommend` as a DEV dependency, walks its rule exports, extracts regex patterns (anthropic `sk-ant-*`, AWS access keys, GitHub tokens, Slack, Stripe, GitLab, JWT), and emits `src/scrubber/baseline.generated.ts` containing `export const BASELINE_YAML = \`...\`;` — a TypeScript string constant, NOT a .yaml file. This avoids all `__dirname`/`import.meta.url` dual-module complexity.
-   - `regex-pipeline.ts`: compose baseline + user rules into an ordered regex pipeline; apply to input text and return list of `{match, ruleId, start, end}`.
-   - `scrubber.ts`: facade that wires together the 4 stages — (1) path exclusion check, (2) regex pipeline, (3) Shannon entropy catch-all for remaining high-entropy tokens, (4) redaction formatter. Import `BASELINE_YAML` from `baseline.generated.ts` as a module constant — zero disk reads at runtime.
-   - `NOTICES.md`: attribution for secretlint-derived patterns (MIT license).
-   - `package.json`: add dev script `"extract-rules": "tsx scripts/extract-secretlint-rules.ts"`.
-   - CI gets a `baseline-regeneration-check` job: `npm run extract-rules && git diff --exit-code src/scrubber/baseline.generated.ts` — fails if committed file drifts from extractor output.
-   Acceptance:
-   - Extractor produces deterministic output; `grep -E "__dirname|import\.meta\.url" src/scrubber/scrubber.ts` returns nothing; integration test shows full pipeline redacts a mixed-content sample; regeneration CI check passes.
+**6. ARCHITECT: Plan 01-06 — Global mirror + dev-army namespace**
+Ref: `.planning/phases/01-capture-foundation/01-06-PLAN.md`
+Files: `src/capture/writer/global-mirror.ts` + `src/capture/writer/routes/global-mirror-hook.ts` + ONE LINE re-export added to `routes/index.ts`
+Requirements: Append one line per finalized turn to `~/.claude/sop/<hash12>/index.jsonl`. **JSONL index only — NOT full copy.** Uses `proper-lockfile` ONLY for this global index (multi-project concurrent writers). dev-army namespace detection: if project path is under `~/.claude/dev-army/<agent-name>/`, route to `~/.claude/sop/dev-army/<agent-name>/` instead. Wires `PathResolver.detectMove()` directly (already exported from Phase 0) — NO "deferred with TODO" escape. **main.ts is NEVER edited.**
+Acceptance: Integration test verifies index line per turn, dev-army namespace fires for paths under `~/.claude/dev-army/`, move migration renames global dir atomically.
 
-### Wave 3 — Gate
+**7. ARCHITECT: Plan 01-07 — Subagent linking + orphan sweep**
+Ref: `.planning/phases/01-capture-foundation/01-07-PLAN.md`
+Files: `src/capture/writer/subagent.ts` + `src/capture/writer/orphan-sweep.ts` + `src/capture/writer/routes/subagent-route.ts` + ONE LINE re-export added to `routes/index.ts`
+Requirements: Bidirectional `parent_turn_id` + `children_turn_ids` linking (E2). Dual representation — subagent I/O flat in parent's tool-calls.jsonl AND own turn directory (E3). Unlimited nesting depth (E1). Orphan sweep runs as a pre-start hook on every UserPromptSubmit: any `.pending` turn dirs older than 30s finalize with `finalization_reason="timeout"`; older than 30min move to `yarim-kalan/`. Also sweeps stale `~/.claude-sop/tmp/*.json` payloads. **main.ts is NEVER edited.**
+Acceptance: Nested subagent scenario produces linked turn dirs; orphan sweep tests cover both 30s and 30min thresholds.
 
-**7. ARCHITECT: Scrubber fixture corpus + >95% recall gate** — plan `00-06` (depends on plan 6 above)
-   Files: `test/fixtures/scrubber/positives/anthropic/*`, `test/fixtures/scrubber/positives/aws/*`, `test/fixtures/scrubber/positives/github/*`, `test/fixtures/scrubber/positives/gitlab/*`, `test/fixtures/scrubber/positives/slack/*`, `test/fixtures/scrubber/positives/stripe/*`, `test/fixtures/scrubber/positives/jwt/*`, `test/fixtures/scrubber/positives/env-kv/*`, `test/fixtures/scrubber/positives/high-entropy-generic/*`, `test/fixtures/scrubber/negatives/uuids/*`, `test/fixtures/scrubber/negatives/git-shas/*`, `test/fixtures/scrubber/negatives/base64-hashes/*`, `test/fixtures/scrubber/negatives/docs/*`, `test/scrubber/recall.test.ts`, `.planning/phases/00-distribution-decision-foundations/scrubber-recall-report.json`
-   Requirements:
-   - Build a fixture corpus: 9 positives categories (anthropic, aws, github, gitlab, slack, stripe, jwt, env KEY=VALUE, high-entropy generic), each with ≥10 realistic samples; 4 negatives categories (UUIDs, git SHAs, base64 content hashes, sample docs/prose) that must NOT trigger.
-   - `recall.test.ts` runs the full Scrubber pipeline over every positives fixture and asserts `recall >= 0.95`; runs it over every negatives fixture and asserts `falsePositiveRate <= 0.05`.
-   - Emits a deterministic JSON report at `.planning/phases/00-distribution-decision-foundations/scrubber-recall-report.json` with per-category recall and FPR numbers.
-   - CI `scrubber-recall-check` job: runs the recall test, then `git diff --exit-code scrubber-recall-report.json` to guarantee the committed report matches current behavior — prevents silent recall drift.
-   Acceptance:
-   - `npx vitest run test/scrubber/recall.test.ts` passes
-   - `recall >= 0.95` and `FPR <= 0.05` on the full corpus
-   - `scrubber-recall-report.json` exists and is deterministic (git-stable)
-   - CI `scrubber-recall-check` job fails the build if recall drops below 0.95
+### Wave 3 — Integration + traceability
 
-## Quality Gates (MANDATORY — run BEFORE commit)
+**8. ARCHITECT: Plan 01-08 — End-to-end integration suite**
+Ref: `.planning/phases/01-capture-foundation/01-08-PLAN.md`
+Files: `tests/capture/integration/**`
+Requirements: 7 fixture JSONL scenarios (main-only turn, tool-heavy turn, subagent nesting, large-output, kill-switch, orphan, dev-army namespace). Runs the built shim+writer end-to-end in memfs+temp HOME. Asserts every ROADMAP Phase 1 success criterion directly (meta.json schema, 0600/0700 perms, scrubber hit counts, subagent linking, global index entries, kill-switch zero-write behavior). **Includes W2 mid-stream assertion:** while Pre/Post events stream (before Stop), `readdirSync(capturesDir).filter(n => !n.endsWith('.pending'))` MUST return empty.
+Acceptance: Full test suite green; traceability table in test output maps each assertion to CAPT-01..10 + PRIV-04 + PRIV-07.
 
-**8. YODA: Code review** — review every file ARCHITECT wrote in tasks 1–7. Focus on project conventions (new project, so: TypeScript strict mode compliance, module boundaries, error handling, DI for testability, import hygiene, no `any`, no `console.log` in library code). Blocks on D/F grade.
+## Quality Gates (MANDATORY — in order)
 
-**9. APEX: Security audit** — review especially: (a) `secrets.ts` encryption (aes-256-gcm use, IV handling, key derivation), (b) `machine-id.ts` fallback (no secrets leaked to logs), (c) scrubber regex patterns (no ReDoS), (d) `no-network.ts` guard completeness (all egress paths covered), (e) `path-resolver` git command injection surface (argv-only, no shell). Blocks on P0/P1 findings.
+**9. YODA: Code review**
+All Phase 1 source files (`src/capture/**`) + tests. Must verify: TypeScript strict mode passes, error handling consistent, no phase-0 imports in shim hot path, route dispatcher pattern honored, main.ts untouched after 01-03, scrubber integration correct.
 
-**10. ANALYZER: Code improvement review** — readability, performance, best practices across all files. Blocks on D/F grade.
+**10. APEX: Security review**
+Must verify: 0600/0700 perms enforced on write, no network egress from writer code paths (zero-network stub harness passes), scrubber runs BEFORE any disk write, no secrets leak to errors.jsonl, `CLAUDE_SOP_LEARNER=1` kill-switch honored in both shim and writer, no user-controlled path traversal in turn dir naming.
 
-_(No PRISM for Phase 0 — zero UI/frontend work. PRISM returns to the loop in later phases when the CLI surface lands.)_
+**11. ANALYZER: Code improvement review**
+Blocks on D/F grade. Readability, performance (especially the writer hot-ish path after scrub), best practices, no duplication across routes.
+
+(No PRISM — Phase 1 has zero UI work.)
 
 ## Finalize
 
-**11. ARCHITECT: Commit all changes** — only after YODA + APEX + ANALYZER all approve. Single cohesive commit (or per-wave commits if ARCHITECT prefers) with message `feat(phase-0): distribution ADR + PathResolver + Config + Scrubber + recall gate`.
+**12. ARCHITECT: Commit all changes**
+Only after YODA + APEX + ANALYZER all PASS. Commit message: `feat(phase1): capture foundation — hook shim + detached writer + turn directories`.
 
-## Acceptance Criteria (Phase 0 goal-backward verification)
+## Acceptance Criteria (goal-backward from ROADMAP Phase 1)
 
-Every item below must be true before Phase 0 is considered complete:
-
-1. **ADR accepted:** `.planning/phases/00-distribution-decision-foundations/ADR-0001-distribution-model.md` exists, status Accepted, hybrid distribution documented, ≥4 open questions listed for Phase 2 spike.
-2. **Scrubber recall gate passes:** `npx vitest run test/scrubber/recall.test.ts` reports `recall >= 0.95` across the 9 positives categories; `FPR <= 0.05` across the 4 negatives categories; `scrubber-recall-report.json` is git-stable.
-3. **Scrubber layered:** baseline rule pack (generated from secretlint) + user rule pack from `~/.claude-sop/rules/` both load via `yaml-loader.ts` and compose in `regex-pipeline.ts`.
-4. **Engines + Windows refusal:** `package.json` has `engines.node >=18.17`; CI `windows-refusal-check` job proves CLI exits 1 on simulated win32 AND library entry (`dist/index.cjs`) remains side-effect-free on win32.
-5. **Zero postinstall, zero network:** `grep -E '"(pre|post)?install"' package.json` empty; `test/setup/no-network.ts` harness installed in vitest setupFiles; every Phase 0 unit test runs under the harness; any accidental egress throws.
-6. **CI matrix green:** Node 18.17 / 20.x / 22.x × ubuntu-latest + macos-latest; all jobs green on the commit; Windows NOT in matrix.
-7. **PathResolver deterministic:** identity hierarchy (git remote → toplevel → cwd) produces stable `sha256[:12]` IDs; `detectMove` returns correct old/new IDs when project moved.
-8. **Config round-trips:** `readSecretsFile(writeSecretsFile(x))` returns `x`; Zod strict schemas reject unknown keys with descriptive `ConfigError`; `license` namespace reserved in schema from day one (empty but present).
-9. **All three mandatory quality gates pass:** YODA approved, APEX approved (no P0/P1), ANALYZER approved (grade ≥ C).
-10. **Everything committed:** git log shows `feat(phase-0): ...` commit with all Phase 0 files.
+- [ ] **CAPT-01..04:** Given fixture hook events (UserPromptSubmit, PreToolUse, PostToolUse, Stop, SubagentStop), integration test produces expected turn directory with all 5 events captured correctly
+- [ ] **CAPT-05:** Capture dir schema matches spec: `<ts>-<agent>-<filehash>-<shorthash>/` containing `prompt.md`, `response.md`, `tool-calls.jsonl`, `files-changed.txt`, `meta.json`
+- [ ] **CAPT-06:** CI bench gate asserts shim p50<20ms / p95<35ms / p99<50ms (well under the 50ms hard gate)
+- [ ] **CAPT-07:** Shim always exits 0 (verified in bench + integration tests); errors logged to `errors.jsonl`
+- [ ] **CAPT-08:** Readers skipping `.pending` entries sees zero mid-turn directories (integration test asserts mid-stream `readdirSync` filter = empty)
+- [ ] **CAPT-09:** Subagent `Task` calls captured with bidirectional linking; nested subagent fixture produces parent+child turn dirs linked via `parent_turn_id` / `children_turn_ids`
+- [ ] **CAPT-10:** Global mirror `~/.claude/sop/<hash12>/index.jsonl` contains one line per finalized turn (or dev-army namespace path for projects under `~/.claude/dev-army/`)
+- [ ] **PRIV-04:** All capture files `0600`, all capture dirs `0700` (integration audit asserts via `fs.stat().mode`)
+- [ ] **PRIV-07:** With `CLAUDE_SOP_LEARNER=1` set, shim exits immediately, writer exits immediately, zero writes observed
+- [ ] **Zero new npm deps** — `package.json` diff shows no additions
+- [ ] All unit + integration tests pass (100%)
+- [ ] All quality gates approved (YODA + APEX + ANALYZER)
 
 ## Notes for Commander
 
-- This is a **greenfield** project — the directory is empty. ARCHITECT starts by creating `package.json` and `npm install`-ing deps. Pre-flight: verify Node ≥18.17 is available (`node --version`).
-- NO dev server required — Phase 0 is pure library code. PRISM is NOT needed for this phase.
-- Task ordering: **Wave 1 parallel** (plan 1 + plan 2) → **Wave 2 parallel** (plans 3, 4, 5) → **plan 6 after plan 5** → **plan 7 after plan 6** → **quality gates** → **commit**.
-- Each ARCHITECT task references a detailed GSD XML plan in `.planning/phases/00-distribution-decision-foundations/` — use those as the source of truth for file names, exact actions, and verification steps.
-- Do NOT implement anything from Phase 1+ (no hook shim, no installer, no scheduler, no learner, no ed25519, no SEA binary, no license client). Config schema reserves the `license` namespace but does NOT populate it.
+- **Greenfield status:** `src/capture/` directory does not yet exist. ARCHITECT creates it.
+- **Plan files contain full task XML** — dispatch each numbered task above by pointing ARCHITECT at the referenced plan file (`.planning/phases/01-capture-foundation/01-NN-PLAN.md`). The plan files are authoritative for <action>, <verify>, <done>.
+- **Wave 1 tasks are TRULY parallel** — 01-01 and 01-02 share no files.
+- **Wave 2 tasks are parallel** via the routes/index.ts barrel pattern — each plan adds exactly ONE re-export line to that file. Git/tsup handles the trivial merge.
+- **Wave 3 runs after Wave 2 fully complete.**
+- **Escape hatch trigger:** if Plan 01-02's bench fails the A3 gate, Commander should pause and notify the user before rewriting the shim in Go. Plans 01-03..08 are language-agnostic and unaffected.
+- **Phase 2 is planned in the same session** — after Phase 1 executes and commits, the next plan (`PLAN-v3-phase2-installer-scheduler-cli.md`) will be ready in `plans/queued/`.

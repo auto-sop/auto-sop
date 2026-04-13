@@ -1,0 +1,4 @@
+{"hook_event_name":"UserPromptSubmit","session_id":"s-orphan-a","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","prompt":"This session will crash"}
+{"_scenario_marker":"BREAK_HERE"}
+{"hook_event_name":"UserPromptSubmit","session_id":"s-orphan-b","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>","prompt":"This is the recovery session"}
+{"hook_event_name":"Stop","session_id":"s-orphan-b","transcript_path":"<FIXTURE_TRANSCRIPT>","cwd":"<PROJECT_ROOT>"}
