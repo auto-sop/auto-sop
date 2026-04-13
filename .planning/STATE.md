@@ -10,16 +10,17 @@
 
 ## Current Position
 
-- **Phase:** 0 (Distribution Decision + Foundations) — context captured, ready to plan
-- **Plan:** none
-- **Status:** Phase 0 CONTEXT.md committed; SaaS pivot ripples applied (PROJECT/REQUIREMENTS/ROADMAP); ready for `/gsd:plan-phase 0`
-- **Progress:** `[-------]` 0/7 phases complete
+- **Phase:** 0 COMPLETE ✓ — Distribution ADR + PathResolver + Config + Scrubber + recall gate shipped
+- **Next phase:** 1 (Capture Foundation) — not started
+- **Plan:** none (Phase 0 plan moved to `plans/done/`)
+- **Status:** Ready for `/gsd:discuss-phase 1`
+- **Progress:** `[#------]` 1/7 phases complete
 
 ## Performance Metrics
 
-- Phases complete: 0/7
-- v1 requirements complete: 0/61
-- Sessions: 2 (init+research+roadmap, Phase 0 context + SaaS pivot)
+- Phases complete: 1/7
+- v1 requirements complete: 6/61 (INST-07, INST-08, PRIV-01, PRIV-02, PRIV-03, PRIV-05)
+- Sessions: 3 (init+research+roadmap, Phase 0 context + SaaS pivot, Phase 0 plan+execute)
 
 ## Accumulated Context
 

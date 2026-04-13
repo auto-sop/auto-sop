@@ -7,7 +7,7 @@
 
 ## Phases
 
-- [ ] **Phase 0: Distribution Decision + Foundations** — Resolve hybrid distribution model, build pure-logic foundations (PathResolver, Config, Scrubber) with scrubber passing secret-corpus gate.
+- [x] **Phase 0: Distribution Decision + Foundations** — Resolve hybrid distribution model, build pure-logic foundations (PathResolver, Config, Scrubber) with scrubber passing secret-corpus gate.
 - [ ] **Phase 1: Capture Foundation** — Hook shim, capture writer, and turn-directory store produce scrubbed, finalized captures on disk with <50ms hook latency and fail-open semantics.
 - [ ] **Phase 2: Installer + Scheduler + CLI Skeleton** — First working `npx claude-sop install` wires hooks, registers hourly launchd/systemd scheduler, and exposes inspection/control CLI end-to-end.
 - [ ] **Phase 3: Learner (Offline then `claude` CLI)** — Hourly learner reads captures, runs deterministic detectors with evidence threshold N=3, emits strict-JSON directive proposals, injection-resistant.
