@@ -1,0 +1,13 @@
+# Stripe keys (sk_test_, sk_live_, pk_test_, pk_live_, rk_test_) — all FAKE
+sk_test_FAKE1234567890abcdefghij
+sk_test_FAKEaabbccddee1122334455
+sk_live_FAKE0011223344556677889900
+sk_live_FAKEdeadbeef0123456789abcd
+pk_test_FAKE9876543210zyxwvutsrqpo
+pk_test_FAKEqqwweerrttyyuuiioopp12
+pk_live_FAKEtestkey00112233445566
+pk_live_FAKExyzzy012345678901234567
+rk_test_FAKE111122223333444455556666
+rk_test_FAKElongrktoken98765432abcd
+sk_test_FAKEanother01234567890abcde
+sk_live_FAKEfinal901234567890abcdefg

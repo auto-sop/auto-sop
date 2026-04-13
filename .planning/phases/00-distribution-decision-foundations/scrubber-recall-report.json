@@ -1,0 +1,110 @@
+{
+  "budgets": {
+    "fpr": 0.05,
+    "recall": 0.95
+  },
+  "generatedAt": "stable",
+  "negatives": [
+    {
+      "file": "base64-hashes.txt",
+      "total": 12,
+      "recalled": 0,
+      "falsePositives": 0,
+      "rate": 0
+    },
+    {
+      "file": "git-shas.txt",
+      "total": 12,
+      "recalled": 0,
+      "falsePositives": 0,
+      "rate": 0
+    },
+    {
+      "file": "prose.txt",
+      "total": 12,
+      "recalled": 0,
+      "falsePositives": 0,
+      "rate": 0
+    },
+    {
+      "file": "uuids.txt",
+      "total": 12,
+      "recalled": 0,
+      "falsePositives": 0,
+      "rate": 0
+    }
+  ],
+  "passed": true,
+  "positives": [
+    {
+      "file": "anthropic.txt",
+      "total": 12,
+      "recalled": 12,
+      "falsePositives": 0,
+      "rate": 1
+    },
+    {
+      "file": "aws.txt",
+      "total": 12,
+      "recalled": 12,
+      "falsePositives": 0,
+      "rate": 1
+    },
+    {
+      "file": "env-assignment.txt",
+      "total": 12,
+      "recalled": 12,
+      "falsePositives": 0,
+      "rate": 1
+    },
+    {
+      "file": "github.txt",
+      "total": 12,
+      "recalled": 12,
+      "falsePositives": 0,
+      "rate": 1
+    },
+    {
+      "file": "gitlab.txt",
+      "total": 12,
+      "recalled": 12,
+      "falsePositives": 0,
+      "rate": 1
+    },
+    {
+      "file": "high-entropy-generic.txt",
+      "total": 12,
+      "recalled": 12,
+      "falsePositives": 0,
+      "rate": 1
+    },
+    {
+      "file": "jwt.txt",
+      "total": 12,
+      "recalled": 12,
+      "falsePositives": 0,
+      "rate": 1
+    },
+    {
+      "file": "slack.txt",
+      "total": 12,
+      "recalled": 12,
+      "falsePositives": 0,
+      "rate": 1
+    },
+    {
+      "file": "stripe.txt",
+      "total": 12,
+      "recalled": 12,
+      "falsePositives": 0,
+      "rate": 1
+    }
+  ],
+  "schemaVersion": 1,
+  "totals": {
+    "fpr": 0,
+    "negatives": 48,
+    "positives": 108,
+    "recall": 1
+  }
+}

@@ -1,0 +1,14 @@
+# Base64-encoded short hashes and integrity values — SHOULD NOT be redacted
+# These are low-entropy enough to stay under the threshold
+sha256-AAAAAAAAAA==
+sha384-BBBBBBBBBB==
+sha512-CCCCCCCCCC==
+md5-abc123def456==
+aGVsbG8gd29ybGQ=
+dGVzdGluZw==
+Zm9vYmFy
+YWJjZGVmZw==
+dXNlcm5hbWU6cGFzc3dvcmQ=
+MTIzNDU2Nzg5MA==
+Y2xhdWRlLXNvcA==
+cGxhaW4gdGV4dA==

@@ -1,0 +1,109 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18.17', '20', '22']
+        os: [ubuntu-latest, macos-latest]
+        # windows-latest explicitly excluded — INST-08
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install --ignore-scripts
+      - run: npm run build
+      - run: npm test
+
+  engines-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          node -e "const e = require('./package.json').engines.node; if (e !== '>=18.17') { console.error('engines.node mismatch:', e); process.exit(1); }"
+
+  no-lifecycle-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          node -e "const s = require('./package.json').scripts || {}; const banned = ['postinstall','preinstall','install','prepublish','prepublishOnly']; const found = banned.filter(k => k in s); if (found.length) { console.error('FORBIDDEN lifecycle scripts present:', found); process.exit(1); }"
+
+  windows-refusal-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --ignore-scripts
+      - run: npm run build
+      - name: CLI entry must refuse win32
+        run: |
+          set +e
+          CLAUDE_SOP_FAKE_PLATFORM=win32 node dist/cli.cjs
+          code=$?
+          set -e
+          if [ "$code" = "0" ]; then
+            echo "FAIL: CLI entry did not refuse win32 (exit code 0)"
+            exit 1
+          fi
+          echo "OK: CLI entry refused win32 with exit code $code"
+      - name: Library entry must have NO side effects (import does not exit)
+        run: |
+          CLAUDE_SOP_FAKE_PLATFORM=win32 node -e "require('./dist/index.cjs'); console.log('OK: library import did not exit on win32');"
+
+  baseline-regeneration-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --ignore-scripts
+      - run: npm run extract-rules
+      - name: Committed baseline.generated.ts must match extractor output
+        run: |
+          git diff --exit-code src/scrubber/baseline.generated.ts || {
+            echo "FAIL: src/scrubber/baseline.generated.ts is out of sync with the extractor."
+            echo "Run 'npm run extract-rules' locally and commit the result."
+            exit 1
+          }
+
+  scrubber-recall-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --ignore-scripts
+      - run: npm run build
+      - name: Run recall gate
+        run: npx vitest run test/scrubber/recall.test.ts --reporter=verbose
+      - name: Assert committed report matches latest run
+        run: |
+          git diff --exit-code .planning/phases/00-distribution-decision-foundations/scrubber-recall-report.json || {
+            echo "FAIL: scrubber-recall-report.json is out of sync with the latest run."
+            echo "Run 'npx vitest run test/scrubber/recall.test.ts' locally and commit the report."
+            exit 1
+          }

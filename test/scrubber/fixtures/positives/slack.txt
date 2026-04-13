@@ -1,0 +1,13 @@
+# Slack tokens (xoxb-, xoxp-, xoxa-, xoxr-, xoxs-) — all FAKE
+xoxb-FAKE-1234567890-abcdefghijkl
+xoxb-FAKE-9876543210-mnopqrstuvwx
+xoxp-FAKE-0011223344-aabbccddeeff
+xoxa-FAKE-5566778899-gghhiijjkkll
+xoxr-FAKE-1122334455-mmnnoopp0011
+xoxs-FAKE-6677889900-qqrrssttuuvv
+xoxb-FAKE-deadbeef01-234567890abc
+xoxp-FAKE-testtoken0-1234567890ab
+xoxa-FAKE-anothertkn-9876543210cd
+xoxr-FAKE-longslacktoken-112233445566
+xoxs-FAKE-finalslack-7890abcdef01
+xoxb-FAKE-extratoken-5678901234ab

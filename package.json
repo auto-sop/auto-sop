@@ -1,0 +1,59 @@
+{
+  "name": "claude-sop",
+  "version": "0.0.0",
+  "description": "Claude SOP - Standard Operating Procedures for Claude Code",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "claude-sop": "./dist/cli.cjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "NOTICES.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "extract-rules": "tsx scripts/extract-secretlint-rules.ts",
+    "build": "npm run extract-rules && tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . && prettier --check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^14",
+    "execa": "^9",
+    "nanoid": "^5",
+    "node-machine-id": "^1",
+    "proper-lockfile": "^4",
+    "yaml": "^2.8",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "@secretlint/secretlint-rule-preset-recommend": "^9.3.4",
+    "@types/node": "^20",
+    "@types/proper-lockfile": "^4",
+    "eslint": "^9",
+    "memfs": "^4",
+    "prettier": "^3",
+    "tsup": "^8.5",
+    "tsx": "^4",
+    "typescript": "^5.6",
+    "typescript-eslint": "^8",
+    "vitest": "^4"
+  }
+}

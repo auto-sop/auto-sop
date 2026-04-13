@@ -1,0 +1,14 @@
+# Environment variable assignments (KEY=VALUE) — all FAKE values
+# The scrubber should redact the VALUE while preserving the KEY
+API_KEY=deadbeefdeadbeef0123456789abcdef
+DATABASE_URL=postgres://fakeuser:fakepass123@fake-host.example.com:5432/fakedb
+SECRET_KEY=sk_fake_0123456789abcdefghijklmnop
+AWS_SECRET_ACCESS_KEY=FAKE/wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLE
+REDIS_URL=redis://:fakeredispass@fake-redis.example.com:6379/0
+STRIPE_SECRET=sk_test_FAKE0123456789abcdefghij
+GITHUB_TOKEN=ghp_FAKE0123456789abcdefghijklmnopqrstuv
+MONGODB_URI=mongodb://fakeadmin:fakepass@fake-mongo.example.com:27017/fakedb
+JWT_SECRET=FAKEsupersecretjwtkey0123456789abcdef
+SENDGRID_API_KEY=SG.FAKE0123456789.abcdefghijklmnopqrstuvwxyz012345
+ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
+OAUTH_CLIENT_SECRET=FAKEoauthsecret0123456789abcdefgh

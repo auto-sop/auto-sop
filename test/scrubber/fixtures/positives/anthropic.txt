@@ -1,0 +1,13 @@
+# Anthropic API keys (sk-ant-*) — all FAKE
+sk-ant-api03-FAKE1234567890abcdefghijklmnopqrstuvwxyz
+sk-ant-api03-FAKEabcdefghijklmnopqrstuvwxyz123456
+sk-ant-FAKE0123456789abcdefghij
+sk-ant-api03-FAKE9876543210zyxwvutsrqponmlkjihg
+sk-ant-FAKEdeadbeef0123456789abcdef
+sk-ant-api03-FAKEaabbccddee11223344556677889900aabb
+sk-ant-FAKE1111222233334444555566667777
+sk-ant-api03-FAKEtestkey00112233445566778899aabb
+sk-ant-FAKExyzzy0123456789abcdefghij
+sk-ant-api03-FAKEqqwweerrttyyuuiioopp1234567890
+sk-ant-FAKE-longkey-abcdefghij1234567890xyz
+sk-ant-api03-FAKEshortButValid01234

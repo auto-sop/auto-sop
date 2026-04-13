@@ -1,0 +1,13 @@
+# GitLab personal access tokens (glpat-*) — all FAKE
+glpat-FAKE1234567890abcdefgh
+glpat-FAKEaabbccddee11223344
+glpat-FAKE0011223344556677889900
+glpat-FAKEdeadbeef0123456789ab
+glpat-FAKE9876543210zyxwvuts
+glpat-FAKEqqwweerrttyyuuiiooppaass
+glpat-FAKEtesttoken0011223344
+glpat-FAKExyzzy0123456789abcd
+glpat-FAKE1111222233334444555566
+glpat-FAKElongpattoken9876543210ab
+glpat-FAKEanother01234567890abc
+glpat-FAKEfinalglpat901234567890
