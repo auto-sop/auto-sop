@@ -10,17 +10,17 @@
 
 ## Current Position
 
-- **Phase:** 0 COMPLETE ✓ — Distribution ADR + PathResolver + Config + Scrubber + recall gate shipped
-- **Next phase:** 1 (Capture Foundation) — not started
-- **Plan:** none (Phase 0 plan moved to `plans/done/`)
-- **Status:** Ready for `/gsd:discuss-phase 1`
+- **Phase:** 1 + 2 CONTEXT gathered (joint discussion) — ready for joint planning
+- **Next phase:** 1 (Capture Foundation) — planning next, Phase 2 planned in same pass
+- **Plan:** none yet — `/gsd:plan-phase 1` then `/gsd:plan-phase 2` pending
+- **Status:** Ready for `/gsd:plan-phase 1` (Opus preferred)
 - **Progress:** `[#------]` 1/7 phases complete
 
 ## Performance Metrics
 
 - Phases complete: 1/7
 - v1 requirements complete: 6/61 (INST-07, INST-08, PRIV-01, PRIV-02, PRIV-03, PRIV-05)
-- Sessions: 3 (init+research+roadmap, Phase 0 context + SaaS pivot, Phase 0 plan+execute)
+- Sessions: 4 (init+research+roadmap, Phase 0 context + SaaS pivot, Phase 0 plan+execute, Phase 1+2 joint context)
 
 ## Accumulated Context
 
@@ -48,8 +48,8 @@ None.
 ## Session Continuity
 
 - **Last session:** 2026-04-13T08:36:48.907Z
-- **Next action:** `/gsd:plan-phase 0` to decompose Phase 0 into executable plans
-- **Resume hint:** Start with distribution-model ADR; then PathResolver + Config + Scrubber as pure libs with fixture-driven tests. Config must accommodate encrypted license storage (Phase 6 implements license client).
+- **Next action:** `/gsd:plan-phase 1` (then `/gsd:plan-phase 2`) — both CONTEXT files already written; plan jointly per user request.
+- **Resume hint:** Phase 1 = double-fork detached writer, turn-directory with .pending rename, 30s finalization timeout, bidirectional subagent linking, dev-army namespace detection. Phase 2 = installer (hook merge with order preservation), launchd/systemd via shell wrapper, flat CLI verbs, default-preserve uninstall. Phase 2 planner MUST resolve the plugin-bundle-location ADR open question in research before writing tasks.
 
 ---
 *State initialized: 2026-04-13*
