@@ -113,68 +113,66 @@
 
 ## Traceability
 
-*Populated during roadmap creation.*
-
 | Requirement | Phase | Status |
 |---|---|---|
-| INST-01 | — | Pending |
-| INST-02 | — | Pending |
-| INST-03 | — | Pending |
-| INST-04 | — | Pending |
-| INST-05 | — | Pending |
-| INST-06 | — | Pending |
-| INST-07 | — | Pending |
-| INST-08 | — | Pending |
-| CAPT-01 | — | Pending |
-| CAPT-02 | — | Pending |
-| CAPT-03 | — | Pending |
-| CAPT-04 | — | Pending |
-| CAPT-05 | — | Pending |
-| CAPT-06 | — | Pending |
-| CAPT-07 | — | Pending |
-| CAPT-08 | — | Pending |
-| CAPT-09 | — | Pending |
-| CAPT-10 | — | Pending |
-| PRIV-01 | — | Pending |
-| PRIV-02 | — | Pending |
-| PRIV-03 | — | Pending |
-| PRIV-04 | — | Pending |
-| PRIV-05 | — | Pending |
-| PRIV-06 | — | Pending |
-| PRIV-07 | — | Pending |
-| SCHED-01 | — | Pending |
-| SCHED-02 | — | Pending |
-| SCHED-03 | — | Pending |
-| SCHED-04 | — | Pending |
-| SCHED-05 | — | Pending |
-| LEARN-01 | — | Pending |
-| LEARN-02 | — | Pending |
-| LEARN-03 | — | Pending |
-| LEARN-04 | — | Pending |
-| LEARN-05 | — | Pending |
-| LEARN-06 | — | Pending |
-| LEARN-07 | — | Pending |
-| LEARN-08 | — | Pending |
-| MD-01 | — | Pending |
-| MD-02 | — | Pending |
-| MD-03 | — | Pending |
-| MD-04 | — | Pending |
-| MD-05 | — | Pending |
-| MD-06 | — | Pending |
-| MD-07 | — | Pending |
-| MD-08 | — | Pending |
-| CLI-01 | — | Pending |
-| CLI-02 | — | Pending |
-| CLI-03 | — | Pending |
-| CLI-04 | — | Pending |
-| CLI-05 | — | Pending |
-| CLI-06 | — | Pending |
+| INST-01 | Phase 2 | Pending |
+| INST-02 | Phase 2 | Pending |
+| INST-03 | Phase 2 | Pending |
+| INST-04 | Phase 2 | Pending |
+| INST-05 | Phase 2 | Pending |
+| INST-06 | Phase 2 | Pending |
+| INST-07 | Phase 0 | Pending |
+| INST-08 | Phase 0 | Pending |
+| CAPT-01 | Phase 1 | Pending |
+| CAPT-02 | Phase 1 | Pending |
+| CAPT-03 | Phase 1 | Pending |
+| CAPT-04 | Phase 1 | Pending |
+| CAPT-05 | Phase 1 | Pending |
+| CAPT-06 | Phase 1 | Pending |
+| CAPT-07 | Phase 1 | Pending |
+| CAPT-08 | Phase 1 | Pending |
+| CAPT-09 | Phase 1 | Pending |
+| CAPT-10 | Phase 1 | Pending |
+| PRIV-01 | Phase 0 | Pending |
+| PRIV-02 | Phase 0 | Pending |
+| PRIV-03 | Phase 0 | Pending |
+| PRIV-04 | Phase 1 | Pending |
+| PRIV-05 | Phase 0 | Pending |
+| PRIV-06 | Phase 2 | Pending |
+| PRIV-07 | Phase 1 | Pending |
+| SCHED-01 | Phase 2 | Pending |
+| SCHED-02 | Phase 2 | Pending |
+| SCHED-03 | Phase 2 | Pending |
+| SCHED-04 | Phase 2 | Pending |
+| SCHED-05 | Phase 2 | Pending |
+| LEARN-01 | Phase 3 | Pending |
+| LEARN-02 | Phase 3 | Pending |
+| LEARN-03 | Phase 3 | Pending |
+| LEARN-04 | Phase 3 | Pending |
+| LEARN-05 | Phase 3 | Pending |
+| LEARN-06 | Phase 3 | Pending |
+| LEARN-07 | Phase 3 | Pending |
+| LEARN-08 | Phase 3 | Pending |
+| MD-01 | Phase 4 | Pending |
+| MD-02 | Phase 4 | Pending |
+| MD-03 | Phase 4 | Pending |
+| MD-04 | Phase 4 | Pending |
+| MD-05 | Phase 4 | Pending |
+| MD-06 | Phase 4 | Pending |
+| MD-07 | Phase 4 | Pending |
+| MD-08 | Phase 4 | Pending |
+| CLI-01 | Phase 2 | Pending |
+| CLI-02 | Phase 5 | Pending |
+| CLI-03 | Phase 5 | Pending |
+| CLI-04 | Phase 2 | Pending |
+| CLI-05 | Phase 2 | Pending |
+| CLI-06 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 51 total
-- Mapped to phases: 0 (populated by roadmapper)
-- Unmapped: 51 ⚠️ (expected — roadmap pending)
+- Mapped to phases: 51
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-13*
-*Last updated: 2026-04-13 after initial definition*
+*Traceability populated: 2026-04-13 after roadmap creation*
