@@ -10,23 +10,26 @@
 
 ## Current Position
 
-- **Phase:** 0 (Distribution Decision + Foundations) — not started
+- **Phase:** 0 (Distribution Decision + Foundations) — context captured, ready to plan
 - **Plan:** none
-- **Status:** Roadmap created; ready for `/gsd:plan-phase 0`
-- **Progress:** `[------]` 0/6 phases complete
+- **Status:** Phase 0 CONTEXT.md committed; SaaS pivot ripples applied (PROJECT/REQUIREMENTS/ROADMAP); ready for `/gsd:plan-phase 0`
+- **Progress:** `[-------]` 0/7 phases complete
 
 ## Performance Metrics
 
-- Phases complete: 0/6
-- v1 requirements complete: 0/51
-- Sessions: 1 (initialization + research + roadmap)
+- Phases complete: 0/7
+- v1 requirements complete: 0/61
+- Sessions: 2 (init+research+roadmap, Phase 0 context + SaaS pivot)
 
 ## Accumulated Context
 
 ### Key Decisions
 
-- Hybrid distribution model (npm CLI + Claude Code plugin bundle + OS scheduler) — to be formalized as ADR in Phase 0.
-- 6-phase decomposition derived from natural requirement clusters and research ordering constraints.
+- Hybrid distribution model (npm CLI + Claude Code Marketplace plugin entry) — to be formalized as ADR in Phase 0.
+- 7-phase decomposition (Phase 6 added for License & Distribution Security after SaaS pivot).
+- Commercial SaaS freemium: 14-day trial → subscription via license API key; test key `123`.
+- Anti-RE defense layers 1+2+3 accepted (obfuscation + Node SEA binary + ed25519-signed responses); layers 4+5 rejected.
+- Network egress policy: zero except license validation.
 - Scrubber is a Phase 0 gating deliverable — must work before any capture write path exists.
 - ManagedSectionEditor isolated as its own phase (one bug = permanent trust loss).
 
@@ -43,9 +46,9 @@ None.
 
 ## Session Continuity
 
-- **Last session:** Initialization → Research → Requirements → Roadmap (2026-04-13)
+- **Last session:** Phase 0 discuss → SaaS pivot → CONTEXT.md + cascading updates (2026-04-13)
 - **Next action:** `/gsd:plan-phase 0` to decompose Phase 0 into executable plans
-- **Resume hint:** Start with distribution-model ADR; then PathResolver + Config + Scrubber as pure libs with fixture-driven tests.
+- **Resume hint:** Start with distribution-model ADR; then PathResolver + Config + Scrubber as pure libs with fixture-driven tests. Config must accommodate encrypted license storage (Phase 6 implements license client).
 
 ---
 *State initialized: 2026-04-13*

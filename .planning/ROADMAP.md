@@ -2,8 +2,8 @@
 
 **Created:** 2026-04-13
 **Depth:** standard
-**Phases:** 6
-**Coverage:** 51/51 v1 requirements mapped
+**Phases:** 7
+**Coverage:** 61/61 v1 requirements mapped
 
 ## Phases
 
@@ -13,6 +13,7 @@
 - [ ] **Phase 3: Learner (Offline then `claude` CLI)** — Hourly learner reads captures, runs deterministic detectors with evidence threshold N=3, emits strict-JSON directive proposals, injection-resistant.
 - [ ] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware writer appends learner directives to CLAUDE.md managed section without ever clobbering user edits; revertible.
 - [ ] **Phase 5: Inspection CLI + Packaging Hardening** — `recent`/`show` inspection commands land; publish-ready packaging (provenance, publint, attw, CC version matrix, docs, "looks-done" checklist).
+- [ ] **Phase 6: License & Distribution Security** — License client with ed25519-signed responses, trial countdown, subscription gate, offline grace, obfuscated build pipeline, Node SEA binary compile.
 
 ## Phase Details
 
@@ -43,7 +44,7 @@
 ### Phase 2: Installer + Scheduler + CLI Skeleton
 **Goal:** A user running `npx claude-sop install` in a project gets hooks wired, an hourly OS scheduler registered, a gitignored capture dir, an empty managed section in CLAUDE.md, and a working CLI for status/health/pause — all idempotent, all cleanly uninstallable.
 **Depends on:** Phase 1 (installer wires Phase 1 hooks; CLI reads Phase 1 captures)
-**Requirements:** INST-01, INST-02, INST-03, INST-04, INST-05, INST-06, SCHED-01, SCHED-02, SCHED-03, SCHED-04, SCHED-05, PRIV-06, CLI-01, CLI-04, CLI-05, CLI-06
+**Requirements:** INST-01, INST-02, INST-03, INST-04, INST-05, INST-06, SCHED-01, SCHED-02, SCHED-03, SCHED-04, SCHED-05, PRIV-06, CLI-01, CLI-04, CLI-05, CLI-06, LIC-01, LIC-02
 **Success Criteria** (what must be TRUE):
   1. User runs `npx claude-sop install` in a fresh project and afterwards: hooks are live in the project's Claude Code configuration (non-destructively merged with any existing hooks), `.claude-sop/` is in `.gitignore`, and `CLAUDE.md` contains empty `<!-- claude-sop:begin -->` / `<!-- claude-sop:end -->` markers.
   2. Running `npx claude-sop install` a second time is a no-op: no duplicate hooks, no duplicate scheduler units, no duplicate managed-section markers.
@@ -88,6 +89,18 @@
   5. A "looks-done-but-isn't" release checklist (≥20 items: no postinstall, no network egress, hook latency budget, scrubber recall, idempotency, reboot survival, etc.) is enforced in CI before a tag can be published.
 **Plans:** TBD
 
+### Phase 6: License & Distribution Security
+**Goal:** Turn the plugin into a commercial SaaS freemium product — license API key collection, signed backend validation, trial countdown, offline grace, and anti-reverse-engineering defense layers — without breaking the local-first feel.
+**Depends on:** Phase 5 (hardens the publishable package shape)
+**Requirements:** LIC-03, LIC-04, LIC-05, LIC-06, LIC-07, LIC-08, LIC-09, LIC-10
+**Success Criteria** (what must be TRUE):
+  1. License client calls the SaaS validation endpoint, verifies every response with an embedded ed25519 public key, and refuses to accept unsigned/invalid responses (fixture suite proves spoofed responses are rejected).
+  2. Trial countdown is driven by a tamper-resistant install timestamp in `secrets.enc`; expired trial without subscription blocks capture and learner (but not `uninstall`) with a clear subscribe URL.
+  3. Offline grace period (default 7 days) lets trial and paid users operate fully offline between validations; license check is infrequent and never blocks capture hot path.
+  4. Build pipeline produces a single obfuscated binary via Node SEA (`javascript-obfuscator` + `--experimental-sea-config`), with no source maps and `pkg`/`nexe` as documented fallback; published artifact is the binary, not raw JS.
+  5. `status` command shows license state (trial days remaining, subscription status, last validation, offline grace remaining); Layer 4 (runtime integrity) and Layer 5 (server-side critical logic) are documented as rejected with written rationale.
+**Plans:** TBD
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -98,11 +111,12 @@
 | 3. Learner | 0/0 | Not started | - |
 | 4. ManagedSectionEditor | 0/0 | Not started | - |
 | 5. Inspection CLI + Packaging Hardening | 0/0 | Not started | - |
+| 6. License & Distribution Security | 0/0 | Not started | - |
 
 ## Coverage Validation
 
-- v1 requirements total: 51
-- Mapped: 51
+- v1 requirements total: 61
+- Mapped: 61
 - Orphans: 0
 - Duplicates: 0
 
@@ -110,10 +124,11 @@
 |---|---|---|
 | 0 | 6 | INST-07, INST-08, PRIV-01, PRIV-02, PRIV-03, PRIV-05 |
 | 1 | 12 | CAPT-01..10, PRIV-04, PRIV-07 |
-| 2 | 16 | INST-01..06, SCHED-01..05, PRIV-06, CLI-01, CLI-04, CLI-05, CLI-06 |
+| 2 | 18 | INST-01..06, SCHED-01..05, PRIV-06, CLI-01, CLI-04, CLI-05, CLI-06, LIC-01, LIC-02 |
 | 3 | 8 | LEARN-01..08 |
 | 4 | 8 | MD-01..08 |
 | 5 | 2 | CLI-02, CLI-03 |
+| 6 | 8 | LIC-03..10 |
 
 ---
 *Roadmap created: 2026-04-13*

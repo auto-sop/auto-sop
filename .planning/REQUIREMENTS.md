@@ -7,7 +7,7 @@
 
 ### Install / Distribution
 
-- [ ] **INST-01**: User can install claude-sop into a project by running `npx claude-sop install` from the project root
+- [ ] **INST-01**: User can install claude-sop into a project by running `npx claude-sop install` from the project root; install prompts for a license API key and starts the 14-day trial timer
 - [ ] **INST-02**: Install is idempotent — running `npx claude-sop install` twice does not duplicate hooks, schedulers, or CLAUDE.md managed sections
 - [ ] **INST-03**: Install wires Claude Code hooks without destructively stomping existing user hooks or other plugin hooks
 - [ ] **INST-04**: Install auto-appends `.claude-sop/` to the project `.gitignore` (creates the file if missing) so captures are never committed
@@ -74,6 +74,19 @@
 - [ ] **CLI-04**: `npx claude-sop doctor` runs a health check: hook wiring correct, scheduler installed, CLAUDE.md markers present, scrubber rules loadable, disk space available
 - [ ] **CLI-05**: `npx claude-sop pause` temporarily disables capture+learner without uninstalling; `npx claude-sop resume` re-enables
 - [ ] **CLI-06**: All commands return non-zero exit codes on failure and print actionable error messages
+
+### License / Distribution Security
+
+- [ ] **LIC-01**: `install` prompts for a license API key and stores it encrypted in `~/.claude-sop/secrets.enc` (machine-id-derived key)
+- [ ] **LIC-02**: First install records a tamper-resistant trial-start timestamp inside `secrets.enc`; 14-day countdown runs locally against it
+- [ ] **LIC-03**: License validation calls the SaaS backend over HTTPS; this is the ONLY network egress from the plugin itself
+- [ ] **LIC-04**: Every license-validation response from the backend is ed25519-signed; the client has the public key compiled into the binary and refuses unsigned/invalid responses
+- [ ] **LIC-05**: Trial and paid users get an offline grace period (N days, default 7) during which no re-validation is required — the tool remains fully operational offline
+- [ ] **LIC-06**: Expired trial without valid subscription blocks capture and learner runs with a clear CLI message pointing to the subscribe URL; `uninstall` still works
+- [ ] **LIC-07**: Published artifact is a single executable produced via Node SEA (`node --experimental-sea-config`), with `pkg`/`nexe` as fallback — no raw JS exposed in `node_modules/.bin/`
+- [ ] **LIC-08**: Build pipeline runs `javascript-obfuscator` on the bundle (variable renaming, control-flow flattening, string array encoding); production builds ship with no source maps
+- [ ] **LIC-09**: Runtime integrity/tamper-detection (Layer 4) and server-side critical logic (Layer 5) are explicitly NOT implemented in v1 — documented rejection with rationale
+- [ ] **LIC-10**: `status` command reports license state: trial days remaining, subscription state, last successful validation, offline grace remaining
 
 ## v2 Requirements
 
@@ -167,10 +180,20 @@
 | CLI-04 | Phase 2 | Pending |
 | CLI-05 | Phase 2 | Pending |
 | CLI-06 | Phase 2 | Pending |
+| LIC-01 | Phase 2 | Pending |
+| LIC-02 | Phase 2 | Pending |
+| LIC-03 | Phase 6 | Pending |
+| LIC-04 | Phase 6 | Pending |
+| LIC-05 | Phase 6 | Pending |
+| LIC-06 | Phase 6 | Pending |
+| LIC-07 | Phase 6 | Pending |
+| LIC-08 | Phase 6 | Pending |
+| LIC-09 | Phase 6 | Pending |
+| LIC-10 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 51 total
-- Mapped to phases: 51
+- v1 requirements: 61 total
+- Mapped to phases: 61
 - Unmapped: 0
 
 ---

@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Claude Code plugin, distributed via `npx claude-sop install`, that captures every agent and subagent interaction in a project (user prompts, assistant responses, subagent Task I/O, and all tool calls with their inputs and outputs) and uses an hourly background learner to detect recurring mistakes and automatically append corrective directives to the project's `CLAUDE.md`. Built for any Claude Code user who wants their agents to stop repeating the same mistakes.
+A **commercial SaaS freemium product** for Claude Code developers, distributed via `npx claude-sop install` (pure npm CLI) AND as a Claude Code Marketplace plugin entry. It captures every agent and subagent interaction in a project (user prompts, assistant responses, subagent Task I/O, and all tool calls with their inputs and outputs) and uses an hourly background learner to detect recurring mistakes and automatically append corrective directives to the project's `CLAUDE.md`. 14-day free trial, then subscription-gated via license API key. Built for any Claude Code user who wants their agents to stop repeating the same mistakes.
 
 ## Core Value
 
@@ -34,7 +34,7 @@ Claude Code never makes the same mistake twice — captured history becomes enfo
 
 - Sending captures to a hosted cloud service — privacy-first, everything stays local
 - Real-time mistake detection during a running session — hourly batch is sufficient
-- Multi-user team sharing of learned directives — single-developer scope for v1
+- Multi-user team sharing of learned directives — single-developer license scope for v1 (commercial SaaS is per-seat freemium)
 - Automatic fixing of source code — learner only writes to CLAUDE.md; fixes are for the agents to apply on next run
 - Windows-native support in v1 — macOS and Linux only (Windows via WSL)
 - GUI/dashboard — CLI + `/sop:status` slash command only
@@ -52,7 +52,9 @@ Claude Code never makes the same mistake twice — captured history becomes enfo
 
 - **Tech stack**: Node.js (plugin is an npm package); must run on macOS and Linux without additional runtimes beyond Node 18+
 - **Auth**: Learner must work with the user's existing Claude Code CLI login — no API key required in the default path
-- **Privacy**: Zero network calls except what the `claude` CLI itself makes; captures never leave the machine
+- **Privacy**: Zero network egress except license validation to the SaaS backend; captures never leave the machine
+- **Licensing**: Requires license API key collected during `install` (test key `123` in dev); 14-day trial → subscription; offline grace period so the tool still feels local-first
+- **Anti-reverse-engineering**: Shipped as obfuscated + Node SEA binary + ed25519-signed server responses (defense layers 1+2+3)
 - **Compatibility**: Must coexist with existing `settings.json` hooks configured by the user or other plugins — merge, don't clobber
 - **Scheduler**: No user-facing cron editing; plugin manages its own launchd/systemd unit transparently
 - **Distribution**: Single `npx claude-sop install` command does full setup; uninstall must be equally clean
