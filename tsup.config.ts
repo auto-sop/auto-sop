@@ -44,7 +44,7 @@ export default defineConfig([
       return { js: '.cjs' };
     },
   },
-  // Capture writer: detached grandchild entrypoint (FROZEN after plan 01-03)
+  // Capture writer: detached grandchild entrypoint — ALL runtime deps bundled (no ancestor node_modules in installed bundle)
   {
     entry: { 'capture/writer': 'src/capture/writer/main.ts' },
     format: ['cjs'],
@@ -53,7 +53,7 @@ export default defineConfig([
     target: 'node18',
     bundle: true,
     minify: true,
-    noExternal: ['nanoid', 'execa'],
+    noExternal: [/.*/],
     outExtension() {
       return { js: '.cjs' };
     },

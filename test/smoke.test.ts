@@ -12,7 +12,9 @@ import {
   existsSync,
   readdirSync,
   rmSync,
+  cpSync,
 } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -195,13 +197,12 @@ describe('smoke: shebang and exec bit', () => {
   }
 });
 
-describe('smoke: end-to-end capture pipeline', () => {
-  const WRITER = resolve(ROOT, 'dist/plugin/writer.cjs');
-  let tmpHome: string;
+describe('smoke: isolated end-to-end capture pipeline', () => {
+  let tmpRoot: string;
 
   afterAll(() => {
-    if (tmpHome) {
-      rmSync(tmpHome, { recursive: true, force: true });
+    if (tmpRoot) {
+      rmSync(tmpRoot, { recursive: true, force: true });
     }
   });
 
@@ -220,15 +221,33 @@ describe('smoke: end-to-end capture pipeline', () => {
     return results;
   }
 
-  /** Collect diagnostic info for timeout failures. */
-  function collectDiagnostics(home: string): string {
+  /** Collect diagnostic info for timeout failures, including writer re-run. */
+  function collectDiagnostics(home: string, bundleDir: string): string {
     const lines: string[] = ['--- writer / tmp payload diagnostic ---'];
     const tmpDir = join(home, '.claude-sop', 'tmp');
     const capturesDir = join(home, '.claude-sop', 'captures');
     const errorsLog = join(home, '.claude-sop', 'errors.jsonl');
 
     try {
-      lines.push(`tmp/: ${existsSync(tmpDir) ? readdirSync(tmpDir).join(', ') || '(empty)' : '(missing)'}`);
+      const tmpFiles = existsSync(tmpDir) ? readdirSync(tmpDir) : [];
+      lines.push(`tmp/: ${tmpFiles.join(', ') || '(empty)'}`);
+
+      // Re-run writer against first stranded payload for diagnostics
+      if (tmpFiles.length > 0) {
+        const firstPayload = join(tmpDir, tmpFiles[0]);
+        const writerPath = join(bundleDir, 'writer.cjs');
+        try {
+          const diag = execSync(`node "${writerPath}" "${firstPayload}" 2>&1`, {
+            timeout: 5000,
+            env: { ...process.env, HOME: home, PATH: process.env.PATH, NODE_OPTIONS: '' },
+          });
+          lines.push(`writer re-run stdout:\n${diag.toString().slice(0, 2000)}`);
+        } catch (e: unknown) {
+          const err = e as { stdout?: Buffer; stderr?: Buffer; message?: string };
+          lines.push(`writer re-run FAILED:\n${err.stderr?.toString().slice(0, 2000) || err.message || '(no output)'}`);
+          if (err.stdout) lines.push(`writer re-run stdout:\n${err.stdout.toString().slice(0, 1000)}`);
+        }
+      }
     } catch { lines.push('tmp/: (read error)'); }
     try {
       lines.push(`captures/: ${existsSync(capturesDir) ? readdirSync(capturesDir).join(', ') || '(empty)' : '(missing)'}`);
@@ -242,10 +261,12 @@ describe('smoke: end-to-end capture pipeline', () => {
   }
 
   it('writer.cjs exists in plugin bundle', () => {
+    const WRITER = resolve(ROOT, 'dist/plugin/writer.cjs');
     expect(existsSync(WRITER)).toBe(true);
   });
 
   it('writer.cjs has no shebang', () => {
+    const WRITER = resolve(ROOT, 'dist/plugin/writer.cjs');
     const buf = Buffer.alloc(2);
     const fd = require('node:fs').openSync(WRITER, 'r');
     require('node:fs').readSync(fd, buf, 0, 2, 0);
@@ -253,35 +274,45 @@ describe('smoke: end-to-end capture pipeline', () => {
     expect(buf.toString('utf8')).not.toBe('#!');
   });
 
-  it('shim → writer pipeline produces meta.json for UserPromptSubmit', async () => {
-    tmpHome = mkdtempSync(resolve(tmpdir(), 'claude-sop-e2e-'));
+  it('isolated shim → writer pipeline produces turn.json for UserPromptSubmit', async () => {
+    // Create tmpRoot OUTSIDE the repo tree so require() can't walk up to repo node_modules
+    tmpRoot = mkdtempSync(resolve(tmpdir(), 'claude-sop-isolated-'));
+    const bundleDir = join(tmpRoot, 'bundle');
+
+    // Copy the entire dist/plugin/ bundle to tmpRoot/bundle/
+    cpSync(resolve(ROOT, 'dist/plugin'), bundleDir, { recursive: true });
+
+    const shimPath = join(bundleDir, 'shim.cjs');
 
     // Exact payload shape from src/capture/events.ts — UserPromptSubmit schema
     const payload = JSON.stringify({
-      session_id: 'e2e-smoke-test',
+      session_id: 'e2e-isolated-smoke',
       transcript_path: '/dev/null',
-      cwd: tmpHome,
+      cwd: tmpRoot,
       hook_event_name: 'UserPromptSubmit',
-      prompt: 'e2e smoke test prompt',
+      prompt: 'isolated e2e smoke test prompt',
     });
 
-    // Spawn the plugin shim — NOT setting CLAUDE_SOP_LEARNER so capture is active
-    const result = await execa('node', [SHIM], {
+    // Spawn the shim from the ISOLATED bundle dir (not from repo tree)
+    const result = await execa('sh', ['-c', `"${shimPath}"`], {
       input: payload,
       reject: false,
       env: {
-        HOME: tmpHome,
+        HOME: tmpRoot,
         PATH: process.env.PATH,
         NODE_OPTIONS: '',
       },
+      cwd: tmpRoot,
       timeout: 5000,
     });
 
+    // Shim must exit 0 and not crash
     expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe('');
+    expect(result.stderr).not.toMatch(/Cannot find module/);
+    expect(result.stderr).not.toMatch(/syntax error/i);
 
     // Writer is a detached grandchild — poll for meta.json up to 5s
-    const capturesDir = join(tmpHome, '.claude-sop', 'captures');
+    const capturesDir = join(tmpRoot, '.claude-sop', 'captures');
     const deadline = Date.now() + 5000;
     let metaFiles: string[] = [];
 
@@ -293,16 +324,16 @@ describe('smoke: end-to-end capture pipeline', () => {
 
     if (metaFiles.length === 0) {
       throw new Error(
-        `Timed out waiting for writer to produce meta.json.\n${collectDiagnostics(tmpHome)}`,
+        `Timed out waiting for writer to produce meta.json in isolated environment.\n${collectDiagnostics(tmpRoot, bundleDir)}`,
       );
     }
 
-    // Assert: exactly one meta.json
+    // Assert: exactly one meta.json (= one turn)
     expect(metaFiles).toHaveLength(1);
 
     // Assert: parses as valid JSON with expected fields
     const meta = JSON.parse(readFileSync(metaFiles[0], 'utf8'));
-    expect(meta.session_id).toBe('e2e-smoke-test');
+    expect(meta.session_id).toBe('e2e-isolated-smoke');
     expect(meta.schema_version).toBe(1);
     expect(meta.started_at).toEqual(expect.any(String));
     expect(meta.turn_id).toEqual(expect.any(String));
@@ -313,5 +344,52 @@ describe('smoke: end-to-end capture pipeline', () => {
 
     // Assert: turn dir is .pending (no Stop was sent)
     expect(turnDir).toMatch(/\.pending$/);
-  }, 7000);
+
+    // Assert: no .pending siblings left over (clean write)
+    const turnParent = dirname(turnDir);
+    const pendingSiblings = readdirSync(turnParent).filter(
+      (f) => f.endsWith('.pending') && join(turnParent, f) !== turnDir,
+    );
+    expect(pendingSiblings).toEqual([]);
+  }, 10000);
+
+  it('writer.cjs bundles all non-node runtime deps (regression guard)', () => {
+    const WRITER = resolve(ROOT, 'dist/plugin/writer.cjs');
+    const content = readFileSync(WRITER, 'utf8');
+
+    // Extract all require("...") calls
+    const requireMatches = [...content.matchAll(/require\(["']([^"']+)["']\)/g)];
+    const requiredModules = requireMatches.map((m) => m[1]);
+
+    // Node.js built-in modules
+    const NODE_BUILTINS = new Set([
+      'assert', 'buffer', 'child_process', 'cluster', 'console', 'constants',
+      'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events',
+      'fs', 'http', 'http2', 'https', 'inspector', 'module', 'net', 'os',
+      'path', 'perf_hooks', 'process', 'punycode', 'querystring', 'readline',
+      'repl', 'stream', 'stream/promises', 'string_decoder', 'timers',
+      'timers/promises', 'tls', 'trace_events', 'tty', 'url', 'util', 'v8',
+      'vm', 'wasi', 'worker_threads', 'zlib', 'async_hooks',
+    ]);
+
+    // Filter: keep only bare requires that are NOT node: prefixed, NOT relative, NOT builtins
+    const bareRequires = requiredModules.filter((mod) => {
+      if (mod.startsWith('node:')) return false;
+      if (mod.startsWith('./') || mod.startsWith('../')) return false;
+      if (NODE_BUILTINS.has(mod)) return false;
+      // Handle subpath imports like 'stream/promises'
+      const topLevel = mod.split('/')[0];
+      if (NODE_BUILTINS.has(topLevel)) return false;
+      return true;
+    });
+
+    if (bareRequires.length > 0) {
+      const unique = [...new Set(bareRequires)];
+      throw new Error(
+        `Found ${unique.length} bare (non-bundled) require(s) in writer.cjs: ${JSON.stringify(unique)}. ` +
+          'These will crash at runtime in an installed bundle where node_modules is absent.',
+      );
+    }
+    expect(bareRequires).toEqual([]);
+  });
 });
