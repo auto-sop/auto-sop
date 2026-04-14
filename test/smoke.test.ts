@@ -5,12 +5,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import { execa } from 'execa';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { mkdtempSync } from 'node:fs';
+import { readFileSync, mkdtempSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(import.meta.dirname, '..');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = resolve(ROOT, 'dist/cli.js');
 const SHIM = resolve(ROOT, 'dist/plugin/shim.cjs');
 const HOOKS = resolve(ROOT, 'dist/plugin/hooks/hooks.json');
@@ -74,5 +74,39 @@ describe('smoke: plugin bundle artifacts', () => {
     expect(events).toContain('PreToolUse');
     expect(events).toContain('PostToolUse');
     expect(events).toHaveLength(5);
+  });
+
+  it('marketplace.json exists, parses, and has correct schema', () => {
+    const mp = resolve(ROOT, 'dist/plugin/.claude-plugin/marketplace.json');
+    const raw = readFileSync(mp, 'utf8');
+    const parsed = JSON.parse(raw);
+    expect(parsed.name).toBe('claude-sop');
+    expect(parsed.owner.name).toEqual(expect.any(String));
+    expect(parsed.owner.name.length).toBeGreaterThan(0);
+    expect(Array.isArray(parsed.plugins)).toBe(true);
+    expect(parsed.plugins.length).toBeGreaterThan(0);
+    expect(parsed.plugins[0].name).toBe('claude-sop');
+  });
+
+  it('plugin.json exists, parses, and name is claude-sop', () => {
+    const pj = resolve(ROOT, 'dist/plugin/.claude-plugin/plugin.json');
+    const raw = readFileSync(pj, 'utf8');
+    const parsed = JSON.parse(raw);
+    expect(parsed.name).toBe('claude-sop');
+  });
+});
+
+describe('smoke: learner stub', () => {
+  it('learner.cjs exits 0 in under 500ms', async () => {
+    const learner = resolve(ROOT, 'dist/plugin/learner.cjs');
+    const start = Date.now();
+    const result = await execa('node', [learner], {
+      reject: false,
+      env: { HOME: mkdtempSync(resolve(tmpdir(), 'learner-smoke-')) },
+      timeout: 5000,
+    });
+    const elapsed = Date.now() - start;
+    expect(result.exitCode).toBe(0);
+    expect(elapsed).toBeLessThan(500);
   });
 });

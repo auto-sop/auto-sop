@@ -72,4 +72,18 @@ export default defineConfig([
       return { js: '.cjs' };
     },
   },
+  // Learner stub: fail-open tick logger for dist/plugin/
+  {
+    entry: { 'plugin/learner': 'src/learner/stub.ts' },
+    format: ['cjs'],
+    sourcemap: false,
+    clean: false,
+    target: 'node18',
+    bundle: true,
+    minify: true,
+    treeshake: true,
+    outExtension() {
+      return { js: '.cjs' };
+    },
+  },
 ]);
