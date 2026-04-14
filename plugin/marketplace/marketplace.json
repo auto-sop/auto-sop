@@ -1,0 +1,12 @@
+{
+  "name": "claude-sop",
+  "plugins": [
+    {
+      "name": "claude-sop",
+      "source": {
+        "source": "directory",
+        "path": "."
+      }
+    }
+  ]
+}

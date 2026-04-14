@@ -57,4 +57,19 @@ export default defineConfig([
       return { js: '.cjs' };
     },
   },
+  // Plugin shim: bundled copy for dist/plugin/ (same source as capture/shim)
+  {
+    entry: { 'plugin/shim': 'src/capture/shim/main.ts' },
+    format: ['cjs'],
+    sourcemap: false,
+    clean: false,
+    target: 'node18',
+    bundle: true,
+    minify: true,
+    treeshake: true,
+    noExternal: ['nanoid'],
+    outExtension() {
+      return { js: '.cjs' };
+    },
+  },
 ]);

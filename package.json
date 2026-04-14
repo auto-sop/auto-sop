@@ -14,7 +14,7 @@
     }
   },
   "bin": {
-    "claude-sop": "./dist/cli.cjs"
+    "claude-sop": "./dist/cli.js"
   },
   "files": [
     "dist",
@@ -28,7 +28,9 @@
   "scripts": {
     "extract-rules": "tsx scripts/extract-secretlint-rules.ts",
     "build": "npm run extract-rules && tsup",
+    "postbuild": "mkdir -p dist/plugin && cp -R plugin/. dist/plugin/ && chmod +x dist/plugin/shim.cjs",
     "test": "vitest run",
+    "test:smoke": "npm run build && vitest run test/smoke.test.ts",
     "test:watch": "vitest",
     "lint": "eslint . && prettier --check .",
     "typecheck": "tsc --noEmit",
