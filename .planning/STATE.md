@@ -10,11 +10,11 @@
 
 ## Current Position
 
-- **Phase:** 1 + 2 CONTEXT gathered (joint discussion) — ready for joint planning
-- **Next phase:** 1 (Capture Foundation) — planning next, Phase 2 planned in same pass
-- **Plan:** none yet — `/gsd:plan-phase 1` then `/gsd:plan-phase 2` pending
-- **Status:** Ready for `/gsd:plan-phase 1` (Opus preferred)
-- **Progress:** `[#------]` 1/7 phases complete
+- **Phase:** 1 COMPLETE ✓ — hook shim + detached writer + turn-directory capture store shipped
+- **Next phase:** 2 (Installer + Scheduler + CLI Skeleton) — plan in flight with Commander
+- **Plan:** PLAN-v3-phase2-installer-scheduler-cli.md dispatched
+- **Status:** Phase 2 executing
+- **Progress:** `[##-----]` 2/7 phases complete
 
 ## Performance Metrics
 
