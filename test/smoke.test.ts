@@ -3,10 +3,17 @@
  * Requires `npm run build` to have been run first.
  * Invoked via: npm run test:smoke
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterAll } from 'vitest';
 import { execa } from 'execa';
-import { readFileSync, mkdtempSync, statSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import {
+  readFileSync,
+  mkdtempSync,
+  statSync,
+  existsSync,
+  readdirSync,
+  rmSync,
+} from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -186,4 +193,125 @@ describe('smoke: shebang and exec bit', () => {
       expect(st.mode & 0o111).not.toBe(0);
     });
   }
+});
+
+describe('smoke: end-to-end capture pipeline', () => {
+  const WRITER = resolve(ROOT, 'dist/plugin/writer.cjs');
+  let tmpHome: string;
+
+  afterAll(() => {
+    if (tmpHome) {
+      rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
+
+  /** Recursively find all files matching a name under a directory. */
+  function findFiles(dir: string, name: string): string[] {
+    const results: string[] = [];
+    if (!existsSync(dir)) return results;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        results.push(...findFiles(full, name));
+      } else if (entry.name === name) {
+        results.push(full);
+      }
+    }
+    return results;
+  }
+
+  /** Collect diagnostic info for timeout failures. */
+  function collectDiagnostics(home: string): string {
+    const lines: string[] = ['--- writer / tmp payload diagnostic ---'];
+    const tmpDir = join(home, '.claude-sop', 'tmp');
+    const capturesDir = join(home, '.claude-sop', 'captures');
+    const errorsLog = join(home, '.claude-sop', 'errors.jsonl');
+
+    try {
+      lines.push(`tmp/: ${existsSync(tmpDir) ? readdirSync(tmpDir).join(', ') || '(empty)' : '(missing)'}`);
+    } catch { lines.push('tmp/: (read error)'); }
+    try {
+      lines.push(`captures/: ${existsSync(capturesDir) ? readdirSync(capturesDir).join(', ') || '(empty)' : '(missing)'}`);
+    } catch { lines.push('captures/: (read error)'); }
+    try {
+      if (existsSync(errorsLog)) {
+        lines.push(`errors.jsonl:\n${readFileSync(errorsLog, 'utf8').slice(0, 2000)}`);
+      }
+    } catch { /* ignore */ }
+    return lines.join('\n');
+  }
+
+  it('writer.cjs exists in plugin bundle', () => {
+    expect(existsSync(WRITER)).toBe(true);
+  });
+
+  it('writer.cjs has no shebang', () => {
+    const buf = Buffer.alloc(2);
+    const fd = require('node:fs').openSync(WRITER, 'r');
+    require('node:fs').readSync(fd, buf, 0, 2, 0);
+    require('node:fs').closeSync(fd);
+    expect(buf.toString('utf8')).not.toBe('#!');
+  });
+
+  it('shim → writer pipeline produces meta.json for UserPromptSubmit', async () => {
+    tmpHome = mkdtempSync(resolve(tmpdir(), 'claude-sop-e2e-'));
+
+    // Exact payload shape from src/capture/events.ts — UserPromptSubmit schema
+    const payload = JSON.stringify({
+      session_id: 'e2e-smoke-test',
+      transcript_path: '/dev/null',
+      cwd: tmpHome,
+      hook_event_name: 'UserPromptSubmit',
+      prompt: 'e2e smoke test prompt',
+    });
+
+    // Spawn the plugin shim — NOT setting CLAUDE_SOP_LEARNER so capture is active
+    const result = await execa('node', [SHIM], {
+      input: payload,
+      reject: false,
+      env: {
+        HOME: tmpHome,
+        PATH: process.env.PATH,
+        NODE_OPTIONS: '',
+      },
+      timeout: 5000,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+
+    // Writer is a detached grandchild — poll for meta.json up to 5s
+    const capturesDir = join(tmpHome, '.claude-sop', 'captures');
+    const deadline = Date.now() + 5000;
+    let metaFiles: string[] = [];
+
+    while (Date.now() < deadline) {
+      metaFiles = findFiles(capturesDir, 'meta.json');
+      if (metaFiles.length > 0) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+
+    if (metaFiles.length === 0) {
+      throw new Error(
+        `Timed out waiting for writer to produce meta.json.\n${collectDiagnostics(tmpHome)}`,
+      );
+    }
+
+    // Assert: exactly one meta.json
+    expect(metaFiles).toHaveLength(1);
+
+    // Assert: parses as valid JSON with expected fields
+    const meta = JSON.parse(readFileSync(metaFiles[0], 'utf8'));
+    expect(meta.session_id).toBe('e2e-smoke-test');
+    expect(meta.schema_version).toBe(1);
+    expect(meta.started_at).toEqual(expect.any(String));
+    expect(meta.turn_id).toEqual(expect.any(String));
+
+    // Assert: prompt.md sibling exists
+    const turnDir = dirname(metaFiles[0]);
+    expect(existsSync(join(turnDir, 'prompt.md'))).toBe(true);
+
+    // Assert: turn dir is .pending (no Stop was sent)
+    expect(turnDir).toMatch(/\.pending$/);
+  }, 7000);
 });
