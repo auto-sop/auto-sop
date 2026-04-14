@@ -74,9 +74,9 @@ export default defineConfig([
       return { js: '.cjs' };
     },
   },
-  // Learner stub: fail-open tick logger for dist/plugin/
+  // Learner: real Phase 3 batch entry point — ALL runtime deps bundled
   {
-    entry: { 'plugin/learner': 'src/learner/stub.ts' },
+    entry: { 'plugin/learner': 'src/learner/main.ts' },
     format: ['cjs'],
     sourcemap: false,
     clean: false,
@@ -84,6 +84,7 @@ export default defineConfig([
     bundle: true,
     minify: true,
     treeshake: true,
+    noExternal: [/.*/],
     banner: { js: '#!/usr/bin/env node' },
     outExtension() {
       return { js: '.cjs' };

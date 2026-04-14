@@ -177,10 +177,10 @@ describe('runUninstall', () => {
     await seedInstall();
     const result = await runUninstall(baseOpts());
 
-    // All 8 non-purge steps should be ok
+    // All 9 non-purge steps should be ok (8 original + 1 deregister-project)
     expect(result.warnings).toHaveLength(0);
     const outcomes = result.steps.map((s) => s.outcome);
-    expect(outcomes).toEqual(Array(8).fill('ok'));
+    expect(outcomes).toEqual(Array(9).fill('ok'));
 
     // settings.json no longer has claude-sop entries
     const settings = JSON.parse(
@@ -255,8 +255,8 @@ describe('runUninstall', () => {
     const result = await runUninstall(baseOpts({ purge: true }));
 
     expect(result.warnings).toHaveLength(0);
-    // 8 base steps + 2 purge steps = 10
-    expect(result.steps).toHaveLength(10);
+    // 9 base steps + 2 purge steps = 11
+    expect(result.steps).toHaveLength(11);
 
     // Captures wiped
     await expect(

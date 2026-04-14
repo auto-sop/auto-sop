@@ -18,6 +18,9 @@ import { recordLicenseOnInstall } from '../license/storage.js';
 import { getMachineId } from '../config/machine-id.js';
 import { promptLicense, classifyLicense } from '../cli/prompt.js';
 import { PreconditionError } from '../cli/errors.js';
+import { upsertProject } from '../learner/project-registry.js';
+import { resolveIdentity } from '../path-resolver/identity.js';
+import { RealGitRunner } from '../path-resolver/git-runner.js';
 
 export interface InstallOptions {
   projectRoot: string;
@@ -177,6 +180,15 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
 
     // Step 9: Write version.txt LAST
     await writeInstalledVersion(versionTxtPath, opts.packageVersion);
+
+    // Step 10: Register project in learner registry (fail-open)
+    try {
+      const git = new RealGitRunner();
+      const identity = await resolveIdentity(opts.projectRoot, git);
+      upsertProject(identity.projectId, identity.slug, opts.projectRoot, opts.homeDir);
+    } catch {
+      // fail-open: registry upsert is non-critical
+    }
 
     return {
       verdict,

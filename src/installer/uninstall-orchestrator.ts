@@ -9,6 +9,7 @@ import {
 } from './managed-section.js';
 import { HOOK_EVENTS, CLAUDE_SOP_HOOK_ID } from './hook-entries.js';
 import type { SchedulerBackend } from '../scheduler/types.js';
+import { removeProject } from '../learner/project-registry.js';
 
 export interface UninstallOptions {
   projectRoot: string;
@@ -176,6 +177,16 @@ export async function runUninstall(
       await fs.rm(globalSopDir, { recursive: true, force: true });
     });
   }
+
+  // Step 10: Deregister project from learner registry (fail-open)
+  await step('deregister-project', async () => {
+    try {
+      removeProject(opts.projectHash12, opts.homeDir);
+      return 'removed';
+    } catch {
+      return 'skipped (non-critical)';
+    }
+  });
 
   return { warnings, steps, backupPath };
 }
