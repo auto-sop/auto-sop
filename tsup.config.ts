@@ -24,6 +24,7 @@ export default defineConfig([
     minify: true,
     treeshake: true,
     noExternal: ['nanoid'],
+    banner: { js: '#!/usr/bin/env node' },
     outExtension() {
       return { js: '.cjs' };
     },
@@ -68,6 +69,7 @@ export default defineConfig([
     minify: true,
     treeshake: true,
     noExternal: ['nanoid'],
+    banner: { js: '#!/usr/bin/env node' },
     outExtension() {
       return { js: '.cjs' };
     },
@@ -82,6 +84,7 @@ export default defineConfig([
     bundle: true,
     minify: true,
     treeshake: true,
+    banner: { js: '#!/usr/bin/env node' },
     outExtension() {
       return { js: '.cjs' };
     },

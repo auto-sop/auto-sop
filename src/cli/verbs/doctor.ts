@@ -62,8 +62,15 @@ export function registerDoctorVerb(program: Command): void {
         },
         {
           name: 'managed section',
-          ok: report.directives.count > 0,
-          detail: `${report.directives.count} directives`,
+          ok:
+            report.directives.count === 0 ||
+            report.directives.sectionPresent,
+          detail:
+            report.directives.count === 0
+              ? 'no directives yet'
+              : report.directives.sectionPresent
+                ? `${report.directives.count} directives`
+                : `${report.directives.count} directives not synced`,
         },
         {
           name: 'license configured',

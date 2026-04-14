@@ -8,10 +8,7 @@
     {
       "name": "claude-sop",
       "description": "Auto-capture Claude Code turns and learn from mistakes.",
-      "source": {
-        "source": "directory",
-        "path": "."
-      }
+      "source": "./"
     }
   ]
 }

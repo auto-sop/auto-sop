@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { execa } from 'execa';
-import { readFileSync, mkdtempSync } from 'node:fs';
+import { readFileSync, mkdtempSync, statSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = resolve(ROOT, 'dist/cli.js');
 const SHIM = resolve(ROOT, 'dist/plugin/shim.cjs');
+const LEARNER = resolve(ROOT, 'dist/plugin/learner.cjs');
+const CAPTURE_SHIM = resolve(ROOT, 'dist/capture/shim.cjs');
 const HOOKS = resolve(ROOT, 'dist/plugin/hooks/hooks.json');
 
 describe('smoke: CLI binary', () => {
@@ -86,6 +88,16 @@ describe('smoke: plugin bundle artifacts', () => {
     expect(Array.isArray(parsed.plugins)).toBe(true);
     expect(parsed.plugins.length).toBeGreaterThan(0);
     expect(parsed.plugins[0].name).toBe('claude-sop');
+    // Source shape guard: must be string OR object-with-'type', never nested 'source'
+    const src = parsed.plugins[0].source;
+    const isString = typeof src === 'string';
+    const isObjWithType =
+      typeof src === 'object' && src !== null && typeof src.type === 'string';
+    expect(isString || isObjWithType).toBe(true);
+    // REGRESSION GUARD: no nested source.source
+    if (typeof src === 'object' && src !== null) {
+      expect(src).not.toHaveProperty('source');
+    }
   });
 
   it('plugin.json exists, parses, and name is claude-sop', () => {
@@ -98,9 +110,8 @@ describe('smoke: plugin bundle artifacts', () => {
 
 describe('smoke: learner stub', () => {
   it('learner.cjs exits 0 in under 500ms', async () => {
-    const learner = resolve(ROOT, 'dist/plugin/learner.cjs');
     const start = Date.now();
-    const result = await execa('node', [learner], {
+    const result = await execa('node', [LEARNER], {
       reject: false,
       env: { HOME: mkdtempSync(resolve(tmpdir(), 'learner-smoke-')) },
       timeout: 5000,
@@ -109,4 +120,70 @@ describe('smoke: learner stub', () => {
     expect(result.exitCode).toBe(0);
     expect(elapsed).toBeLessThan(500);
   });
+});
+
+describe('smoke: shell-mode execution (shebang)', () => {
+  it('shim runs via sh -c without syntax errors', async () => {
+    const payload = JSON.stringify({
+      hook_type: 'UserPromptSubmit',
+      session_id: 'smoke-shell',
+      user_prompt: 'hello',
+    });
+    const start = Date.now();
+    const result = await execa('sh', ['-c', `"${SHIM}"`], {
+      input: payload,
+      reject: false,
+      env: {
+        CLAUDE_SOP_LEARNER: '1',
+        HOME: mkdtempSync(resolve(tmpdir(), 'shim-shell-')),
+        PATH: process.env.PATH,
+      },
+      timeout: 5000,
+    });
+    const elapsed = Date.now() - start;
+    expect(result.exitCode).toBe(0);
+    expect(elapsed).toBeLessThan(500);
+    expect(result.stderr).not.toMatch(/syntax error/);
+  });
+
+  it('learner runs via sh -c without syntax errors', async () => {
+    const start = Date.now();
+    const result = await execa('sh', ['-c', `"${LEARNER}"`], {
+      reject: false,
+      env: {
+        HOME: mkdtempSync(resolve(tmpdir(), 'learner-shell-')),
+        PATH: process.env.PATH,
+      },
+      timeout: 5000,
+    });
+    const elapsed = Date.now() - start;
+    expect(result.exitCode).toBe(0);
+    expect(elapsed).toBeLessThan(500);
+    expect(result.stderr).not.toMatch(/syntax error/);
+  });
+});
+
+describe('smoke: shebang and exec bit', () => {
+  const executables = [
+    { name: 'plugin/shim.cjs', path: SHIM },
+    { name: 'plugin/learner.cjs', path: LEARNER },
+    { name: 'capture/shim.cjs', path: CAPTURE_SHIM },
+  ];
+
+  for (const { name, path: filePath } of executables) {
+    it(`${name} starts with shebang`, () => {
+      const buf = Buffer.alloc(20);
+      const fd = require('node:fs').openSync(filePath, 'r');
+      require('node:fs').readSync(fd, buf, 0, 20, 0);
+      require('node:fs').closeSync(fd);
+      const head = buf.toString('utf8');
+      expect(head).toMatch(/^#!\/usr\/bin\/env node\n/);
+    });
+
+    it(`${name} has exec bit set`, () => {
+      const st = statSync(filePath);
+      // eslint-disable-next-line no-bitwise
+      expect(st.mode & 0o111).not.toBe(0);
+    });
+  }
 });

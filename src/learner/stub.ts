@@ -3,14 +3,19 @@
  * Appends a single line to ~/.claude-sop/logs/ticks.log and exits 0.
  * Real learner logic will replace this in Phase 3.
  */
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { isCaptureDisabled } from '../capture/kill-switch.js';
 
-// Kill-switch: if capture is disabled, exit immediately before any I/O
-if (isCaptureDisabled(process.env)) {
-  process.exit(0);
+// Pause check: if paused.flag exists in the project's .claude-sop dir, exit silently.
+// Fail-open: if the check itself errors, continue normally.
+try {
+  const pausedFlag = join(process.cwd(), '.claude-sop', 'paused.flag');
+  if (existsSync(pausedFlag)) {
+    process.exit(0);
+  }
+} catch {
+  // fail-open: ignore errors and continue
 }
 
 const VERSION = '0.0.0';

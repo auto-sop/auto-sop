@@ -19,7 +19,7 @@ export interface StatusReport {
   scheduler: SchedulerStatus;
   learner: { lastRunAt: number | null; lastExitCode: number | null };
   pendingCaptures: number;
-  directives: { count: number };
+  directives: { count: number; sectionPresent: boolean };
   license: {
     status: 'dev-key' | 'trial' | 'expired' | 'user' | 'none';
     daysRemaining: number | null;
@@ -158,17 +158,19 @@ async function countPendingCaptures(
 
 async function countDirectives(
   claudeMdPath: string,
-): Promise<{ count: number }> {
+): Promise<{ count: number; sectionPresent: boolean }> {
   try {
     const text = await fs.readFile(claudeMdPath, 'utf8');
     const begin = text.indexOf(MANAGED_BEGIN);
     const end = text.indexOf(MANAGED_END);
-    if (begin === -1 || end === -1) return { count: 0 };
+    if (begin === -1 || end === -1)
+      return { count: 0, sectionPresent: false };
     const between = text.slice(begin + MANAGED_BEGIN.length, end);
     const count = (between.match(/^- /gm) || []).length;
-    return { count };
+    return { count, sectionPresent: true };
   } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { count: 0 };
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT')
+      return { count: 0, sectionPresent: false };
     throw e;
   }
 }
