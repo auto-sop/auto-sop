@@ -30,6 +30,9 @@ export interface PerProjectRecap {
   newest_new_turn_at: string | null;
   duration_ms: number;
   llm_mode: boolean;
+  directive_written?: 'created' | 'updated' | 'unchanged' | 'dry_run' | 'error' | null;
+  directive_bytes?: number;
+  directive_backup?: boolean;
 }
 
 export interface TickSummary {

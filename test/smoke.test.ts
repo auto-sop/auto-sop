@@ -717,3 +717,341 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     expect(bareRequires).toEqual([]);
   });
 });
+
+// ── Managed section end-to-end (isolated) ─────────────────────
+
+describe('smoke: managed section end-to-end (isolated)', () => {
+  const tmpDirs: string[] = [];
+
+  afterEach(() => {
+    // cleanup handled by afterAll
+  });
+
+  afterAll(() => {
+    for (const d of tmpDirs) {
+      try {
+        rmSync(d, { recursive: true, force: true });
+      } catch {
+        // best-effort
+      }
+    }
+  });
+
+  function makeTmpEnv(): { tmpHome: string; bundleDir: string; learnerPath: string; cliPath: string } {
+    const tmpHome = mkdtempSync(resolve(tmpdir(), 'managed-section-smoke-'));
+    tmpDirs.push(tmpHome);
+    const bundleDir = join(tmpHome, 'bundle');
+    cpSync(resolve(ROOT, 'dist/plugin'), bundleDir, { recursive: true });
+    // CLI path for statusline tests (stays in-repo, only bundle is isolated)
+    const cliPath = resolve(ROOT, 'dist/cli.js');
+    return { tmpHome, bundleDir, learnerPath: join(bundleDir, 'learner.cjs'), cliPath };
+  }
+
+  function writeRegistry(home: string, projects: Array<{ project_id: string; slug: string; project_root: string }>) {
+    const regDir = join(home, '.claude-sop');
+    mkdirSync(regDir, { recursive: true });
+    const registry = {
+      version: 1,
+      projects: projects.map((p) => ({
+        ...p,
+        installed_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+      })),
+    };
+    writeFileSync(join(regDir, 'projects.json'), JSON.stringify(registry, null, 2), { mode: 0o600 });
+  }
+
+  function createFinalizedTurn(capturesDir: string, turnId: string, finalizedAt: string, agentName = 'main') {
+    const turnDir = join(capturesDir, `20260414T120000-${agentName}-abc-${turnId}`);
+    mkdirSync(turnDir, { recursive: true });
+    const meta = {
+      schema_version: 1,
+      project_id: 'test123',
+      project_slug: 'test-project',
+      session_id: 'sess-1',
+      turn_id: turnId,
+      parent_turn_id: null,
+      children_turn_ids: [],
+      agent: agentName,
+      subagent_type: null,
+      started_at: '2026-04-14T12:00:00.000Z',
+      finalized_at: finalizedAt,
+      finalization_reason: 'stop',
+      hook_shim_version: '0.0.0',
+      files_changed_count: 1,
+      tool_call_count: 2,
+      scrubber_hit_count: 0,
+    };
+    writeFileSync(join(turnDir, 'meta.json'), JSON.stringify(meta), { mode: 0o600 });
+    return turnDir;
+  }
+
+  function readRecapLog(home: string): unknown[] {
+    const logPath = join(home, '.claude-sop', 'logs', 'recap.log');
+    try {
+      const text = readFileSync(logPath, 'utf8');
+      return text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+    } catch {
+      return [];
+    }
+  }
+
+  function runLearner(learnerPath: string, home: string, env?: Record<string, string>) {
+    return execa('node', [learnerPath], {
+      reject: false,
+      env: { HOME: home, PATH: process.env.PATH, NODE_OPTIONS: '', ...env },
+      timeout: 10000,
+    });
+  }
+
+  // (k) Learner writes sample directive to CLAUDE.md on first run
+  it('(k) learner writes sample directive to CLAUDE.md on first run', async () => {
+    const { tmpHome, learnerPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    const capturesDir = join(projectRoot, '.claude-sop', 'captures');
+    mkdirSync(capturesDir, { recursive: true });
+    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+
+    createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z', 'main');
+    createFinalizedTurn(capturesDir, 't2', '2026-04-14T11:00:00.000Z', 'commander');
+    createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z', 'architect-principal-engineer');
+
+    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+
+    const result = await runLearner(learnerPath, tmpHome);
+    expect(result.exitCode).toBe(0);
+
+    // Assert CLAUDE.md exists with markers
+    const claudeMdPath = join(projectRoot, 'CLAUDE.md');
+    expect(existsSync(claudeMdPath)).toBe(true);
+    const content = readFileSync(claudeMdPath, 'utf8');
+    expect(content).toContain('<!-- claude-sop:managed-section:begin v1 -->');
+    expect(content).toContain('<!-- claude-sop:managed-section:end -->');
+    expect(content).toContain('turns analyzed');
+    // Agent roster should mention all 3 agents
+    expect(content).toContain('architect-principal-engineer');
+    expect(content).toContain('commander');
+    expect(content).toContain('main');
+  }, 15000);
+
+  // (l) Idempotent when no new turns
+  it('(l) idempotent when no new turns — mtime/bytes unchanged', async () => {
+    const { tmpHome, learnerPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    const capturesDir = join(projectRoot, '.claude-sop', 'captures');
+    mkdirSync(capturesDir, { recursive: true });
+    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+
+    createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z');
+    createFinalizedTurn(capturesDir, 't2', '2026-04-14T11:00:00.000Z');
+    createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z');
+
+    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+
+    // First run — creates CLAUDE.md
+    await runLearner(learnerPath, tmpHome);
+    const claudeMdPath = join(projectRoot, 'CLAUDE.md');
+    const bytesAfterFirst = readFileSync(claudeMdPath).length;
+    const mtimeAfterFirst = statSync(claudeMdPath).mtimeMs;
+
+    // Small delay to ensure mtime would differ if file were rewritten
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Second run — should be unchanged
+    const result = await runLearner(learnerPath, tmpHome);
+    expect(result.exitCode).toBe(0);
+
+    const bytesAfterSecond = readFileSync(claudeMdPath).length;
+    const mtimeAfterSecond = statSync(claudeMdPath).mtimeMs;
+
+    expect(bytesAfterSecond).toBe(bytesAfterFirst);
+    expect(mtimeAfterSecond).toBe(mtimeAfterFirst);
+
+    // Check recap log shows unchanged
+    const entries = readRecapLog(tmpHome);
+    const projRecaps = entries.filter((e: any) => e.project_id === 'proj1') as any[];
+    const lastRecap = projRecaps[projRecaps.length - 1];
+    expect(lastRecap.directive_written).toBe('unchanged');
+  }, 20000);
+
+  // (m) New turn → updated + backup exists
+  it('(m) new turn → updated directive + backup with old content', async () => {
+    const { tmpHome, learnerPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    const capturesDir = join(projectRoot, '.claude-sop', 'captures');
+    mkdirSync(capturesDir, { recursive: true });
+    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+
+    createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z');
+    createFinalizedTurn(capturesDir, 't2', '2026-04-14T11:00:00.000Z');
+    createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z');
+
+    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+
+    // First run — creates CLAUDE.md with 3 turns
+    await runLearner(learnerPath, tmpHome);
+    const claudeMdPath = join(projectRoot, 'CLAUDE.md');
+    const oldContent = readFileSync(claudeMdPath, 'utf8');
+    expect(oldContent).toContain('3 turns analyzed');
+
+    // Add 4th turn
+    createFinalizedTurn(capturesDir, 't4', '2026-04-14T13:00:00.000Z');
+
+    // Second run — should update
+    const result = await runLearner(learnerPath, tmpHome);
+    expect(result.exitCode).toBe(0);
+
+    const newContent = readFileSync(claudeMdPath, 'utf8');
+    expect(newContent).toContain('4 turns analyzed');
+
+    // Backup must exist with OLD content
+    const backupPath = join(projectRoot, '.claude-sop', 'state', 'CLAUDE.md.backup');
+    expect(existsSync(backupPath)).toBe(true);
+    const backupContent = readFileSync(backupPath, 'utf8');
+    expect(backupContent).toContain('3 turns analyzed');
+
+    // Recap shows updated
+    const entries = readRecapLog(tmpHome);
+    const projRecaps = entries.filter((e: any) => e.project_id === 'proj1') as any[];
+    const lastRecap = projRecaps[projRecaps.length - 1];
+    expect(lastRecap.directive_written).toBe('updated');
+  }, 20000);
+
+  // (n) Dry-run writes nothing
+  it('(n) dry-run mode writes nothing to CLAUDE.md', async () => {
+    const { tmpHome, learnerPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    const capturesDir = join(projectRoot, '.claude-sop', 'captures');
+    mkdirSync(capturesDir, { recursive: true });
+    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+
+    // Create 4 turns and run learner normally first
+    createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z');
+    createFinalizedTurn(capturesDir, 't2', '2026-04-14T11:00:00.000Z');
+    createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z');
+    createFinalizedTurn(capturesDir, 't4', '2026-04-14T13:00:00.000Z');
+
+    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+
+    // First run — creates CLAUDE.md with 4 turns
+    await runLearner(learnerPath, tmpHome);
+    const claudeMdPath = join(projectRoot, 'CLAUDE.md');
+    const contentBefore = readFileSync(claudeMdPath, 'utf8');
+    expect(contentBefore).toContain('4 turns analyzed');
+    const mtimeBefore = statSync(claudeMdPath).mtimeMs;
+
+    // Remove any existing backup
+    const backupPath = join(projectRoot, '.claude-sop', 'state', 'CLAUDE.md.backup');
+    try { rmSync(backupPath); } catch { /* may not exist */ }
+
+    // Add 5th turn
+    createFinalizedTurn(capturesDir, 't5', '2026-04-14T14:00:00.000Z');
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Dry-run: should NOT touch CLAUDE.md
+    const result = await runLearner(learnerPath, tmpHome, { CLAUDE_SOP_LEARNER_DRY_RUN: '1' });
+    expect(result.exitCode).toBe(0);
+
+    const contentAfter = readFileSync(claudeMdPath, 'utf8');
+    expect(contentAfter).toBe(contentBefore);
+    expect(statSync(claudeMdPath).mtimeMs).toBe(mtimeBefore);
+
+    // No new backup
+    expect(existsSync(backupPath)).toBe(false);
+
+    // Recap shows dry_run
+    const entries = readRecapLog(tmpHome);
+    const projRecaps = entries.filter((e: any) => e.project_id === 'proj1') as any[];
+    const lastRecap = projRecaps[projRecaps.length - 1];
+    expect(lastRecap.directive_written).toBe('dry_run');
+  }, 20000);
+
+  // (o) User content preserved with malformed markers
+  it('(o) user content preserved when CLAUDE.md has malformed markers', async () => {
+    const { tmpHome, learnerPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    const capturesDir = join(projectRoot, '.claude-sop', 'captures');
+    mkdirSync(capturesDir, { recursive: true });
+    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+
+    createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z');
+    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+
+    // Write CLAUDE.md with malformed markers: begin but no end
+    const originalContent =
+      '# My project\n\nMy own rules\n\n<!-- claude-sop:managed-section:begin v1 -->\nSome content without end marker\n';
+    const claudeMdPath = join(projectRoot, 'CLAUDE.md');
+    writeFileSync(claudeMdPath, originalContent, { mode: 0o644 });
+
+    const result = await runLearner(learnerPath, tmpHome);
+    expect(result.exitCode).toBe(0);
+
+    // CLAUDE.md must NOT be corrupted — exact original bytes preserved
+    const contentAfter = readFileSync(claudeMdPath, 'utf8');
+    expect(contentAfter).toBe(originalContent);
+
+    // Learner should have logged an error
+    const errorsLog = join(tmpHome, '.claude-sop', 'logs', 'errors.log');
+    if (existsSync(errorsLog)) {
+      const errContent = readFileSync(errorsLog, 'utf8');
+      expect(errContent.length).toBeGreaterThan(0);
+    }
+
+    // Recap should show error
+    const entries = readRecapLog(tmpHome);
+    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    expect(projRecap).toBeDefined();
+    expect(projRecap.directive_written).toBe('error');
+  }, 15000);
+
+  // (p) Statusline installed
+  it('(p) statusline prints [sop:on] for installed project', async () => {
+    const { tmpHome, cliPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    mkdirSync(join(projectRoot, '.claude'), { recursive: true });
+
+    // Create .claude/settings.json with a claude-sop hook in the project
+    const settings = {
+      hooks: {
+        hooks: [
+          {
+            matcher: 'UserPromptSubmit',
+            command: '/path/to/claude-sop/dist/plugin/shim.cjs',
+          },
+        ],
+      },
+    };
+    writeFileSync(
+      join(projectRoot, '.claude', 'settings.json'),
+      JSON.stringify(settings, null, 2),
+      { mode: 0o644 },
+    );
+
+    const result = await execa('node', [cliPath, 'statusline', '--project', projectRoot], {
+      reject: false,
+      env: { HOME: tmpHome, PATH: process.env.PATH, NODE_OPTIONS: '' },
+      timeout: 5000,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe('[sop:on]');
+  }, 10000);
+
+  // (q) Statusline non-installed
+  it('(q) statusline prints [sop:off] for non-installed project', async () => {
+    const { tmpHome, cliPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'bare-project');
+    mkdirSync(projectRoot, { recursive: true });
+    // No .claude/settings.json at all
+
+    const result = await execa('node', [cliPath, 'statusline', '--project', projectRoot], {
+      reject: false,
+      env: { HOME: tmpHome, PATH: process.env.PATH, NODE_OPTIONS: '' },
+      timeout: 5000,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe('[sop:off]');
+  }, 10000);
+});

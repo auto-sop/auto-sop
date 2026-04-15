@@ -10,6 +10,7 @@ import { registerPauseVerb } from './pause.js';
 import { registerResumeVerb } from './resume.js';
 import { registerErrorsVerb } from './errors.js';
 import { registerRecapVerb } from './recap.js';
+import { registerStatuslineVerb } from './statusline.js';
 
 export function registerVerbs(program: Command): void {
   // @@VERBS_REGISTER@@  <-- Wave 2 plans insert register calls here, one per verb
@@ -22,4 +23,5 @@ export function registerVerbs(program: Command): void {
   registerResumeVerb(program);
   registerErrorsVerb(program);
   registerRecapVerb(program);
+  registerStatuslineVerb(program);
 }

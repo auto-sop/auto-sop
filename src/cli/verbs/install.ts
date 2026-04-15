@@ -53,6 +53,14 @@ export function registerInstallVerb(program: Command): void {
           ]) + '\n',
         );
         for (const w of result.warnings) warn(w);
+        process.stdout.write(
+          '\n' +
+            pc.dim(
+              'tip: add [sop:on] indicator to Claude Code statusline:\n' +
+                '     echo \'{"statusLine":{"type":"command","command":"claude-sop statusline"}}\' > ~/.claude/settings.json\n' +
+                '     (merge with existing settings — do NOT overwrite)\n',
+            ),
+        );
       }
     });
 }

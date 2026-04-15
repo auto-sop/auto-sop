@@ -63,7 +63,7 @@ function healthyReport(): StatusReport {
     },
     learner: { lastRunAt: null, lastExitCode: null },
     pendingCaptures: 0,
-    directives: { count: 3 },
+    directives: { count: 3, sectionPresent: true },
     license: { status: 'dev-key', daysRemaining: null },
     errors: { last24h: 0 },
     disk: { usageBytes: 512, capBytes: null },
@@ -259,9 +259,9 @@ describe('doctor verb', () => {
     vi.doUnmock('../../../src/scrubber/index.js');
   });
 
-  it('zero directives → managed section check fails', async () => {
+  it('zero directives → managed section check OK (v6+ semantics)', async () => {
     const report = healthyReport();
-    report.directives = { count: 0 };
+    report.directives = { count: 0, sectionPresent: false };
     mockCollectStatus.mockResolvedValueOnce(report);
 
     const code = await runCli([
@@ -273,13 +273,13 @@ describe('doctor verb', () => {
       '/tmp/proj',
     ]);
 
-    expect(code).toBe(3);
-    const lines = stdoutChunks.join('').trim().split('\n');
-    const parsed = JSON.parse(lines[0]);
+    expect(code).toBe(0);
+    const output = stdoutChunks.join('');
+    const parsed = JSON.parse(output);
     const msCheck = parsed.checks.find(
       (c: { name: string }) => c.name === 'managed section',
     );
-    expect(msCheck.ok).toBe(false);
+    expect(msCheck.ok).toBe(true);
   });
 
   it('multiple failures reported in error message', async () => {

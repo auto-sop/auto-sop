@@ -14,6 +14,8 @@ import { readRegistry, validateProjectRoot } from './project-registry.js';
 import { readCursor, writeCursor, withCursorLock } from './cursor.js';
 import { scanNewTurns, type TurnSummary } from './turn-scanner.js';
 import { appendRecap, type PerProjectRecap, type TickSummary } from './recap-log.js';
+import { writeManagedSection } from '../managed-section/editor.js';
+import { buildSampleDirective } from './directive-builder.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -227,6 +229,28 @@ async function runLearnerTick(
       if (result === null) {
         projects_locked++;
         continue;
+      }
+
+      // Write sample directive to CLAUDE.md (fail-open: errors logged, not thrown)
+      if (process.env.CLAUDE_SOP_LEARNER_MODE !== 'llm') {
+        try {
+          const directiveContent = buildSampleDirective(
+            project,
+            now,
+            result.turns_total_seen,
+          );
+          const writeResult = writeManagedSection({
+            projectRoot: validRoot,
+            content: directiveContent,
+            dryRun: process.env.CLAUDE_SOP_LEARNER_DRY_RUN === '1',
+          });
+          result.directive_written = writeResult.verdict;
+          result.directive_bytes = writeResult.bytesAfter;
+          result.directive_backup = writeResult.backupPath !== null;
+        } catch (err) {
+          logError('directive_write_failed', err, home);
+          result.directive_written = 'error';
+        }
       }
 
       // Append per-project recap

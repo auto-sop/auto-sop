@@ -1,6 +1,6 @@
 /**
  * recap verb — display and manage learner recap log.
- * Subcommands: recap (pretty table), --json, --run, --run --llm, --tail, --limit.
+ * Subcommands: recap (pretty table), --json, --run, --run --dry-run, --run --llm, --tail, --limit.
  */
 import type { Command } from 'commander';
 import os from 'node:os';
@@ -11,6 +11,10 @@ import { execa } from 'execa';
 import { renderTable, warn } from '../output/human.js';
 import { emit } from '../output/json.js';
 import pc from 'picocolors';
+import { unifiedDiff } from '../diff.js';
+import { buildSampleDirectiveFromInput, collectAgentRoster } from '../../learner/directive-builder.js';
+import { writeManagedSection } from '../../managed-section/editor.js';
+import { readRegistry } from '../../learner/project-registry.js';
 
 function recapLogPath(home?: string): string {
   return path.join(home ?? os.homedir(), '.claude-sop', 'logs', 'recap.log');
@@ -27,6 +31,26 @@ function parseLines(text: string): unknown[] {
     }
   }
   return entries;
+}
+
+/** Format directive_written verdict for display. */
+function directiveLabel(entry: Record<string, unknown>): string {
+  const val = entry.directive_written;
+  if (val === undefined || val === null) return pc.dim('-');
+  switch (val) {
+    case 'created':
+      return pc.green('created');
+    case 'updated':
+      return pc.yellow('updated');
+    case 'unchanged':
+      return pc.dim('unchanged');
+    case 'dry_run':
+      return pc.cyan('dry_run');
+    case 'error':
+      return pc.red('error');
+    default:
+      return String(val);
+  }
 }
 
 function formatEntry(entry: Record<string, unknown>): string {
@@ -51,7 +75,118 @@ function formatEntry(entry: Record<string, unknown>): string {
     ['scrubber', String(entry.scrubber_hits_new ?? 0)],
     ['files', String(entry.files_changed_new ?? 0)],
     ['duration', `${entry.duration_ms ?? 0}ms`],
+    ['directive', directiveLabel(entry)],
   ]);
+}
+
+/**
+ * For each per-project entry with directive_written === 'dry_run', compute
+ * and print a unified diff showing what WOULD be written to CLAUDE.md.
+ */
+function printDryRunDiffs(entries: Record<string, unknown>[]): void {
+  for (const entry of entries) {
+    if (entry.directive_written !== 'dry_run') continue;
+
+    const slug = String(entry.project_slug ?? 'unknown');
+
+    // We need the project root to read CLAUDE.md and simulate the write.
+    // The recap log doesn't store project_root directly, so we look it up
+    // from the project registry.
+    const projectRoot = resolveProjectRoot(String(entry.project_id ?? ''));
+    if (!projectRoot) {
+      process.stdout.write(
+        pc.dim(`  (cannot compute diff for ${slug} — project root not found)\n\n`),
+      );
+      continue;
+    }
+
+    // Read existing CLAUDE.md
+    const claudeMdPath = path.join(projectRoot, 'CLAUDE.md');
+    let oldContent = '';
+    try {
+      oldContent = readFileSync(claudeMdPath, 'utf-8');
+    } catch {
+      // file may not exist yet
+    }
+
+    // Simulate a non-dry-run write to get the new content.
+    // We re-build the directive from the learner's directive-builder.
+    let newContent: string;
+    try {
+      newContent = simulateDirectiveWrite(projectRoot, entry);
+    } catch {
+      process.stdout.write(
+        pc.dim(`  (cannot compute diff for ${slug} — directive build failed)\n\n`),
+      );
+      continue;
+    }
+
+    const diff = unifiedDiff(oldContent, newContent, {
+      oldLabel: `${slug}/CLAUDE.md`,
+      newLabel: `${slug}/CLAUDE.md (proposed)`,
+      context: 3,
+    });
+
+    if (diff) {
+      process.stdout.write(pc.bold(`Diff for ${slug}:\n`));
+      // Colorize diff lines
+      for (const line of diff.split('\n')) {
+        if (line.startsWith('+++') || line.startsWith('---')) {
+          process.stdout.write(pc.bold(line) + '\n');
+        } else if (line.startsWith('+')) {
+          process.stdout.write(pc.green(line) + '\n');
+        } else if (line.startsWith('-')) {
+          process.stdout.write(pc.red(line) + '\n');
+        } else if (line.startsWith('@@')) {
+          process.stdout.write(pc.cyan(line) + '\n');
+        } else {
+          process.stdout.write(line + '\n');
+        }
+      }
+      process.stdout.write('\n');
+    } else {
+      process.stdout.write(pc.dim(`  (no changes for ${slug})\n\n`));
+    }
+  }
+}
+
+/**
+ * Resolve project root from project_id by reading the project registry.
+ */
+function resolveProjectRoot(projectId: string): string | null {
+  if (!projectId) return null;
+  const registry = readRegistry();
+  const entry = registry.projects.find((p) => p.project_id === projectId);
+  return entry?.project_root ?? null;
+}
+
+/**
+ * Simulate what the directive writer would produce for a project, without
+ * actually writing anything. Delegates to writeManagedSection with dryRun:true
+ * and returns the computed new content.
+ */
+function simulateDirectiveWrite(
+  projectRoot: string,
+  entry: Record<string, unknown>,
+): string {
+  const capturesDir = path.join(projectRoot, '.claude-sop', 'captures');
+  const agentRoster = collectAgentRoster(capturesDir);
+  const turnsTotalSeen = Number(entry.turns_total_seen ?? 0);
+  const nowIso = String(entry.t ?? new Date().toISOString());
+
+  const content = buildSampleDirectiveFromInput({
+    turnsTotalSeen,
+    agentRoster,
+    nowIso,
+  });
+
+  const result = writeManagedSection({
+    projectRoot,
+    content,
+    dryRun: true,
+  });
+
+  return result.newContent ?? '';
 }
 
 export function registerRecapVerb(program: Command): void {
@@ -62,10 +197,18 @@ export function registerRecapVerb(program: Command): void {
     .option('--tail', 'follow recap log for new entries')
     .option('--follow', 'alias for --tail')
     .option('--run', 'run the learner now and show results')
+    .option('--dry-run', 'dry-run mode: show what would change without writing (requires --run)')
     .option('--llm', 'enable LLM mode when running (requires --run)')
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
       const logPath = recapLogPath();
+
+      // Validate: --dry-run requires --run
+      if (opts.dryRun && !opts.run) {
+        process.stderr.write(pc.red('error: --dry-run requires --run (e.g., claude-sop recap --run --dry-run)\n'));
+        process.exitCode = 1;
+        return;
+      }
 
       // --run: spawn learner child process
       if (opts.run) {
@@ -100,6 +243,9 @@ export function registerRecapVerb(program: Command): void {
         if (opts.llm) {
           env.CLAUDE_SOP_LEARNER_MODE = 'llm';
         }
+        if (opts.dryRun) {
+          env.CLAUDE_SOP_LEARNER_DRY_RUN = '1';
+        }
 
         try {
           await execa('node', [learnerPath], { env, timeout: 130_000 });
@@ -124,12 +270,25 @@ export function registerRecapVerb(program: Command): void {
             if (newLines.length === 0) {
               process.stdout.write(pc.dim('(no new recap entries)\n'));
             } else {
+              const parsedEntries: Record<string, unknown>[] = [];
               for (const line of newLines) {
                 try {
                   const entry = JSON.parse(line) as Record<string, unknown>;
                   process.stdout.write(formatEntry(entry) + '\n\n');
+                  parsedEntries.push(entry);
                 } catch {
                   process.stdout.write(line + '\n');
+                }
+              }
+
+              // In dry-run mode, print diffs for each project with directive_written==='dry_run'
+              if (opts.dryRun) {
+                const dryRunEntries = parsedEntries.filter(
+                  (e) => e.directive_written === 'dry_run' && !e.summary,
+                );
+                if (dryRunEntries.length > 0) {
+                  process.stdout.write(pc.bold('\n── Dry-run diffs ──\n\n'));
+                  printDryRunDiffs(dryRunEntries);
                 }
               }
             }
