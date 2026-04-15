@@ -8,7 +8,12 @@ import type {
   SchedulerStatus,
 } from './types.js';
 
-const LABEL = 'com.claude-sop.learner';
+/** Allow label override for integration tests to avoid colliding with the real install. */
+const LABEL =
+  process.env.CLAUDE_SOP_LABEL &&
+  process.env.CLAUDE_SOP_LABEL.startsWith('com.claude-sop.learner')
+    ? process.env.CLAUDE_SOP_LABEL
+    : 'com.claude-sop.learner';
 
 function getPosixUid(): number {
   if (typeof process.getuid !== 'function') {
@@ -33,6 +38,7 @@ function xmlEscape(s: string): string {
 export function renderPlist(opts: {
   label: string;
   tickScriptPath: string;
+  /** @deprecated Ignored on macOS — fires at :00 top of hour via StartCalendarInterval. */
   intervalSec: number;
   stdoutLog: string;
   stderrLog: string;
@@ -51,11 +57,11 @@ export function renderPlist(opts: {
     <string>${xmlEscape(opts.tickScriptPath)}</string>
   </array>
 
-  <key>StartInterval</key>
-  <integer>${opts.intervalSec}</integer>
-
-  <key>RunAtLoad</key>
-  <false/>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
 
   <key>StandardOutPath</key>
   <string>${xmlEscape(opts.stdoutLog)}</string>
@@ -83,6 +89,14 @@ export const macosLaunchd: SchedulerBackend = {
 
   async install(opts: SchedulerInstallOpts): Promise<void> {
     const plist = plistPath(opts.homeDir);
+    const uid = getPosixUid();
+    const domainTarget = `gui/${uid}`;
+    const serviceTarget = `${domainTarget}/${LABEL}`;
+
+    // Step 1: Bootout any prior version (idempotent — no-op if absent)
+    await execa('launchctl', ['bootout', serviceTarget], { reject: false });
+
+    // Step 2: Atomic write plist with StartCalendarInterval
     const content = renderPlist({
       label: LABEL,
       tickScriptPath: opts.tickScriptPath,
@@ -90,16 +104,27 @@ export const macosLaunchd: SchedulerBackend = {
       stdoutLog: join(opts.logDir, 'launchd.out.log'),
       stderrLog: join(opts.logDir, 'launchd.err.log'),
     });
-
     await writeFileAtomic(plist, content);
 
-    const uid = getPosixUid();
-    // Best-effort pre-remove for idempotent re-install
-    await execa('launchctl', ['bootout', `gui/${uid}/${LABEL}`], {
+    // Step 3: Bootstrap the new version into the user GUI domain
+    const bootstrapResult = await execa(
+      'launchctl',
+      ['bootstrap', domainTarget, plist],
+      { reject: false },
+    );
+    if (bootstrapResult.exitCode !== 0) {
+      // Fallback to legacy load -w for ancient macOS (pre-10.10)
+      await execa('launchctl', ['load', '-w', plist], { reject: false });
+    }
+
+    // Step 4: Enable (lifts any "disabled" state from prior crash loops)
+    await execa('launchctl', ['enable', serviceTarget], { reject: false });
+
+    // Step 5: Warmup kickstart — prove the service can fire RIGHT NOW.
+    // Without this, the user discovers the bug 1 hour after install (if ever).
+    await execa('launchctl', ['kickstart', '-k', serviceTarget], {
       reject: false,
     });
-    await execa('launchctl', ['bootstrap', `gui/${uid}`, plist]);
-    await execa('launchctl', ['enable', `gui/${uid}/${LABEL}`]);
   },
 
   async uninstall(opts: {

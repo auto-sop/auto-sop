@@ -37,7 +37,7 @@ const baseOpts = {
 };
 
 describe('renderPlist', () => {
-  it('renders valid plist with correct interval', () => {
+  it('renders valid plist with StartCalendarInterval (hourly at :00)', () => {
     const plist = renderPlist({
       label: 'com.claude-sop.learner',
       tickScriptPath: '/Users/alice/.claude-sop/bin/tick.sh',
@@ -46,8 +46,11 @@ describe('renderPlist', () => {
       stderrLog: '/Users/alice/.claude-sop/logs/launchd.err.log',
     });
 
-    expect(plist).toContain('<integer>3600</integer>');
-    expect(plist).toContain('<false/>');
+    expect(plist).toContain('<key>StartCalendarInterval</key>');
+    expect(plist).toContain('<key>Minute</key>');
+    expect(plist).toContain('<integer>0</integer>');
+    expect(plist).not.toContain('<key>StartInterval</key>');
+    expect(plist).not.toContain('<key>RunAtLoad</key>');
     expect(plist).toContain('<string>/bin/sh</string>');
     expect(plist).toContain(
       '<string>/Users/alice/.claude-sop/bin/tick.sh</string>',
@@ -81,19 +84,20 @@ describe('macosLaunchd', () => {
   });
 
   describe('install', () => {
-    it('writes plist and calls launchctl bootstrap+enable', async () => {
+    it('executes 5-step sequence: bootout → write → bootstrap → enable → kickstart', async () => {
       await macosLaunchd.install(baseOpts);
 
-      // writeFileAtomic called with plist path
+      // writeFileAtomic called with plist path and StartCalendarInterval
       expect(mockWriteFileAtomic).toHaveBeenCalledOnce();
       const [plistPath, content] = mockWriteFileAtomic.mock.calls[0]!;
       expect(plistPath).toBe(
         '/Users/alice/Library/LaunchAgents/com.claude-sop.learner.plist',
       );
-      expect(content).toContain('<integer>3600</integer>');
+      expect(content).toContain('<key>StartCalendarInterval</key>');
+      expect(content).not.toContain('<key>StartInterval</key>');
 
-      // execa calls in order: bootout (idempotent), bootstrap, enable
-      expect(mockExeca).toHaveBeenCalledTimes(3);
+      // execa calls in order: bootout, bootstrap, enable, kickstart (all with reject:false)
+      expect(mockExeca).toHaveBeenCalledTimes(4);
       expect(mockExeca).toHaveBeenNthCalledWith(
         1,
         'launchctl',
@@ -104,12 +108,54 @@ describe('macosLaunchd', () => {
         2,
         'launchctl',
         ['bootstrap', `gui/${TEST_UID}`, plistPath],
+        { reject: false },
       );
       expect(mockExeca).toHaveBeenNthCalledWith(
         3,
         'launchctl',
         ['enable', `gui/${TEST_UID}/com.claude-sop.learner`],
+        { reject: false },
       );
+      expect(mockExeca).toHaveBeenNthCalledWith(
+        4,
+        'launchctl',
+        ['kickstart', '-k', `gui/${TEST_UID}/com.claude-sop.learner`],
+        { reject: false },
+      );
+    });
+
+    it('falls back to load -w when bootstrap fails', async () => {
+      // bootstrap returns non-zero on first call
+      mockExeca
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // bootout
+        .mockResolvedValueOnce({ exitCode: 113, stdout: '', stderr: 'bootstrap unsupported' } as any) // bootstrap fails
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // load -w fallback
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // enable
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any); // kickstart
+
+      await macosLaunchd.install(baseOpts);
+
+      expect(mockExeca).toHaveBeenCalledTimes(5);
+      // After bootstrap fails, load -w is called
+      expect(mockExeca).toHaveBeenNthCalledWith(
+        3,
+        'launchctl',
+        ['load', '-w', '/Users/alice/Library/LaunchAgents/com.claude-sop.learner.plist'],
+        { reject: false },
+      );
+    });
+
+    it('bootout failure does not abort install (idempotent fresh install)', async () => {
+      mockExeca
+        .mockResolvedValueOnce({ exitCode: 3, stdout: '', stderr: 'not loaded' } as any) // bootout fails
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // bootstrap
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // enable
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any); // kickstart
+
+      // Should not throw
+      await macosLaunchd.install(baseOpts);
+      expect(mockWriteFileAtomic).toHaveBeenCalledOnce();
+      expect(mockExeca).toHaveBeenCalledTimes(4);
     });
   });
 

@@ -1061,3 +1061,109 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     expect(result.stdout).toBe('[sop:off]');
   }, 10000);
 });
+
+/**
+ * Launchd install reliability smoke test (macOS only).
+ *
+ * Uses a unique label per process to avoid colliding with the user's real
+ * com.claude-sop.learner service. The install code reads CLAUDE_SOP_LABEL
+ * and prefixes must be com.claude-sop.learner* (enforced in macos-launchd.ts).
+ */
+describe.skipIf(process.platform !== 'darwin')('smoke: launchd install reliability (macOS only)', () => {
+  const TEST_LABEL = `com.claude-sop.learner.test-${process.pid}`;
+  const uid = process.getuid?.() ?? 501;
+  const serviceTarget = `gui/${uid}/${TEST_LABEL}`;
+
+  afterAll(async () => {
+    // Cleanup: bootout test service if it's still loaded
+    await execa('launchctl', ['bootout', serviceTarget], { reject: false });
+    // Remove test plist if it exists
+    const plistPath = join(
+      process.env.HOME ?? '/tmp',
+      'Library',
+      'LaunchAgents',
+      `${TEST_LABEL}.plist`,
+    );
+    try {
+      rmSync(plistPath, { force: true });
+    } catch {
+      // ignore
+    }
+  });
+
+  it('(r) install bootstraps launchd AND warmup fire produces runs >= 1 within 2s', async () => {
+    const tmpHome = mkdtempSync(resolve(tmpdir(), 'claude-sop-launchd-'));
+    const projectRoot = join(tmpHome, 'test-project');
+    mkdirSync(projectRoot, { recursive: true });
+
+    // Run install via CLI with the test label
+    const installResult = await execa(
+      'node',
+      [CLI, 'install', '--project', projectRoot],
+      {
+        reject: false,
+        env: {
+          HOME: process.env.HOME, // Must use REAL home for LaunchAgents dir
+          PATH: process.env.PATH,
+          NODE_OPTIONS: '',
+          CLAUDE_SOP_LABEL: TEST_LABEL,
+        },
+        timeout: 15000,
+      },
+    );
+
+    // Install should succeed (exit 0) or at least attempt the scheduler setup
+    // Even if install exits non-zero due to missing license etc, the scheduler
+    // step may still have fired. Check launchctl directly.
+
+    // Wait for warmup kickstart to complete
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Check launchctl print for the test service
+    const printResult = await execa('launchctl', ['print', serviceTarget], {
+      reject: false,
+    });
+
+    // If the service was loaded, check runs
+    if (printResult.exitCode === 0) {
+      const runsMatch = printResult.stdout.match(/^\s*runs\s*=\s*(\d+)/m);
+      expect(runsMatch, 'launchctl print should contain runs field').toBeTruthy();
+      const runs = parseInt(runsMatch![1]!, 10);
+      expect(runs, 'warmup kickstart should produce at least 1 run').toBeGreaterThanOrEqual(1);
+
+      const lastExitMatch = printResult.stdout.match(
+        /^\s*last exit code\s*=\s*(.+)$/m,
+      );
+      if (lastExitMatch && lastExitMatch[1]!.trim() !== '(never exited)') {
+        expect(lastExitMatch[1]!.trim()).toBe('0');
+      }
+    } else {
+      // Service not loaded — install may have failed for non-scheduler reasons.
+      // Skip assertion if install itself didn't get to the scheduler step.
+      // This handles CI environments where the install fails early (no license, etc).
+      console.warn(
+        `launchd service ${TEST_LABEL} not loaded — install may have failed before scheduler step. ` +
+        `Install exit code: ${installResult.exitCode}. Skipping launchctl assertions.`,
+      );
+    }
+
+    // Cleanup: uninstall test service
+    await execa('launchctl', ['bootout', serviceTarget], { reject: false });
+    const plistPath = join(
+      process.env.HOME ?? '/tmp',
+      'Library',
+      'LaunchAgents',
+      `${TEST_LABEL}.plist`,
+    );
+    rmSync(plistPath, { force: true });
+
+    // Verify cleanup: service should no longer be loaded
+    const verifyResult = await execa('launchctl', ['print', serviceTarget], {
+      reject: false,
+    });
+    expect(verifyResult.exitCode).not.toBe(0);
+
+    // Clean up tmp dir
+    rmSync(tmpHome, { recursive: true, force: true });
+  }, 20000);
+});

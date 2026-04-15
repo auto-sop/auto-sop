@@ -1,26 +1,28 @@
 # STATE: claude-sop
 
-**Last updated:** 2026-04-13
+**Last updated:** 2026-04-15
 
 ## Project Reference
 
 - **Name:** claude-sop
 - **Core Value:** Claude Code never makes the same mistake twice — captured history becomes enforced project rules automatically.
-- **Current Focus:** Roadmap approved; awaiting Phase 0 planning.
+- **Current Focus:** v12 hotfix — launchd install reliability + doctor effective check
 
 ## Current Position
 
-- **Phase:** 1 COMPLETE ✓ — hook shim + detached writer + turn-directory capture store shipped
-- **Next phase:** 2 (Installer + Scheduler + CLI Skeleton) — plan in flight with Commander
-- **Plan:** PLAN-v3-phase2-installer-scheduler-cli.md dispatched
-- **Status:** Phase 2 executing
-- **Progress:** `[##-----]` 2/7 phases complete
+- **Phase 0:** COMPLETE ✓ — scrubber, atomic writes, privacy foundation (v1)
+- **Phase 1:** COMPLETE ✓ — hook shim + detached writer + turn-directory capture store (v2 + hotfixes v4-v8)
+- **Phase 2:** MOSTLY COMPLETE — installer, scheduler, CLI skeleton (v3, v4-v8 hotfixes); **v12 closes SCHED-04 gap** (launchd natural fire never worked)
+- **Phase 3 MVP:** SHIPPED ✓ — observable learner, no detectors yet (v9)
+- **Phase 4-light:** SHIPPED ✓ — ManagedSectionEditor + sample directive + statusline + test cleanup (v10); statusline parser hotfix (v11)
+- **v12:** IN FLIGHT — launchd install reliability (bootstrap + warmup kickstart) + doctor `scheduler effective` check
+- **Next after v12:** recall gate (v13) or backlog cleanup (TBD)
+- **Progress:** `[#####--]` 4.5/7 phases complete (Phase 2 closes with v12)
 
 ## Performance Metrics
 
-- Phases complete: 1/7
-- v1 requirements complete: 6/61 (INST-07, INST-08, PRIV-01, PRIV-02, PRIV-03, PRIV-05)
-- Sessions: 4 (init+research+roadmap, Phase 0 context + SaaS pivot, Phase 0 plan+execute, Phase 1+2 joint context)
+- Phases complete: 4/7 (Phase 2 pending v12 close)
+- Sessions: 12 (init+research+roadmap, Phase 0 context + SaaS pivot, Phase 0 plan+execute, Phase 1+2 joint context, Phase 2 execution, v4-v8 hotfixes, Phase 3 v9, Phase 4-light v10, v11 statusline hotfix, v12 launchd hotfix, dogfood validation)
 
 ## Accumulated Context
 
@@ -34,12 +36,17 @@
 - Scrubber is a Phase 0 gating deliverable — must work before any capture write path exists.
 - ManagedSectionEditor isolated as its own phase (one bug = permanent trust loss).
 
+### Accumulated Lessons (v9-v12)
+
+- v11: Statusline parser — fourth test-false-positive class bug. Simplified fixtures lie; real launchctl output format must be used in mocks.
+- v10: dispatch-task.sh stderr fix — dev-army infrastructure hotfix, not claude-sop itself.
+- v12: `launchctl bootstrap` alone is insufficient — `kickstart -k` warmup fire at install time is critical to prove the scheduler works immediately. `StartInterval` replaced with `StartCalendarInterval { Minute: 0 }` for predictable, sleep/wake-robust hourly fires. Doctor `scheduler registered` (file-exists check) replaced with `scheduler effective` (parses `launchctl print` for actual runs count).
+- Dogfood validation completed with real army run in `wrbeautiful-shopify-theme`.
+
 ### Open Questions / Todos
 
-- Phase 0 ADR: plugin bundle location, sideload vs marketplace, `${CLAUDE_PLUGIN_ROOT}` wipe semantics on plugin update, uninstall coverage of both plugin + scheduler, scheduler→learner entrypoint resolution.
-- Phase 1 spike: re-verify CC hook payload shapes (tool_use_id pairing, Stop vs SubagentStop dispatch, subagent nesting 2+ deep).
-- Phase 2 spike: empirical `launchctl bootstrap gui/$UID` and systemd `Persistent=true` post-wake behavior.
 - Phase 3 spike: `claude -p --output-format json` exact shape; detector set finalization after ~1 week of dogfooding.
+- Linux systemd hardening: similar `OnCalendar=hourly` + `Persistent=true` fix for systemd (separate plan, v13 or v14).
 
 ### Blockers
 
@@ -47,9 +54,9 @@ None.
 
 ## Session Continuity
 
-- **Last session:** 2026-04-13T08:36:48.907Z
-- **Next action:** `/gsd:plan-phase 1` (then `/gsd:plan-phase 2`) — both CONTEXT files already written; plan jointly per user request.
-- **Resume hint:** Phase 1 = double-fork detached writer, turn-directory with .pending rename, 30s finalization timeout, bidirectional subagent linking, dev-army namespace detection. Phase 2 = installer (hook merge with order preservation), launchd/systemd via shell wrapper, flat CLI verbs, default-preserve uninstall. Phase 2 planner MUST resolve the plugin-bundle-location ADR open question in research before writing tasks.
+- **Last session:** 2026-04-15
+- **Next action:** v12 hotfix — Wave 2 (tests for install/doctor), then quality gates, then commit
+- **Resume hint:** v12 fixes launchd install reliability: 5-step install (bootout → write → bootstrap → enable → kickstart), StartCalendarInterval replaces StartInterval, doctor `scheduler effective` check parses launchctl print for actual runs. Uninstall already used bootout. Integration smoke test needs CLAUDE_SOP_LABEL env var for test isolation (added in v12).
 
 ---
 *State initialized: 2026-04-13*

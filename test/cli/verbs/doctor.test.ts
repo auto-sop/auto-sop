@@ -7,6 +7,15 @@ vi.mock('../../../src/status/collector.js', () => ({
   collectStatus: vi.fn(),
 }));
 
+// Mock execa for schedulerEffectiveCheck
+vi.mock('execa', () => ({
+  execa: vi.fn().mockResolvedValue({
+    exitCode: 0,
+    stdout: '  runs = 5\n  last exit code = 0\n  state = not running',
+    stderr: '',
+  }),
+}));
+
 // Mock PathResolver
 vi.mock('../../../src/path-resolver/index.js', () => ({
   PathResolver: class MockPathResolver {
@@ -30,14 +39,32 @@ vi.mock('../../../src/scheduler/index.js', () => ({
   }),
 }));
 
+// Mock node:fs for version.txt stat in schedulerEffectiveCheck
+vi.mock('node:fs', async (importOriginal) => {
+  const orig = (await importOriginal()) as typeof import('node:fs');
+  return {
+    ...orig,
+    promises: {
+      ...orig.promises,
+      stat: vi.fn().mockResolvedValue({
+        mtimeMs: Date.now() - 30 * 60000, // 30 min ago by default
+      }),
+    },
+  };
+});
+
 // Mock scrubber module — importable by default
 vi.mock('../../../src/scrubber/index.js', () => ({
   loadRulePack: vi.fn(),
 }));
 
 import { collectStatus } from '../../../src/status/collector.js';
+import { execa } from 'execa';
+import { promises as fs } from 'node:fs';
 
 const mockCollectStatus = vi.mocked(collectStatus);
+const mockStat = vi.mocked(fs.stat);
+const mockExeca = vi.mocked(execa);
 
 function healthyReport(): StatusReport {
   return {
@@ -290,6 +317,12 @@ describe('doctor verb', () => {
     report.scheduler.installed = false;
     report.license = { status: 'none', daysRemaining: null };
     mockCollectStatus.mockResolvedValueOnce(report);
+    // Make scheduler effective check fail (service not loaded)
+    mockExeca.mockResolvedValueOnce({
+      exitCode: 113,
+      stdout: '',
+      stderr: 'Could not find service',
+    } as any);
 
     const code = await runCli([
       'node',
@@ -303,7 +336,177 @@ describe('doctor verb', () => {
     const stderrOutput = stderrChunks.join('');
     expect(stderrOutput).toContain('installed');
     expect(stderrOutput).toContain('hooks wired');
-    expect(stderrOutput).toContain('scheduler registered');
+    expect(stderrOutput).toContain('scheduler effective');
     expect(stderrOutput).toContain('license configured');
+  });
+});
+
+describe('scheduler effective check — verdict branches', () => {
+  let stdoutChunks: string[];
+  let stderrChunks: string[];
+  let originalStdoutWrite: typeof process.stdout.write;
+  let originalStderrWrite: typeof process.stderr.write;
+
+  beforeEach(() => {
+    stdoutChunks = [];
+    stderrChunks = [];
+    originalStdoutWrite = process.stdout.write;
+    originalStderrWrite = process.stderr.write;
+    process.stdout.write = ((chunk: string) => {
+      stdoutChunks.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
+    process.stderr.write = ((chunk: string) => {
+      stderrChunks.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+  });
+
+  afterEach(() => {
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
+    vi.clearAllMocks();
+  });
+
+  /** Helper: run doctor in JSON mode and return the scheduler effective check */
+  async function runDoctorAndGetSchedulerCheck() {
+    const code = await runCli([
+      'node',
+      'claude-sop',
+      '--json',
+      'doctor',
+      '--project',
+      '/tmp/proj',
+    ]);
+    const lines = stdoutChunks.join('').trim().split('\n');
+    const parsed = JSON.parse(lines[0]!);
+    const check = parsed.checks.find(
+      (c: { name: string }) => c.name === 'scheduler effective',
+    );
+    return { code, check };
+  }
+
+  it('service not loaded → fail', async () => {
+    mockCollectStatus.mockResolvedValueOnce(healthyReport());
+    mockExeca.mockResolvedValueOnce({
+      exitCode: 113,
+      stdout: '',
+      stderr: 'Could not find service "gui/501/com.claude-sop.learner"',
+    } as any);
+
+    const { check } = await runDoctorAndGetSchedulerCheck();
+    expect(check.ok).toBe(false);
+    expect(check.detail).toContain('service not loaded');
+  });
+
+  it('unparseable launchctl output → fail (parse error)', async () => {
+    mockCollectStatus.mockResolvedValueOnce(healthyReport());
+    mockExeca.mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: 'some garbage output with no known fields',
+      stderr: '',
+    } as any);
+
+    const { check } = await runDoctorAndGetSchedulerCheck();
+    expect(check.ok).toBe(false);
+    expect(check.detail).toContain('cannot parse');
+  });
+
+  it('runs=0, install 10min ago → ok (fresh install)', async () => {
+    mockCollectStatus.mockResolvedValueOnce(healthyReport());
+    mockExeca.mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: [
+        '  state = not running',
+        '  runs = 0',
+        '  last exit code = (never exited)',
+        '  run interval = 3600 seconds',
+      ].join('\n'),
+      stderr: '',
+    } as any);
+    // version.txt modified 10 min ago
+    mockStat.mockResolvedValueOnce({
+      mtimeMs: Date.now() - 10 * 60000,
+    } as any);
+
+    const { check } = await runDoctorAndGetSchedulerCheck();
+    expect(check.ok).toBe(true);
+    expect(check.detail).toContain('fresh install');
+  });
+
+  it('runs=0, install 120min ago → fail (never fired)', async () => {
+    mockCollectStatus.mockResolvedValueOnce(healthyReport());
+    mockExeca.mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: [
+        '  state = not running',
+        '  runs = 0',
+        '  last exit code = (never exited)',
+        '  run interval = 3600 seconds',
+      ].join('\n'),
+      stderr: '',
+    } as any);
+    // version.txt modified 120 min ago
+    mockStat.mockResolvedValueOnce({
+      mtimeMs: Date.now() - 120 * 60000,
+    } as any);
+
+    const { check } = await runDoctorAndGetSchedulerCheck();
+    expect(check.ok).toBe(false);
+    expect(check.detail).toContain('never fired');
+  });
+
+  it('runs=5, last exit 0 → ok', async () => {
+    mockCollectStatus.mockResolvedValueOnce(healthyReport());
+    mockExeca.mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: [
+        '  state = not running',
+        '  runs = 5',
+        '  last exit code = 0',
+      ].join('\n'),
+      stderr: '',
+    } as any);
+
+    const { check } = await runDoctorAndGetSchedulerCheck();
+    expect(check.ok).toBe(true);
+    expect(check.detail).toBe('runs=5, last exit 0');
+  });
+
+  it('runs=3, last exit 127 → fail (non-zero exit)', async () => {
+    mockCollectStatus.mockResolvedValueOnce(healthyReport());
+    mockExeca.mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: [
+        '  state = not running',
+        '  runs = 3',
+        '  last exit code = 127',
+      ].join('\n'),
+      stderr: '',
+    } as any);
+
+    const { check } = await runDoctorAndGetSchedulerCheck();
+    expect(check.ok).toBe(false);
+    expect(check.detail).toBe('runs=3, last exit 127');
+  });
+
+  it('runs=0, (never exited), version.txt missing → fail (old install)', async () => {
+    mockCollectStatus.mockResolvedValueOnce(healthyReport());
+    mockExeca.mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: [
+        '  state = not running',
+        '  runs = 0',
+        '  last exit code = (never exited)',
+      ].join('\n'),
+      stderr: '',
+    } as any);
+    // version.txt does not exist
+    mockStat.mockRejectedValueOnce(new Error('ENOENT'));
+
+    const { check } = await runDoctorAndGetSchedulerCheck();
+    // installAgeMin = Infinity → > 90 → fail
+    expect(check.ok).toBe(false);
+    expect(check.detail).toContain('never fired');
   });
 });
