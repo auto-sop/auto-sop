@@ -1,0 +1,64 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "timeout": 10,
+            "id": "claude-sop"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "timeout": 10,
+            "id": "claude-sop"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "timeout": 10,
+            "id": "claude-sop"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "timeout": 10,
+            "id": "claude-sop"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "timeout": 10,
+            "id": "claude-sop"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1011,13 +1011,19 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     const projectRoot = join(tmpHome, 'my-project');
     mkdirSync(join(projectRoot, '.claude'), { recursive: true });
 
-    // Create .claude/settings.json with a claude-sop hook in the project
+    // Create .claude/settings.json with real Claude Code structure (v11 fix)
     const settings = {
       hooks: {
-        hooks: [
+        UserPromptSubmit: [
           {
-            matcher: 'UserPromptSubmit',
-            command: '/path/to/claude-sop/dist/plugin/shim.cjs',
+            hooks: [
+              {
+                type: 'command',
+                command: '/path/to/claude-sop/dist/plugin/shim.cjs',
+                timeout: 10,
+                id: 'claude-sop',
+              },
+            ],
           },
         ],
       },

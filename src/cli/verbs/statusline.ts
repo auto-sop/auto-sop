@@ -33,6 +33,9 @@ export function registerStatuslineVerb(program: Command): void {
 /**
  * Check if .claude/settings.json has any hook with 'claude-sop' in command.
  * Fail-closed: any error → false.
+ *
+ * Real Claude Code settings.json structure (three levels deep):
+ *   { "hooks": { "<EventName>": [ { "hooks": [ { "command": "..." } ] } ] } }
  */
 function detectHooks(projectRoot: string): boolean {
   try {
@@ -41,22 +44,35 @@ function detectHooks(projectRoot: string): boolean {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return false;
 
-    const obj = parsed as Record<string, unknown>;
-    for (const key of Object.keys(obj)) {
-      const val = obj[key];
-      if (typeof val !== 'object' || val === null) continue;
-      const entry = val as Record<string, unknown>;
-      if (!Array.isArray(entry.hooks)) continue;
-      for (const hook of entry.hooks) {
+    // Level 1: top-level "hooks" key
+    const hooks = (parsed as Record<string, unknown>).hooks;
+    if (typeof hooks !== 'object' || hooks === null) return false;
+
+    // Level 2: iterate event names (UserPromptSubmit, Stop, PreToolUse, …)
+    for (const eventName of Object.keys(hooks as Record<string, unknown>)) {
+      const entries = (hooks as Record<string, unknown>)[eventName];
+      if (!Array.isArray(entries)) continue;
+
+      // Level 3: each entry has its own nested "hooks" array
+      for (const entry of entries) {
         if (
-          typeof hook === 'object' &&
-          hook !== null &&
-          typeof (hook as Record<string, unknown>).command === 'string' &&
-          ((hook as Record<string, unknown>).command as string).includes(
-            'claude-sop',
-          )
-        ) {
-          return true;
+          typeof entry !== 'object' ||
+          entry === null ||
+          !Array.isArray((entry as Record<string, unknown>).hooks)
+        )
+          continue;
+        for (const hook of (entry as Record<string, unknown>)
+          .hooks as unknown[]) {
+          if (
+            typeof hook === 'object' &&
+            hook !== null &&
+            typeof (hook as Record<string, unknown>).command === 'string' &&
+            ((hook as Record<string, unknown>).command as string).includes(
+              'claude-sop',
+            )
+          ) {
+            return true;
+          }
         }
       }
     }
