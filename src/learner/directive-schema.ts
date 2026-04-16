@@ -26,9 +26,19 @@ export const DirectiveProposal = z.object({
   rule_text: z
     .string()
     .min(10, 'rule_text must be at least 10 chars')
-    .max(500, 'rule_text must be at most 500 chars'),
+    .max(500, 'rule_text must be at most 500 chars')
+    .refine(
+      (s) => !/<!--\s*claude-sop:managed-section:(begin|end)/i.test(s) && !/<!--\s*GENERATED/i.test(s),
+      'rule_text must not contain managed-section markers',
+    ),
   evidence: z.object({
-    session_ids: z.array(z.string().min(1)).min(3, 'at least 3 distinct sessions required'),
+    session_ids: z
+      .array(z.string().min(1))
+      .min(3, 'at least 3 distinct sessions required')
+      .refine(
+        (ids) => new Set(ids).size >= 3,
+        'session_ids must contain at least 3 distinct values',
+      ),
     turn_ids: z.array(z.string().min(1)).min(1),
     pattern: z.string().min(1),
     occurrence_count: z.number().int().min(3),

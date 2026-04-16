@@ -26,6 +26,8 @@ import {
   DirectiveProposal,
   type DirectiveProposalType,
 } from './directive-schema.js';
+import { runLlmAnalysis } from './llm-mode.js';
+import { mergeProposals } from './merge-proposals.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -241,86 +243,156 @@ async function runLearnerTick(
         continue;
       }
 
-      // Run detectors + write directive to CLAUDE.md (fail-open)
-      if (process.env.CLAUDE_SOP_LEARNER_MODE !== 'llm') {
-        // Load turn data ONCE per project per tick (shared across all detectors)
-        let turnData: ReturnType<typeof loadTurnsForDetection> = [];
-        try {
-          turnData = loadTurnsForDetection(capturesDir, MAX_TURNS_FIRST_RUN);
-        } catch (err) {
-          logError('turn_loader_failed', err, home);
-          turnData = [];
-        }
+      // PLAN-v14: LLM mode is DEFAULT ON. Opt-out via
+      //   CLAUDE_SOP_LEARNER_MODE=offline
+      // which skips the `claude -p` invocation and runs only the
+      // rule-based detectors.
+      //
+      // Also skip LLM when the parent process set CLAUDE_SOP_LEARNER=1
+      // (recursion guard): this env is set inside a learner-spawned
+      // `claude -p` child, so if Phase-2 capture somehow gets hold of
+      // a turn from that child, a subsequent learner tick must not
+      // re-invoke LLM against its own analysis output.
+      const isOffline =
+        process.env.CLAUDE_SOP_LEARNER_MODE === 'offline' ||
+        process.env.CLAUDE_SOP_LEARNER === '1';
 
-        // Execute every detector inside try/catch — a crashing detector
-        // must never abort the tick. Track run/fail counts for recap.
-        const allProposals: DirectiveProposalType[] = [];
-        let detectorsRun = 0;
-        let detectorsFailed = 0;
-
-        for (const detector of detectors) {
-          detectorsRun++;
-          try {
-            const raw = detector.detect(turnData);
-            for (const proposal of raw) {
-              const parsed = DirectiveProposal.safeParse(proposal);
-              if (parsed.success) {
-                allProposals.push(parsed.data);
-              } else {
-                logError(
-                  'directive_schema_rejected',
-                  {
-                    detector: detector.name,
-                    // Only log structured validation errors (not the
-                    // malformed proposal itself, which could be huge).
-                    issues: parsed.error.issues,
-                  },
-                  home,
-                );
-              }
-            }
-          } catch (err) {
-            detectorsFailed++;
-            logError('detector_failed', { detector: detector.name, err: String(err) }, home);
-          }
-        }
-
-        // Count below-threshold candidates for "monitoring" status line
-        let candidateCount = 0;
-        try {
-          candidateCount =
-            countBashFailureCandidates(turnData) +
-            countEditFailureCandidates(turnData);
-        } catch (err) {
-          logError('candidate_count_failed', err, home);
-        }
-
-        try {
-          const directiveContent = buildDirectiveBody(
-            project,
-            now,
-            result.turns_total_seen,
-            allProposals,
-            candidateCount,
-          );
-          const writeResult = writeManagedSection({
-            projectRoot: validRoot,
-            content: directiveContent,
-            dryRun: process.env.CLAUDE_SOP_LEARNER_DRY_RUN === '1',
-          });
-          result.directive_written = writeResult.verdict;
-          result.directive_bytes = writeResult.bytesAfter;
-          result.directive_backup = writeResult.backupPath !== null;
-        } catch (err) {
-          logError('directive_write_failed', err, home);
-          result.directive_written = 'error';
-        }
-
-        result.directives_active = allProposals.length;
-        result.directives_candidates = candidateCount;
-        result.detectors_run = detectorsRun;
-        result.detectors_failed = detectorsFailed;
+      // Load turn data ONCE per project per tick (shared across all detectors)
+      let turnData: ReturnType<typeof loadTurnsForDetection> = [];
+      try {
+        turnData = loadTurnsForDetection(capturesDir, MAX_TURNS_FIRST_RUN);
+      } catch (err) {
+        logError('turn_loader_failed', err, home);
+        turnData = [];
       }
+
+      // Execute every detector inside try/catch — a crashing detector
+      // must never abort the tick. Track run/fail counts for recap.
+      const ruleProposals: DirectiveProposalType[] = [];
+      let detectorsRun = 0;
+      let detectorsFailed = 0;
+
+      for (const detector of detectors) {
+        detectorsRun++;
+        try {
+          const raw = detector.detect(turnData);
+          for (const proposal of raw) {
+            const parsed = DirectiveProposal.safeParse(proposal);
+            if (parsed.success) {
+              ruleProposals.push(parsed.data);
+            } else {
+              logError(
+                'directive_schema_rejected',
+                {
+                  detector: detector.name,
+                  // Only log structured validation errors (not the
+                  // malformed proposal itself, which could be huge).
+                  issues: parsed.error.issues,
+                },
+                home,
+              );
+            }
+          }
+        } catch (err) {
+          detectorsFailed++;
+          logError('detector_failed', { detector: detector.name, err: String(err) }, home);
+        }
+      }
+
+      // Count below-threshold candidates for "monitoring" status line
+      let candidateCount = 0;
+      try {
+        candidateCount =
+          countBashFailureCandidates(turnData) +
+          countEditFailureCandidates(turnData);
+      } catch (err) {
+        logError('candidate_count_failed', err, home);
+      }
+
+      // Run LLM analysis (unless offline). Fail-open: any error → empty
+      // result; we still write CLAUDE.md using just the rule-based output.
+      let llmResult: Awaited<ReturnType<typeof runLlmAnalysis>> = {
+        proposals: [],
+        summary: '',
+        turnsAnalyzed: 0,
+        patternsBelowThreshold: 0,
+        durationMs: 0,
+        error: null,
+      };
+      try {
+        // Count distinct sessions represented in the turn set so the LLM
+        // prompt accurately reports "N turns from M sessions" rather than
+        // treating every turn as its own session.
+        const sessionCount = new Set(turnData.map((t) => t.session_id)).size;
+        llmResult = await runLlmAnalysis(
+          turnData,
+          project.slug,
+          sessionCount,
+          { offline: isOffline, timeout: 120_000 },
+        );
+        if (llmResult.error !== null && !isOffline) {
+          logError('learner_llm_error', llmResult.error, home);
+        }
+      } catch (err) {
+        // runLlmAnalysis is documented never to throw, but guard anyway.
+        logError('learner_llm_error', err, home);
+      }
+
+      // Merge rule-based + LLM proposals. On LLM failure, llmResult.proposals
+      // is empty so mergeProposals degrades gracefully to rule-only output.
+      const mergedProposals = mergeProposals(
+        ruleProposals,
+        llmResult.proposals,
+      );
+
+      try {
+        const directiveContent = buildDirectiveBody(
+          project,
+          now,
+          result.turns_total_seen,
+          mergedProposals,
+          candidateCount,
+          // Only render the AI analysis line when the LLM actually ran
+          // AND produced a summary. Suppress on fallback so stale
+          // context doesn't bleed across ticks.
+          !isOffline && llmResult.error === null
+            ? llmResult.summary
+            : undefined,
+        );
+        const writeResult = writeManagedSection({
+          projectRoot: validRoot,
+          content: directiveContent,
+          dryRun: process.env.CLAUDE_SOP_LEARNER_DRY_RUN === '1',
+        });
+        result.directive_written = writeResult.verdict;
+        result.directive_bytes = writeResult.bytesAfter;
+        result.directive_backup = writeResult.backupPath !== null;
+      } catch (err) {
+        logError('directive_write_failed', err, home);
+        result.directive_written = 'error';
+      }
+
+      result.directives_active = mergedProposals.length;
+      result.directives_candidates = candidateCount;
+      result.detectors_run = detectorsRun;
+      result.detectors_failed = detectorsFailed;
+
+      // Populate LLM-mode fields on the per-project recap so
+      // `claude-sop recap` can surface what happened.
+      result.llm_mode = !isOffline;
+      result.llm_duration_ms = llmResult.durationMs;
+      result.llm_directives_proposed = llmResult.proposals.length;
+      // The number of LLM proposals that actually landed after merge
+      // dedup — i.e. the count that survived to CLAUDE.md. Computed as
+      // "merged items whose id came from the LLM set".
+      const llmIds = new Set(llmResult.proposals.map((p) => p.id));
+      result.llm_directives_accepted = mergedProposals.filter((p) =>
+        llmIds.has(p.id),
+      ).length;
+      result.llm_directives_rejected =
+        llmResult.proposals.length - (result.llm_directives_accepted ?? 0);
+      result.llm_error = llmResult.error;
+      result.llm_fallback = llmResult.error !== null;
 
       // Append per-project recap
       appendRecap(result, home);
@@ -349,16 +421,6 @@ async function runLearnerTick(
     errors,
   };
   appendRecap(summary, home);
-
-  // LLM mode (feature-flagged)
-  if (process.env.CLAUDE_SOP_LEARNER_MODE === 'llm') {
-    try {
-      const { runLlmBatch } = await import('./llm-mode.js');
-      await runLlmBatch(home, tickId, registry, total_turns_new);
-    } catch (err) {
-      logError('learner_llm_error', err, home);
-    }
-  }
 }
 
 // ── Helpers ────────────────────────────────────────────────

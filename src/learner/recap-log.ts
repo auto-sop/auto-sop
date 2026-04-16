@@ -41,6 +41,24 @@ export interface PerProjectRecap {
   detectors_run?: number;
   /** Count of detectors that threw during execution (fail-open). */
   detectors_failed?: number;
+
+  // ── LLM analysis fields (PLAN-v14) ────────────────────────
+  // All optional so existing recap entries deserialize unchanged.
+  /** How long the `claude -p` subprocess took, in ms. 0 when offline. */
+  llm_duration_ms?: number;
+  /** Count of directives the LLM proposed before schema validation. */
+  llm_directives_proposed?: number;
+  /** Count of LLM directives that survived schema + merge into the final
+   *  managed-section payload. */
+  llm_directives_accepted?: number;
+  /** Count of LLM directives that were rejected or dropped post-proposal. */
+  llm_directives_rejected?: number;
+  /** Stable error code emitted by runLlmAnalysis (e.g. 'claude_not_found',
+   *  'timeout', 'claude_exit_1'). `null`/`undefined` when the call
+   *  succeeded. */
+  llm_error?: string | null;
+  /** True when the LLM call errored and we fell back to rule-based only. */
+  llm_fallback?: boolean;
 }
 
 export interface TickSummary {

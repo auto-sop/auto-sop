@@ -79,6 +79,57 @@ export interface DirectiveInput {
   proposals: DirectiveProposalType[];
   /** Number of below-threshold candidate patterns (for "monitoring" text). */
   candidateCount: number;
+  /**
+   * Optional free-form summary emitted by the LLM analyzer. When present,
+   * renders as a single `_AI analysis: …_` line directly below the stats
+   * header. Kept optional for backwards compatibility and to allow clean
+   * fallback when LLM mode is disabled / errored.
+   *
+   * The builder deliberately strips any embedded newlines and caps the
+   * length so a runaway model cannot bloat the managed section.
+   */
+  llmSummary?: string;
+}
+
+/** Max characters we will render from an llmSummary. Guards against
+ *  accidental prompt-injection / runaway output bloating CLAUDE.md. */
+const MAX_LLM_SUMMARY_CHARS = 500;
+
+/**
+ * HTML-comment prefixes that would break the managed-section boundary
+ * if an attacker-controlled LLM summary smuggled them in. Stripping
+ * these substrings defangs the marker without otherwise changing the
+ * text — the remaining characters are still rendered so the user can
+ * see that an injection attempt was made (minus its payload).
+ */
+const MARKER_PATTERNS = [
+  '<!-- claude-sop:managed-section:begin',
+  '<!-- claude-sop:managed-section:end',
+  '<!-- GENERATED',
+];
+
+/**
+ * Normalize an LLM summary for safe inclusion in the managed section.
+ * - Collapses whitespace (incl. newlines) to single spaces.
+ * - Trims.
+ * - Strips any managed-section markers (SEC-001 injection resistance).
+ * - Truncates to MAX_LLM_SUMMARY_CHARS (appending an ellipsis) if longer.
+ * - Returns `null` when the cleaned string is empty (so callers can skip
+ *   emitting the line entirely).
+ */
+function normalizeLlmSummary(summary: string | undefined): string | null {
+  if (typeof summary !== 'string') return null;
+  const collapsed = summary.replace(/\s+/g, ' ').trim();
+  if (collapsed.length === 0) return null;
+  // Strip any HTML comment markers to prevent managed-section corruption.
+  let sanitized = collapsed;
+  for (const pattern of MARKER_PATTERNS) {
+    sanitized = sanitized.split(pattern).join('');
+  }
+  sanitized = sanitized.trim();
+  if (sanitized.length === 0) return null;
+  if (sanitized.length <= MAX_LLM_SUMMARY_CHARS) return sanitized;
+  return sanitized.slice(0, MAX_LLM_SUMMARY_CHARS - 1) + '\u2026';
 }
 
 // ── Build managed-section body ──────────────────────────────
@@ -137,7 +188,14 @@ function formatProposalBullet(p: DirectiveProposalType): string {
 export function buildDirectiveBodyFromInput(
   input: DirectiveInput,
 ): ManagedSectionContent {
-  const { turnsTotalSeen, agentRoster, nowIso, proposals, candidateCount } = input;
+  const {
+    turnsTotalSeen,
+    agentRoster,
+    nowIso,
+    proposals,
+    candidateCount,
+    llmSummary,
+  } = input;
 
   const roundedTs = roundToMinute(nowIso);
   const agentList =
@@ -148,6 +206,10 @@ export function buildDirectiveBodyFromInput(
   const statsLine =
     `_Last updated: ${roundedTs} \u00b7 ${turnsTotalSeen} ${turnsLabel} analyzed ` +
     `\u00b7 ${agentRoster.length} ${agentCountLabel}: ${agentList}_`;
+
+  const cleanedSummary = normalizeLlmSummary(llmSummary);
+  const aiLine =
+    cleanedSummary !== null ? `\n_AI analysis: ${cleanedSummary}_` : '';
 
   const sorted = sortProposals(proposals);
 
@@ -176,7 +238,7 @@ export function buildDirectiveBodyFromInput(
       '**Learnings**\n\n' + '_No recurring patterns detected yet._';
   }
 
-  const body = statsLine + '\n\n' + learningsSection;
+  const body = statsLine + aiLine + '\n\n' + learningsSection;
   return { body };
 }
 
@@ -194,6 +256,7 @@ export function buildDirectiveBody(
   turnsTotalSeen: number,
   proposals: DirectiveProposalType[],
   candidateCount: number,
+  llmSummary?: string,
 ): ManagedSectionContent {
   const capturesDir = join(project.project_root, '.claude-sop', 'captures');
   const agentRoster = collectAgentRoster(capturesDir);
@@ -203,6 +266,7 @@ export function buildDirectiveBody(
     nowIso,
     proposals,
     candidateCount,
+    llmSummary,
   });
 }
 

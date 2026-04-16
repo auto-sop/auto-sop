@@ -121,10 +121,11 @@ describe('recap verb: dry-run diff computation', () => {
   });
 });
 
-describe('recap verb: --dry-run flag registration', () => {
-  it('recap command accepts --dry-run option', async () => {
-    // Verify that the recap verb correctly registers the --dry-run flag
-    // by importing and checking option registration
+describe('recap verb: flag registration', () => {
+  it('recap command registers --run, --dry-run, --offline (PLAN-v14)', async () => {
+    // Verify that the recap verb correctly registers the expected flags.
+    // PLAN-v14 replaced --llm with --offline because LLM mode is now
+    // the default (free via Claude Max).
     const { Command } = await import('commander');
     const { registerRecapVerb } = await import('../../../src/cli/verbs/recap.js');
 
@@ -134,10 +135,11 @@ describe('recap verb: --dry-run flag registration', () => {
     const recapCmd = program.commands.find((c) => c.name() === 'recap');
     expect(recapCmd).toBeDefined();
 
-    // Check that --dry-run is among the options
     const options = recapCmd!.options.map((o) => o.long);
     expect(options).toContain('--dry-run');
     expect(options).toContain('--run');
-    expect(options).toContain('--llm');
+    expect(options).toContain('--offline');
+    // --llm was removed in PLAN-v14; ensure it isn't accidentally restored.
+    expect(options).not.toContain('--llm');
   });
 });

@@ -1,6 +1,16 @@
 /**
  * recap verb — display and manage learner recap log.
- * Subcommands: recap (pretty table), --json, --run, --run --dry-run, --run --llm, --tail, --limit.
+ *
+ * Subcommands / flags:
+ *   claude-sop recap                  — show last N entries (default 10)
+ *   claude-sop recap --limit <n>      — show last N entries
+ *   claude-sop recap --tail           — follow log for new entries
+ *   claude-sop recap --run            — spawn the learner now (LLM mode ON)
+ *   claude-sop recap --run --offline  — spawn the learner with LLM disabled
+ *   claude-sop recap --run --dry-run  — learner runs but won't write CLAUDE.md
+ *
+ * PLAN-v14 change: LLM mode is now DEFAULT ON (free via Claude Max).
+ * The legacy `--llm` flag is removed; use `--offline` to opt out.
  */
 import type { Command } from 'commander';
 import os from 'node:os';
@@ -53,6 +63,26 @@ function directiveLabel(entry: Record<string, unknown>): string {
   }
 }
 
+/**
+ * Format the LLM-mode cell shown in the per-project recap table. Returns
+ * a coloured string (or a dim dash when no LLM-mode fields are present
+ * — e.g. pre-v14 recap entries).
+ */
+function llmLabel(entry: Record<string, unknown>): string {
+  if (entry.llm_mode === undefined) return pc.dim('-');
+  if (entry.llm_mode !== true) return pc.dim('offline');
+  if (entry.llm_fallback === true) {
+    const code = typeof entry.llm_error === 'string' ? entry.llm_error : 'error';
+    return pc.red(`fallback (${code})`);
+  }
+  const ms = typeof entry.llm_duration_ms === 'number' ? entry.llm_duration_ms : 0;
+  const proposed =
+    typeof entry.llm_directives_proposed === 'number'
+      ? entry.llm_directives_proposed
+      : 0;
+  return pc.green(`on (${ms}ms, ${proposed} proposed)`);
+}
+
 function formatEntry(entry: Record<string, unknown>): string {
   if (entry.summary) {
     return renderTable([
@@ -76,14 +106,33 @@ function formatEntry(entry: Record<string, unknown>): string {
     ['files', String(entry.files_changed_new ?? 0)],
     ['duration', `${entry.duration_ms ?? 0}ms`],
     ['directive', directiveLabel(entry)],
+    ['llm', llmLabel(entry)],
   ]);
 }
 
 /**
  * For each per-project entry with directive_written === 'dry_run', compute
  * and print a unified diff showing what WOULD be written to CLAUDE.md.
+ *
+ * NOTE: The recap log persists only aggregate counts of proposals, not the
+ * proposal objects themselves (rule/evidence/guidance are lost once the
+ * learner tick ends). The diff therefore cannot reconstruct the exact
+ * per-directive content that was written. Instead we render a synthetic
+ * structural preview (empty-proposals template) and emit a banner plus a
+ * proposal-count line from the entry so the reader knows the specific
+ * directives are not shown.
  */
 function printDryRunDiffs(entries: Record<string, unknown>[]): void {
+  if (entries.length === 0) return;
+
+  process.stdout.write(
+    pc.yellow(
+      'Note: --dry-run diffs show the structural CLAUDE.md preview only.\n' +
+        '      Specific directive bodies are not reconstructed from the recap log;\n' +
+        '      the actual write at a non-dry-run tick includes all merged proposals.\n',
+    ) + '\n',
+  );
+
   for (const entry of entries) {
     if (entry.directive_written !== 'dry_run') continue;
 
@@ -121,14 +170,25 @@ function printDryRunDiffs(entries: Record<string, unknown>[]): void {
       continue;
     }
 
+    // Surface the real counts so the reader knows how many directives the
+    // synthetic preview is glossing over.
+    const activeCount = Number(entry.directives_active ?? 0);
+    const candidateCount = Number(entry.directives_candidates ?? 0);
+    const llmProposed = Number(entry.llm_directives_proposed ?? 0);
+    const countLine =
+      `  ${activeCount} directive(s) would be written, ` +
+      `${candidateCount} candidate(s) below threshold, ` +
+      `${llmProposed} LLM proposal(s) this tick.\n`;
+
     const diff = unifiedDiff(oldContent, newContent, {
       oldLabel: `${slug}/CLAUDE.md`,
-      newLabel: `${slug}/CLAUDE.md (proposed)`,
+      newLabel: `${slug}/CLAUDE.md (structural preview)`,
       context: 3,
     });
 
     if (diff) {
       process.stdout.write(pc.bold(`Diff for ${slug}:\n`));
+      process.stdout.write(pc.dim(countLine));
       // Colorize diff lines
       for (const line of diff.split('\n')) {
         if (line.startsWith('+++') || line.startsWith('---')) {
@@ -145,7 +205,9 @@ function printDryRunDiffs(entries: Record<string, unknown>[]): void {
       }
       process.stdout.write('\n');
     } else {
-      process.stdout.write(pc.dim(`  (no changes for ${slug})\n\n`));
+      process.stdout.write(pc.bold(`Diff for ${slug}:\n`));
+      process.stdout.write(pc.dim(countLine));
+      process.stdout.write(pc.dim(`  (no structural changes for ${slug})\n\n`));
     }
   }
 }
@@ -162,8 +224,13 @@ function resolveProjectRoot(projectId: string): string | null {
 
 /**
  * Simulate what the directive writer would produce for a project, without
- * actually writing anything. Delegates to writeManagedSection with dryRun:true
- * and returns the computed new content.
+ * actually writing anything. Delegates to writeManagedSection with
+ * dryRun:true and returns the computed new content.
+ *
+ * LIMITATION: this function can only render a structural (empty-proposal)
+ * preview because the recap log does not persist proposal objects —
+ * only counts. Callers must disclose this to the user (see
+ * `printDryRunDiffs` banner).
  */
 function simulateDirectiveWrite(
   projectRoot: string,
@@ -196,9 +263,12 @@ export function registerRecapVerb(program: Command): void {
     .option('--limit <n>', 'show last N entries', (v: string) => parseInt(v, 10), 10)
     .option('--tail', 'follow recap log for new entries')
     .option('--follow', 'alias for --tail')
-    .option('--run', 'run the learner now and show results')
+    .option('--run', 'run the learner now (LLM mode is ON by default)')
     .option('--dry-run', 'dry-run mode: show what would change without writing (requires --run)')
-    .option('--llm', 'enable LLM mode when running (requires --run)')
+    .option(
+      '--offline',
+      'disable LLM mode (run rule-based detectors only; requires --run)',
+    )
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
       const logPath = recapLogPath();
@@ -209,13 +279,19 @@ export function registerRecapVerb(program: Command): void {
         process.exitCode = 1;
         return;
       }
+      // Validate: --offline requires --run (matches --dry-run's UX)
+      if (opts.offline && !opts.run) {
+        process.stderr.write(
+          pc.red(
+            'error: --offline requires --run (e.g., claude-sop recap --run --offline)\n',
+          ),
+        );
+        process.exitCode = 1;
+        return;
+      }
 
       // --run: spawn learner child process
       if (opts.run) {
-        if (opts.llm) {
-          process.stderr.write(pc.yellow('LLM mode — may incur API costs\n'));
-        }
-
         const learnerPath = findLearnerCjs();
         if (!learnerPath) {
           if (jsonMode) {
@@ -235,13 +311,15 @@ export function registerRecapVerb(program: Command): void {
           // file doesn't exist yet
         }
 
-        // Spawn learner
+        // Spawn learner. LLM mode is ON by default; --offline sets
+        // CLAUDE_SOP_LEARNER_MODE=offline which main.ts interprets as
+        // "skip LLM, run only rule-based detectors".
         const env: Record<string, string> = {
           HOME: os.homedir(),
           PATH: process.env.PATH ?? '',
         };
-        if (opts.llm) {
-          env.CLAUDE_SOP_LEARNER_MODE = 'llm';
+        if (opts.offline) {
+          env.CLAUDE_SOP_LEARNER_MODE = 'offline';
         }
         if (opts.dryRun) {
           env.CLAUDE_SOP_LEARNER_DRY_RUN = '1';

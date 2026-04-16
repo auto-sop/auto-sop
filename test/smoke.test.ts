@@ -1284,6 +1284,407 @@ describe('smoke: managed section end-to-end (isolated)', () => {
   }, 15000);
 });
 
+// ── LLM-driven directive generation end-to-end (isolated) ─────
+//
+// These tests spawn the built learner.cjs with a mock `claude` binary
+// on PATH (a bash script that consumes stdin and emits a hardcoded
+// response). They exercise the full PLAN-v14 pipeline:
+//   runLlmAnalysis → mergeProposals → buildDirectiveBody → writeManagedSection
+// and the recap-log fields added in Wave 3 (llm_mode, llm_fallback,
+// llm_error, llm_directives_accepted). Each test uses its own tmpHome
+// so cross-test PATH leakage cannot contaminate results.
+describe('smoke: LLM-driven directive generation (isolated)', () => {
+  const tmpDirs: string[] = [];
+
+  afterAll(() => {
+    for (const d of tmpDirs) {
+      try {
+        rmSync(d, { recursive: true, force: true });
+      } catch {
+        // best-effort
+      }
+    }
+  });
+
+  function makeTmpEnv(): { tmpHome: string; bundleDir: string; learnerPath: string } {
+    const tmpHome = mkdtempSync(resolve(tmpdir(), 'llm-smoke-'));
+    tmpDirs.push(tmpHome);
+    const bundleDir = join(tmpHome, 'bundle');
+    cpSync(resolve(ROOT, 'dist/plugin'), bundleDir, { recursive: true });
+    return { tmpHome, bundleDir, learnerPath: join(bundleDir, 'learner.cjs') };
+  }
+
+  function writeRegistry(
+    home: string,
+    projects: Array<{ project_id: string; slug: string; project_root: string }>,
+  ) {
+    const regDir = join(home, '.claude-sop');
+    mkdirSync(regDir, { recursive: true });
+    const registry = {
+      version: 1,
+      projects: projects.map((p) => ({
+        ...p,
+        installed_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+      })),
+    };
+    writeFileSync(join(regDir, 'projects.json'), JSON.stringify(registry, null, 2), {
+      mode: 0o600,
+    });
+  }
+
+  /**
+   * Seed a finalized turn with one Bash failure (pre/post pair). Shared
+   * shape with the managed-section suite, kept local so this describe
+   * block is self-contained.
+   */
+  function seedFailedBashTurn(
+    capturesDir: string,
+    opts: { turnId: string; sessionId: string; finalizedAt: string; command: string },
+  ) {
+    const turnDir = join(capturesDir, `20260414T120000-main-abc-${opts.turnId}`);
+    mkdirSync(turnDir, { recursive: true });
+    const meta = {
+      schema_version: 1,
+      project_id: 'test123',
+      project_slug: 'test-project',
+      session_id: opts.sessionId,
+      turn_id: opts.turnId,
+      parent_turn_id: null,
+      children_turn_ids: [],
+      agent: 'main',
+      subagent_type: null,
+      started_at: opts.finalizedAt,
+      finalized_at: opts.finalizedAt,
+      finalization_reason: 'stop',
+      hook_shim_version: '0.0.0',
+      files_changed_count: 0,
+      tool_call_count: 1,
+      scrubber_hit_count: 0,
+    };
+    writeFileSync(join(turnDir, 'meta.json'), JSON.stringify(meta), { mode: 0o600 });
+    const tuid = `tu-${opts.turnId}`;
+    const lines = [
+      JSON.stringify({
+        event: 'pre',
+        tool_use_id: tuid,
+        tool: 'Bash',
+        input: { command: opts.command },
+        t: opts.finalizedAt,
+      }),
+      JSON.stringify({
+        event: 'post',
+        tool_use_id: tuid,
+        output: { exitCode: 1, stderr: 'failure' },
+        success: false,
+        t: opts.finalizedAt,
+      }),
+    ];
+    writeFileSync(join(turnDir, 'tool-calls.jsonl'), lines.join('\n') + '\n', {
+      mode: 0o600,
+    });
+  }
+
+  function readRecapLog(home: string): unknown[] {
+    const logPath = join(home, '.claude-sop', 'logs', 'recap.log');
+    try {
+      const text = readFileSync(logPath, 'utf8');
+      return text
+        .split('\n')
+        .filter((l) => l.trim())
+        .map((l) => JSON.parse(l));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Create an executable bash script at `${tmpHome}/bin/claude` that
+   * consumes stdin and writes `stdout` to stdout. Returns the parent
+   * directory to prepend to PATH.
+   *
+   * We use a quoted heredoc so the JSON body is not subject to shell
+   * expansion — every backslash / dollar / quote survives verbatim.
+   * A side-effect marker file is also touched so tests can assert
+   * whether the mock was actually invoked.
+   */
+  function createMockClaudeBinary(tmpHome: string, stdoutBody: string): {
+    binDir: string;
+    markerPath: string;
+  } {
+    const binDir = join(tmpHome, 'bin');
+    mkdirSync(binDir, { recursive: true });
+    const markerPath = join(tmpHome, 'mock-claude-invoked.flag');
+    const mockPath = join(binDir, 'claude');
+    // Quoted heredoc (<<'EOF') disables expansion inside the body.
+    const script =
+      `#!/bin/bash\n` +
+      `cat > /dev/null\n` +
+      `touch '${markerPath}'\n` +
+      `cat <<'MOCK_CLAUDE_OUTPUT_EOF'\n` +
+      `${stdoutBody}\n` +
+      `MOCK_CLAUDE_OUTPUT_EOF\n`;
+    writeFileSync(mockPath, script, { mode: 0o755 });
+    return { binDir, markerPath };
+  }
+
+  /** Minimal PATH that contains system utilities (`which`, `bash`, `cat`,
+   *  `touch`) but NOT the real `claude` binary. Caller prepends their own
+   *  directory if they want the mock `claude` to be resolvable. */
+  const SYSTEM_PATH = '/usr/bin:/bin';
+
+  function runLearner(
+    learnerPath: string,
+    home: string,
+    pathEnv: string,
+    env?: Record<string, string>,
+  ) {
+    // Use process.execPath so the outer spawn resolves the right node
+    // regardless of what we set PATH to for the child.
+    return execa(process.execPath, [learnerPath], {
+      reject: false,
+      env: { HOME: home, PATH: pathEnv, NODE_OPTIONS: '', ...env },
+      timeout: 30000,
+    });
+  }
+
+  // Well-formed claude CLI wrapper carrying a valid directive payload.
+  // Must include every field the Zod schema requires (detector,
+  // created_at), otherwise safeParse silently drops the directive and
+  // the test would fail for the wrong reason.
+  const LLM_MARKER = 'LLM_DIRECTIVE_MARKER_XYZZY';
+  const VALID_LLM_JSON = JSON.stringify({
+    type: 'result',
+    result: JSON.stringify({
+      directives: [
+        {
+          id: 'llm-test-pattern',
+          detector: 'llm',
+          severity: 'warning',
+          rule_text: `${LLM_MARKER} always verify X before Y when working with Z.`,
+          evidence: {
+            session_ids: ['sess-1', 'sess-2', 'sess-3'],
+            turn_ids: ['t1', 't2', 't3'],
+            pattern: 'test',
+            occurrence_count: 3,
+            first_seen: '2026-04-14T00:00:00Z',
+          },
+          created_at: '2026-04-15T00:00:00Z',
+        },
+      ],
+      summary: 'Analysis test summary from mock LLM.',
+      turns_analyzed: 3,
+      patterns_below_threshold: 0,
+    }),
+    model: 'claude-test-mock',
+    total_cost_usd: 0,
+  });
+
+  // Test (w) — valid LLM JSON → directive reaches CLAUDE.md
+  it('(w) LLM returns valid JSON proposals → directive text written to CLAUDE.md', async () => {
+    const { tmpHome, learnerPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    const capturesDir = join(projectRoot, '.claude-sop', 'captures');
+    mkdirSync(capturesDir, { recursive: true });
+    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+
+    // Seed 3 distinct-session bash failures so rule-based also has
+    // something to do. The LLM directive and rule-based directive have
+    // distinct ids; mergeProposals keeps both.
+    seedFailedBashTurn(capturesDir, {
+      turnId: 'b1',
+      sessionId: 'sess-a',
+      finalizedAt: '2026-04-14T10:00:00.000Z',
+      command: 'npm test',
+    });
+    seedFailedBashTurn(capturesDir, {
+      turnId: 'b2',
+      sessionId: 'sess-b',
+      finalizedAt: '2026-04-14T11:00:00.000Z',
+      command: 'npm test',
+    });
+    seedFailedBashTurn(capturesDir, {
+      turnId: 'b3',
+      sessionId: 'sess-c',
+      finalizedAt: '2026-04-14T12:00:00.000Z',
+      command: 'npm test',
+    });
+
+    const { binDir, markerPath } = createMockClaudeBinary(tmpHome, VALID_LLM_JSON);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
+
+    const result = await runLearner(
+      learnerPath,
+      tmpHome,
+      `${binDir}:${SYSTEM_PATH}`,
+    );
+    expect(result.exitCode).toBe(0);
+
+    // Mock was actually invoked — recursion guard did not fire.
+    expect(existsSync(markerPath)).toBe(true);
+
+    const claudeMd = readFileSync(join(projectRoot, 'CLAUDE.md'), 'utf8');
+    // LLM-generated directive text present verbatim.
+    expect(claudeMd).toContain(LLM_MARKER);
+    // AI analysis summary renders below the stats header.
+    expect(claudeMd).toContain('Analysis test summary from mock LLM.');
+
+    const entries = readRecapLog(tmpHome);
+    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    expect(projRecap).toBeDefined();
+    expect(projRecap.llm_mode).toBe(true);
+    expect(projRecap.llm_error).toBeNull();
+    expect(projRecap.llm_fallback).toBe(false);
+    expect(projRecap.llm_directives_proposed).toBe(1);
+    expect(projRecap.llm_directives_accepted).toBe(1);
+  }, 30000);
+
+  // Test (x) — invalid LLM JSON → rule-based fallback kicks in
+  it('(x) LLM returns invalid JSON → fallback to rule-based only, llm_error=json_parse_failed', async () => {
+    const { tmpHome, learnerPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    const capturesDir = join(projectRoot, '.claude-sop', 'captures');
+    mkdirSync(capturesDir, { recursive: true });
+    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+
+    // 3 distinct sessions ensure rule-based detector fires a directive.
+    for (let i = 1; i <= 3; i++) {
+      seedFailedBashTurn(capturesDir, {
+        turnId: `b${i}`,
+        sessionId: `sess-${i}`,
+        finalizedAt: `2026-04-14T1${i}:00:00.000Z`,
+        command: 'npm test',
+      });
+    }
+
+    // Garbage body — the outer JSON.parse in extractInnerText throws,
+    // so runLlmAnalysis returns `{ error: 'json_parse_failed' }`.
+    const { binDir, markerPath } = createMockClaudeBinary(
+      tmpHome,
+      'not valid json at all',
+    );
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
+
+    const result = await runLearner(
+      learnerPath,
+      tmpHome,
+      `${binDir}:${SYSTEM_PATH}`,
+    );
+    expect(result.exitCode).toBe(0);
+
+    // Mock ran (so we know claude was actually spawned) but LLM
+    // directive is absent.
+    expect(existsSync(markerPath)).toBe(true);
+
+    const claudeMd = readFileSync(join(projectRoot, 'CLAUDE.md'), 'utf8');
+    expect(claudeMd).not.toContain(LLM_MARKER);
+    // Rule-based directive (repeated-bash-failure) still lands.
+    expect(claudeMd).toContain('npm test');
+    expect(claudeMd).toContain('active directive');
+
+    const entries = readRecapLog(tmpHome);
+    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    expect(projRecap).toBeDefined();
+    expect(projRecap.llm_mode).toBe(true);
+    expect(projRecap.llm_fallback).toBe(true);
+    expect(projRecap.llm_error).toBe('json_parse_failed');
+    expect(projRecap.llm_directives_proposed).toBe(0);
+    expect(projRecap.llm_directives_accepted).toBe(0);
+  }, 30000);
+
+  // Test (y) — claude not on PATH → graceful degradation
+  it('(y) claude not on PATH → graceful fallback, llm_error=claude_not_found', async () => {
+    const { tmpHome, learnerPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    const capturesDir = join(projectRoot, '.claude-sop', 'captures');
+    mkdirSync(capturesDir, { recursive: true });
+    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+
+    for (let i = 1; i <= 3; i++) {
+      seedFailedBashTurn(capturesDir, {
+        turnId: `b${i}`,
+        sessionId: `sess-${i}`,
+        finalizedAt: `2026-04-14T1${i}:00:00.000Z`,
+        command: 'npm test',
+      });
+    }
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
+
+    // PATH contains no claude anywhere. `which claude` → non-zero,
+    // runLlmAnalysis returns early with `claude_not_found`.
+    const result = await runLearner(learnerPath, tmpHome, SYSTEM_PATH);
+    expect(result.exitCode).toBe(0);
+
+    const claudeMd = readFileSync(join(projectRoot, 'CLAUDE.md'), 'utf8');
+    expect(claudeMd).not.toContain(LLM_MARKER);
+    // Rule-based content still present — learner did not crash.
+    expect(claudeMd).toContain('npm test');
+
+    const entries = readRecapLog(tmpHome);
+    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    expect(projRecap).toBeDefined();
+    expect(projRecap.llm_mode).toBe(true);
+    expect(projRecap.llm_fallback).toBe(true);
+    expect(projRecap.llm_error).toBe('claude_not_found');
+  }, 30000);
+
+  // Test (z) — offline mode never spawns claude
+  it('(z) CLAUDE_SOP_LEARNER_MODE=offline → no claude spawn, llm_mode=false', async () => {
+    const { tmpHome, learnerPath } = makeTmpEnv();
+    const projectRoot = join(tmpHome, 'my-project');
+    const capturesDir = join(projectRoot, '.claude-sop', 'captures');
+    mkdirSync(capturesDir, { recursive: true });
+    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+
+    for (let i = 1; i <= 3; i++) {
+      seedFailedBashTurn(capturesDir, {
+        turnId: `b${i}`,
+        sessionId: `sess-${i}`,
+        finalizedAt: `2026-04-14T1${i}:00:00.000Z`,
+        command: 'npm test',
+      });
+    }
+
+    // Deliberately make the mock available on PATH. If the offline
+    // branch were broken, the mock's marker file would be created.
+    const { binDir, markerPath } = createMockClaudeBinary(tmpHome, VALID_LLM_JSON);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
+
+    const result = await runLearner(
+      learnerPath,
+      tmpHome,
+      `${binDir}:${SYSTEM_PATH}`,
+      { CLAUDE_SOP_LEARNER_MODE: 'offline' },
+    );
+    expect(result.exitCode).toBe(0);
+
+    // No spawn happened — the offline branch returns before execa is
+    // called, so the mock was never invoked.
+    expect(existsSync(markerPath)).toBe(false);
+
+    const claudeMd = readFileSync(join(projectRoot, 'CLAUDE.md'), 'utf8');
+    expect(claudeMd).not.toContain(LLM_MARKER);
+    // Rule-based detectors still ran.
+    expect(claudeMd).toContain('npm test');
+
+    const entries = readRecapLog(tmpHome);
+    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    expect(projRecap).toBeDefined();
+    expect(projRecap.llm_mode).toBe(false);
+    // Offline → no attempted spawn → no error code.
+    expect(projRecap.llm_error).toBeNull();
+    expect(projRecap.llm_duration_ms).toBe(0);
+  }, 30000);
+});
+
 /**
  * Launchd install reliability smoke test (macOS only).
  *
