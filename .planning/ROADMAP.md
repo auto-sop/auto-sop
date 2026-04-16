@@ -111,8 +111,8 @@ Claude Code natively reads `<project>/CLAUDE.md` into system context at session 
 | 0. Distribution Decision + Foundations | 1/1 | **COMPLETE** | v1 |
 | 1. Capture Foundation | 1/1 | **COMPLETE** | v2, v4-v8 |
 | 2. Installer + Scheduler + CLI | 2/2 | **COMPLETE** | v3, v4-v8, v12 |
-| 3. Learner | 1/3 | **MVP shipped** | v9 (batch), v13 (detectors), v14 (LLM) |
-| 4. ManagedSectionEditor | 1/2 | **Light shipped** | v10-v11 (editor+statusline), v15 (hardening) |
+| 3. Learner | 2/3 | **Detectors shipped, LLM in flight** | v9 (batch), v13 (detectors), v14 (LLM — in progress) |
+| 4. ManagedSectionEditor | 1/2 | **Light shipped** | v10-v11 (editor+statusline), v16 (hardening) |
 | 5. Inspection CLI + Packaging | 0/2 | Not started | v17, v18 |
 | 6. License & Distribution Security | 0/4 | Not started | v19-v22 |
 
@@ -122,25 +122,28 @@ Claude Code natively reads `<project>/CLAUDE.md` into system context at session 
 |---------|--------|--------------|
 | v1 | `e77b13f` | Phase 0: ADR, PathResolver, Config, Scrubber, recall gate corpus |
 | v2 | `998335d` | Phase 1: hook shim, detached writer, turn directories, bidirectional subagent linking |
-| v3 | `18d43a1` | Phase 2: installer, launchd scheduler, CLI skeleton (install/uninstall/status/doctor/pause/resume/errors) |
+| v3 | `18d43a1` | Phase 2: installer, launchd scheduler, CLI skeleton |
 | v4 | `b5a08ca` | Hotfix: CLI ESM bin + plugin bundle + smoke test |
 | v5 | `ad5fbbb` | Hotfix: plugin bundle layout + learner stub |
 | v6 | `a22c0e6` | Hotfix: shim shebang + marketplace schema + stub polarity + doctor logic |
 | v7 | `3e8a5b5` | Hotfix: stage writer.cjs into plugin bundle + e2e capture smoke |
-| v8 | `2700dde` | Hotfix: bundle ALL writer runtime deps + isolated e2e smoke (no false positives) |
+| v8 | `2700dde` | Hotfix: bundle ALL writer runtime deps + isolated e2e smoke |
 | v9 | `aed0da7` | Phase 3 MVP: project registry, cursor, turn scanner, recap.log, recap verb |
 | v10 | `e9b1b61` | Phase 4 light: ManagedSectionEditor, sample directive, statusline, test cleanup |
 | v11 | `555fb39` | Hotfix: statusline parser reads real Claude Code settings.json structure |
 | v12 | `84b180b` | Hotfix: launchd bootstrap + warmup kickstart + doctor effective check |
+| v13 | `860434d` | Phase 3: first detectors — repeated bash failure + edit match fail + strict schema |
+| v14 | _(in progress)_ | Phase 3: LLM-driven directive generation — claude -p default ON, $0 cost |
+| v15 | _(queued)_ | Bug fix sprint — B1-B8 cleaned (legacy markers, flaky tests, import.meta, etc.) |
 
-## Remaining Backlog (47 items across 9 categories)
+## Remaining Backlog (39 items — 8 bugs move to v15, I1-I4 done in v13)
 
-### Immediate (v13-v14) — "Claude learns from mistakes"
-- **I1** First detector: repeated Bash failure (N=3 sessions) — LEARN-03
-- **I2** Second detector: repeated Edit exact-match fail — LEARN-03
-- **I3** Strict JSON schema for directive proposals (Zod) — LEARN-05
-- **I4** Prompt injection resistance (`<capture untrusted>` wrapping) — LEARN-04
-- **I5** LLM-driven directive generation (`claude -p` default ON) — LEARN-01, LEARN-02
+### v14 (in progress) — LLM intelligence
+- ~~**I1** First detector~~ ✅ shipped v13
+- ~~**I2** Second detector~~ ✅ shipped v13
+- ~~**I3** Strict JSON schema~~ ✅ shipped v13
+- ~~**I4** Prompt injection resistance~~ ✅ shipped v13
+- **I5** LLM-driven directive generation (`claude -p` default ON) — LEARN-01, LEARN-02 ← **v14 in progress**
 - **I6** 600s hard kill on learner — LEARN-08
 - **I7** `claude-sop learn-now --dry-run` verb — LEARN-07
 - ~~R1 Recall gate~~ — **NOT NEEDED** (Claude Code reads CLAUDE.md natively)
