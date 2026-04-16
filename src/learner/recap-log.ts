@@ -33,6 +33,14 @@ export interface PerProjectRecap {
   directive_written?: 'created' | 'updated' | 'unchanged' | 'dry_run' | 'error' | null;
   directive_bytes?: number;
   directive_backup?: boolean;
+  /** Number of validated directive proposals written to the managed section. */
+  directives_active?: number;
+  /** Number of below-threshold candidate patterns (1-2 sessions). */
+  directives_candidates?: number;
+  /** Count of detectors that executed this tick. */
+  detectors_run?: number;
+  /** Count of detectors that threw during execution (fail-open). */
+  detectors_failed?: number;
 }
 
 export interface TickSummary {

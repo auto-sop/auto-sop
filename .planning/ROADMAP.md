@@ -7,13 +7,16 @@
 
 ## Phases
 
-- [x] **Phase 0: Distribution Decision + Foundations** — Resolve hybrid distribution model, build pure-logic foundations (PathResolver, Config, Scrubber) with scrubber passing secret-corpus gate.
-- [ ] **Phase 1: Capture Foundation** — Hook shim, capture writer, and turn-directory store produce scrubbed, finalized captures on disk with <50ms hook latency and fail-open semantics.
-- [ ] **Phase 2: Installer + Scheduler + CLI Skeleton** — First working `npx claude-sop install` wires hooks, registers hourly launchd/systemd scheduler, and exposes inspection/control CLI end-to-end.
-- [ ] **Phase 3: Learner (Offline then `claude` CLI)** — Hourly learner reads captures, runs deterministic detectors with evidence threshold N=3, emits strict-JSON directive proposals, injection-resistant.
-- [ ] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware writer appends learner directives to CLAUDE.md managed section without ever clobbering user edits; revertible.
-- [ ] **Phase 5: Inspection CLI + Packaging Hardening** — `recent`/`show` inspection commands land; publish-ready packaging (provenance, publint, attw, CC version matrix, docs, "looks-done" checklist).
-- [ ] **Phase 6: License & Distribution Security** — License client with ed25519-signed responses, trial countdown, subscription gate, offline grace, obfuscated build pipeline, Node SEA binary compile.
+- [x] **Phase 0: Distribution Decision + Foundations** — Resolve hybrid distribution model, build pure-logic foundations (PathResolver, Config, Scrubber) with scrubber passing secret-corpus gate. _(v1 — shipped 2026-04-13)_
+- [x] **Phase 1: Capture Foundation** — Hook shim, capture writer, and turn-directory store produce scrubbed, finalized captures on disk with <50ms hook latency and fail-open semantics. _(v2 — shipped 2026-04-13, hardened v4-v8)_
+- [x] **Phase 2: Installer + Scheduler + CLI Skeleton** — First working `npx claude-sop install` wires hooks, registers hourly launchd/systemd scheduler, and exposes inspection/control CLI end-to-end. _(v3 — shipped 2026-04-13, hotfixes v4-v8, launchd reliability v12)_
+- [ ] **Phase 3: Learner (Offline then `claude` CLI)** — Hourly learner reads captures, runs deterministic detectors with evidence threshold N=3, emits strict-JSON directive proposals, injection-resistant. _(v9 shipped MVP — observable batch, project registry, cursor, recap.log. Detectors + schema + LLM mode remaining → v13-v14)_
+- [ ] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware writer appends learner directives to CLAUDE.md managed section without ever clobbering user edits; revertible. _(v10 shipped light — basic atomic editor, sample directive, statusline, backup. Hash-check + git-aware + revert + TTL remaining → v15)_
+- [ ] **Phase 5: Inspection CLI + Packaging Hardening** — `recent`/`show` inspection commands land; publish-ready packaging (provenance, publint, attw, CC version matrix, docs, "looks-done" checklist). _(not started → v17-v18)_
+- [ ] **Phase 6: License & Distribution Security** — License client with ed25519-signed responses, trial countdown, subscription gate, offline grace, obfuscated build pipeline, Node SEA binary compile. _(not started → v19-v22)_
+
+### Key discovery: Recall gate NOT needed
+Claude Code natively reads `<project>/CLAUDE.md` into system context at session start. Directives written by the learner to the managed section are automatically visible to Claude in the next session. No separate recall-gate binary or UserPromptSubmit hook injection is required. This eliminates the R1 backlog item and simplifies the Phase 3→4 bridge.
 
 ## Phase Details
 
@@ -105,13 +108,95 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Distribution Decision + Foundations | 0/0 | Not started | - |
-| 1. Capture Foundation | 0/0 | Not started | - |
-| 2. Installer + Scheduler + CLI Skeleton | 0/0 | Not started | - |
-| 3. Learner | 0/0 | Not started | - |
-| 4. ManagedSectionEditor | 0/0 | Not started | - |
-| 5. Inspection CLI + Packaging Hardening | 0/0 | Not started | - |
-| 6. License & Distribution Security | 0/0 | Not started | - |
+| 0. Distribution Decision + Foundations | 1/1 | **COMPLETE** | v1 |
+| 1. Capture Foundation | 1/1 | **COMPLETE** | v2, v4-v8 |
+| 2. Installer + Scheduler + CLI | 2/2 | **COMPLETE** | v3, v4-v8, v12 |
+| 3. Learner | 1/3 | **MVP shipped** | v9 (batch), v13 (detectors), v14 (LLM) |
+| 4. ManagedSectionEditor | 1/2 | **Light shipped** | v10-v11 (editor+statusline), v15 (hardening) |
+| 5. Inspection CLI + Packaging | 0/2 | Not started | v17, v18 |
+| 6. License & Distribution Security | 0/4 | Not started | v19-v22 |
+
+## Execution History
+
+| Version | Commit | What shipped |
+|---------|--------|--------------|
+| v1 | `e77b13f` | Phase 0: ADR, PathResolver, Config, Scrubber, recall gate corpus |
+| v2 | `998335d` | Phase 1: hook shim, detached writer, turn directories, bidirectional subagent linking |
+| v3 | `18d43a1` | Phase 2: installer, launchd scheduler, CLI skeleton (install/uninstall/status/doctor/pause/resume/errors) |
+| v4 | `b5a08ca` | Hotfix: CLI ESM bin + plugin bundle + smoke test |
+| v5 | `ad5fbbb` | Hotfix: plugin bundle layout + learner stub |
+| v6 | `a22c0e6` | Hotfix: shim shebang + marketplace schema + stub polarity + doctor logic |
+| v7 | `3e8a5b5` | Hotfix: stage writer.cjs into plugin bundle + e2e capture smoke |
+| v8 | `2700dde` | Hotfix: bundle ALL writer runtime deps + isolated e2e smoke (no false positives) |
+| v9 | `aed0da7` | Phase 3 MVP: project registry, cursor, turn scanner, recap.log, recap verb |
+| v10 | `e9b1b61` | Phase 4 light: ManagedSectionEditor, sample directive, statusline, test cleanup |
+| v11 | `555fb39` | Hotfix: statusline parser reads real Claude Code settings.json structure |
+| v12 | `84b180b` | Hotfix: launchd bootstrap + warmup kickstart + doctor effective check |
+
+## Remaining Backlog (47 items across 9 categories)
+
+### Immediate (v13-v14) — "Claude learns from mistakes"
+- **I1** First detector: repeated Bash failure (N=3 sessions) — LEARN-03
+- **I2** Second detector: repeated Edit exact-match fail — LEARN-03
+- **I3** Strict JSON schema for directive proposals (Zod) — LEARN-05
+- **I4** Prompt injection resistance (`<capture untrusted>` wrapping) — LEARN-04
+- **I5** LLM-driven directive generation (`claude -p` default ON) — LEARN-01, LEARN-02
+- **I6** 600s hard kill on learner — LEARN-08
+- **I7** `claude-sop learn-now --dry-run` verb — LEARN-07
+- ~~R1 Recall gate~~ — **NOT NEEDED** (Claude Code reads CLAUDE.md natively)
+
+### Editor hardening (v15) — Phase 4 completion
+- **E1** Hash-checked write (abort on drift, conflict backup) — MD-03
+- **E2** Git-aware (skip during rebase/merge) — MD-04
+- **E3** `claude-sop revert` command — MD-05
+- **E4** Duplicate directive detection — MD-06
+- **E5** TTL pruning + max 25 directive cap — MD-07
+- **E6** Evidence pointer per directive (source_capture_ids) — MD-02
+- **E7** Golden-file test suite — MD-08
+
+### Bug fix sprint (v16)
+- **B1** Remove installer's legacy `<!-- claude-sop:begin -->` markers (conflicts with v10 markers)
+- **B2** Smoke test flaky perf (500ms → 600-800ms limit)
+- **B3** `import.meta` tsup CJS warning fix
+- **B4** Idempotency: directive timestamp → last turn finalized_at (not wall-clock minute)
+- **B5** Statusline: native stdin JSON parse from Claude Code
+- **B6** dev-army cwd attribution (`DEV_ARMY_TARGET_PROJECT` env var)
+- **B7** Rename `CLAUDE_SOP_LEARNER` env var (confusing dual meaning)
+
+### Inspection CLI (v17) — Phase 5 partial
+- **C1** `claude-sop recent [--since 1h]` — CLI-02
+- **C2** `claude-sop show <id>` — CLI-03
+
+### Packaging + launch (v18) — Phase 5 completion
+- **P1** npm publish --provenance
+- **P2** publint + @arethetypeswrong/cli CI gate
+- **P3** Claude Code version matrix E2E test
+- **P4** "Looks-done-but-isn't" checklist (>=20 items)
+- **P5** Dual ESM+CJS entry point validation
+- **P6** README polish + demo GIF/video
+
+### SaaS / monetization (v19-v22) — Phase 6
+- **S1** License API backend (external server, ed25519)
+- **S2** License client (embedded pubkey verify)
+- **S3** Trial countdown (14 days, tamper-resistant)
+- **S4** Subscription gate
+- **S5** Offline grace (7 days)
+- **S6** Obfuscation pipeline
+- **S7** Node SEA binary
+- **S8** Pricing page + billing
+- **S9** Website / landing page
+
+### dev-army improvements (parallel)
+- **D1** Commander default to dispatch-and-wait.sh
+- **D2** dispatch-task.sh stderr fix → formal commit + review
+- **D3** Agent-poll inbox watcher stability
+
+### Cross-cutting (parallel)
+- **X1** Linux CI matrix (systemd + cron)
+- **X2** Multi-project cross-project pattern detection
+- **X3** User directive feedback (like/reject)
+- **X4** ADR finalize (sideload vs marketplace)
+- **X5** Plugin distribution → Claude Code marketplace
 
 ## Coverage Validation
 
@@ -132,3 +217,4 @@
 
 ---
 *Roadmap created: 2026-04-13*
+*Last updated: 2026-04-16 — v12 shipped, backlog assembled, recall gate eliminated*

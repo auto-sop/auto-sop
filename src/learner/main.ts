@@ -15,7 +15,17 @@ import { readCursor, writeCursor, withCursorLock } from './cursor.js';
 import { scanNewTurns, type TurnSummary } from './turn-scanner.js';
 import { appendRecap, type PerProjectRecap, type TickSummary } from './recap-log.js';
 import { writeManagedSection } from '../managed-section/editor.js';
-import { buildSampleDirective } from './directive-builder.js';
+import { buildDirectiveBody } from './directive-builder.js';
+import { loadTurnsForDetection } from './turn-loader.js';
+import {
+  detectors,
+  countBashFailureCandidates,
+  countEditFailureCandidates,
+} from './detectors/index.js';
+import {
+  DirectiveProposal,
+  type DirectiveProposalType,
+} from './directive-schema.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -231,13 +241,67 @@ async function runLearnerTick(
         continue;
       }
 
-      // Write sample directive to CLAUDE.md (fail-open: errors logged, not thrown)
+      // Run detectors + write directive to CLAUDE.md (fail-open)
       if (process.env.CLAUDE_SOP_LEARNER_MODE !== 'llm') {
+        // Load turn data ONCE per project per tick (shared across all detectors)
+        let turnData: ReturnType<typeof loadTurnsForDetection> = [];
         try {
-          const directiveContent = buildSampleDirective(
+          turnData = loadTurnsForDetection(capturesDir, MAX_TURNS_FIRST_RUN);
+        } catch (err) {
+          logError('turn_loader_failed', err, home);
+          turnData = [];
+        }
+
+        // Execute every detector inside try/catch — a crashing detector
+        // must never abort the tick. Track run/fail counts for recap.
+        const allProposals: DirectiveProposalType[] = [];
+        let detectorsRun = 0;
+        let detectorsFailed = 0;
+
+        for (const detector of detectors) {
+          detectorsRun++;
+          try {
+            const raw = detector.detect(turnData);
+            for (const proposal of raw) {
+              const parsed = DirectiveProposal.safeParse(proposal);
+              if (parsed.success) {
+                allProposals.push(parsed.data);
+              } else {
+                logError(
+                  'directive_schema_rejected',
+                  {
+                    detector: detector.name,
+                    // Only log structured validation errors (not the
+                    // malformed proposal itself, which could be huge).
+                    issues: parsed.error.issues,
+                  },
+                  home,
+                );
+              }
+            }
+          } catch (err) {
+            detectorsFailed++;
+            logError('detector_failed', { detector: detector.name, err: String(err) }, home);
+          }
+        }
+
+        // Count below-threshold candidates for "monitoring" status line
+        let candidateCount = 0;
+        try {
+          candidateCount =
+            countBashFailureCandidates(turnData) +
+            countEditFailureCandidates(turnData);
+        } catch (err) {
+          logError('candidate_count_failed', err, home);
+        }
+
+        try {
+          const directiveContent = buildDirectiveBody(
             project,
             now,
             result.turns_total_seen,
+            allProposals,
+            candidateCount,
           );
           const writeResult = writeManagedSection({
             projectRoot: validRoot,
@@ -251,6 +315,11 @@ async function runLearnerTick(
           logError('directive_write_failed', err, home);
           result.directive_written = 'error';
         }
+
+        result.directives_active = allProposals.length;
+        result.directives_candidates = candidateCount;
+        result.detectors_run = detectorsRun;
+        result.detectors_failed = detectorsFailed;
       }
 
       // Append per-project recap
