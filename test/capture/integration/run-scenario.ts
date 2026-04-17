@@ -220,8 +220,11 @@ export async function runScenario(opts: RunScenarioOpts): Promise<ScenarioRun> {
     lineIdx++;
   }
 
-  // Wait for all detached writers to finish
-  await waitForQuiescence(captureDir, claudeSopTmpDir, 10000);
+  // Wait for all detached writers to finish.
+  // B8: bumped from 10s → 30s → 50s because under load (multiple army
+  // sessions, full suite) the subagent scenario can take 30s+. The
+  // surrounding `beforeAll` hook timeouts are 60s to leave headroom.
+  await waitForQuiescence(captureDir, claudeSopTmpDir, 50000);
 
   return run;
 }

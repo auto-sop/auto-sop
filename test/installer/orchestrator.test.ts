@@ -11,7 +11,6 @@ import {
 } from '../../src/installer/orchestrator.js';
 import { readSecrets } from '../../src/license/storage.js';
 import { CLAUDE_SOP_HOOK_ID, HOOK_EVENTS } from '../../src/installer/hook-entries.js';
-import { MANAGED_BEGIN, MANAGED_END } from '../../src/installer/managed-section.js';
 import type { SchedulerBackend, SchedulerInstallOpts } from '../../src/scheduler/types.js';
 import { PreconditionError } from '../../src/cli/errors.js';
 
@@ -170,14 +169,12 @@ describe('runInstall orchestrator', () => {
     expect(backend.installCalls[0].tickScriptPath).toBe(tickPath);
     expect(backend.installCalls[0].intervalSec).toBe(3600);
 
-    // CLAUDE.md with managed markers
-    const claudeMd = await fs.readFile(
-      join(projectRoot, 'CLAUDE.md'),
-      'utf8',
-    );
-    expect(claudeMd).toContain(MANAGED_BEGIN);
-    expect(claudeMd).toContain(MANAGED_END);
-    expect(result.managedSection).toBe('created');
+    // Installer MUST NOT touch CLAUDE.md — ManagedSectionEditor (learner) owns it.
+    // With no pre-existing CLAUDE.md in this test, the installer must not create one,
+    // and must not emit legacy `<!-- claude-sop:begin -->` markers.
+    await expect(
+      fs.stat(join(projectRoot, 'CLAUDE.md')),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
 
     // .gitignore with .claude-sop/
     const gitignore = await fs.readFile(

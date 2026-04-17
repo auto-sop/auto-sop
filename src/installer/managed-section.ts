@@ -1,47 +1,22 @@
 import { promises as fs } from 'node:fs';
 import { writeFileAtomic } from '../atomic/write.js';
 
+/**
+ * Legacy claude-sop managed-section markers.
+ *
+ * Retained ONLY for backward-compatible cleanup on uninstall. These markers
+ * are no longer written by the installer — v10+ uses ManagedSectionEditor
+ * (`src/managed-section/editor.ts`) with `<!-- claude-sop:managed-section:begin v1 -->`
+ * markers, which the learner owns exclusively. The installer does not touch
+ * CLAUDE.md content anymore.
+ */
 export const MANAGED_BEGIN = '<!-- claude-sop:begin -->';
 export const MANAGED_END = '<!-- claude-sop:end -->';
 
 /**
- * Ensure CLAUDE.md contains managed-section markers.
- * Creates file if missing, appends markers if absent, or returns noop.
- */
-export async function ensureManagedSection(
-  claudeMdPath: string,
-): Promise<'created' | 'appended' | 'noop'> {
-  let existing: string | null;
-  try {
-    existing = await fs.readFile(claudeMdPath, 'utf8');
-  } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') existing = null;
-    else throw e;
-  }
-
-  if (existing == null) {
-    await writeFileAtomic(
-      claudeMdPath,
-      `${MANAGED_BEGIN}\n${MANAGED_END}\n`,
-    );
-    return 'created';
-  }
-
-  if (existing.includes(MANAGED_BEGIN) && existing.includes(MANAGED_END)) {
-    return 'noop';
-  }
-
-  const sep = existing.endsWith('\n') ? '\n' : '\n\n';
-  await writeFileAtomic(
-    claudeMdPath,
-    existing + sep + `${MANAGED_BEGIN}\n${MANAGED_END}\n`,
-  );
-  return 'appended';
-}
-
-/**
- * Strip managed-section markers and content between them from CLAUDE.md.
- * Returns the content that was between the markers (for backup), or null if no markers found.
+ * Strip legacy managed-section markers and content between them from CLAUDE.md.
+ * Returns the content that was between the markers (for backup), or null if no
+ * markers found. Used by uninstall to clean up residue from pre-v15 installs.
  */
 export async function stripManagedSection(
   claudeMdPath: string,

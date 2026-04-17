@@ -78,11 +78,14 @@ describe('directive-builder', () => {
         turnsTotalSeen: 47,
         agentRoster: ['architect-principal-engineer', 'commander', 'main'],
         nowIso: '2026-04-14T22:20:00Z',
+        newestTurnFinalizedAt: '2026-04-14T22:20:00Z',
         proposals: [],
         candidateCount: 0,
       });
 
-      expect(result.body).toContain('_Last updated: 2026-04-14T22:20:00Z');
+      // B4: stats line now uses "Data as of:" anchored to newest captured
+      // turn, not wall-clock `Last updated:`.
+      expect(result.body).toContain('_Data as of: 2026-04-14T22:20:00Z');
       expect(result.body).toContain('47 turns analyzed');
       expect(result.body).toContain(
         '3 agents: architect-principal-engineer, commander, main_',
@@ -286,28 +289,76 @@ describe('directive-builder', () => {
         turnsTotalSeen: 5,
         agentRoster: ['main'],
         nowIso: '2026-04-14T22:23:47.123Z',
+        newestTurnFinalizedAt: '2026-04-14T22:23:47.123Z',
         proposals: [],
         candidateCount: 0,
       });
       expect(result.body).toContain('2026-04-14T22:24:00Z');
     });
 
-    it('two ticks within the same minute produce identical bodies', () => {
+    it('two ticks with same newestTurnFinalizedAt produce identical bodies', () => {
+      // B4: wall-clock `nowIso` must NOT influence the body — only the
+      // data-anchored `newestTurnFinalizedAt` does. Deliberately vary
+      // `nowIso` across the two calls to prove it.
       const a = buildDirectiveBodyFromInput({
         turnsTotalSeen: 5,
         agentRoster: ['main'],
         nowIso: '2026-04-14T22:20:10.000Z',
+        newestTurnFinalizedAt: '2026-04-14T22:20:00Z',
         proposals: [],
         candidateCount: 0,
       });
       const b = buildDirectiveBodyFromInput({
         turnsTotalSeen: 5,
         agentRoster: ['main'],
-        nowIso: '2026-04-14T22:20:25.000Z',
+        nowIso: '2026-04-14T23:59:25.000Z', // wildly different wall-clock
+        newestTurnFinalizedAt: '2026-04-14T22:20:00Z',
         proposals: [],
         candidateCount: 0,
       });
       expect(a.body).toBe(b.body);
+    });
+
+    // B4: fresh-install case — no captured turns yet, builder must
+    // substitute a static placeholder so the body is still deterministic.
+    it('null newestTurnFinalizedAt → stats line says "no turns yet"', () => {
+      const result = buildDirectiveBodyFromInput({
+        turnsTotalSeen: 0,
+        agentRoster: [],
+        nowIso: '2026-04-14T22:20:10.000Z',
+        newestTurnFinalizedAt: null,
+        proposals: [],
+        candidateCount: 0,
+      });
+      expect(result.body).toContain('_Data as of: no turns yet');
+      expect(result.body).not.toContain('Last updated:');
+    });
+
+    // B4: consecutive builds with no new data must be byte-identical —
+    // this is the direct regression guard for the "directive updated
+    // every minute" bug.
+    it('idempotency: two consecutive builds with identical scan data are byte-identical', () => {
+      const common = {
+        turnsTotalSeen: 42,
+        agentRoster: ['commander', 'main'],
+        newestTurnFinalizedAt: '2026-04-14T22:20:00Z',
+        proposals: [makeProposal({ id: 'det-aaaa' })],
+        candidateCount: 1,
+      };
+      const firstTick = buildDirectiveBodyFromInput({
+        ...common,
+        // Simulate tick #1 wall-clock
+        nowIso: '2026-04-14T22:20:15.000Z',
+      });
+      const secondTick = buildDirectiveBodyFromInput({
+        ...common,
+        // Simulate tick #2 wall-clock a minute later — previously this
+        // shifted the rounded timestamp and produced a fresh body; now
+        // the body is anchored to `newestTurnFinalizedAt`, which is
+        // unchanged, so the bytes must match.
+        nowIso: '2026-04-14T22:21:45.000Z',
+      });
+      expect(firstTick.body).toBe(secondTick.body);
     });
 
     // ── llmSummary (PLAN-v14 Wave 3, Task 5b) ──────────────
@@ -327,7 +378,7 @@ describe('directive-builder', () => {
       );
       // AI line sits directly after the stats header.
       const lines = result.body.split('\n');
-      expect(lines[0]!.startsWith('_Last updated:')).toBe(true);
+      expect(lines[0]!.startsWith('_Data as of:')).toBe(true);
       expect(lines[1]!.startsWith('_AI analysis:')).toBe(true);
     });
 

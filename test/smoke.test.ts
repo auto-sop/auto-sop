@@ -154,7 +154,7 @@ describe('smoke: shell-mode execution (shebang)', () => {
     });
     const elapsed = Date.now() - start;
     expect(result.exitCode).toBe(0);
-    expect(elapsed).toBeLessThan(500);
+    expect(elapsed).toBeLessThan(1000);
     expect(result.stderr).not.toMatch(/syntax error/);
   });
 

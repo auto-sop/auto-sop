@@ -19,7 +19,6 @@ function cannedResult(overrides: Partial<InstallResult> = {}): InstallResult {
     warnings: [],
     pluginBundleDst: '/home/.claude-sop/marketplace/claude-sop',
     scheduler: 'launchd',
-    managedSection: 'created',
     gitignore: 'created',
     ...overrides,
   };

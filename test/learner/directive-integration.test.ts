@@ -76,9 +76,15 @@ describe('directive-integration', () => {
     dryRun?: boolean;
     turnsTotalSeen?: number;
     nowIso?: string;
+    newestTurnFinalizedAt?: string;
   }): PerProjectRecap {
     const turnsTotalSeen = opts?.turnsTotalSeen ?? 3;
     const nowIso = opts?.nowIso ?? '2026-04-14T22:20:00Z';
+    // B4: main.ts derives this from the cursor's post-update
+    // `last_finalized_at`; here we mirror the same intent with a
+    // stable default so the rendered body is data-anchored.
+    const newestTurnFinalizedAt =
+      opts?.newestTurnFinalizedAt ?? '2026-04-14T22:20:00Z';
 
     const recap: PerProjectRecap = {
       v: 1,
@@ -105,6 +111,7 @@ describe('directive-integration', () => {
         project,
         nowIso,
         turnsTotalSeen,
+        newestTurnFinalizedAt,
       );
       const writeResult = writeManagedSection({
         projectRoot: project.project_root,

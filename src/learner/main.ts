@@ -200,7 +200,7 @@ async function runLearnerTick(
       const capturesDir = join(validRoot, '.claude-sop', 'captures');
 
       // Acquire cursor lock
-      const result = withCursorLock(stateDir, () => {
+      const lockResult = withCursorLock(stateDir, () => {
         const cursor = readCursor(stateDir);
         const scan = scanNewTurns(capturesDir, cursor.last_finalized_at, MAX_TURNS_FIRST_RUN);
 
@@ -235,13 +235,22 @@ async function runLearnerTick(
         };
         writeCursor(stateDir, newCursor);
 
-        return recap;
+        // B4: expose the cumulative newest-finalized-at (post-update
+        // cursor value) so the directive body can be anchored to data
+        // rather than wall-clock time.
+        return {
+          recap,
+          newestTurnFinalizedAt: newCursor.last_finalized_at || null,
+        };
       });
 
-      if (result === null) {
+      if (lockResult === null) {
         projects_locked++;
         continue;
       }
+
+      const result = lockResult.recap;
+      const newestTurnFinalizedAt = lockResult.newestTurnFinalizedAt;
 
       // PLAN-v14: LLM mode is DEFAULT ON. Opt-out via
       //   CLAUDE_SOP_LEARNER_MODE=offline
@@ -358,6 +367,10 @@ async function runLearnerTick(
           !isOffline && llmResult.error === null
             ? llmResult.summary
             : undefined,
+          // B4: data-anchored timestamp — identical scan inputs yield
+          // byte-identical bodies, so the managed-section editor
+          // reports verdict='unchanged' when nothing new has happened.
+          newestTurnFinalizedAt,
         );
         const writeResult = writeManagedSection({
           projectRoot: validRoot,

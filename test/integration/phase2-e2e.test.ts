@@ -200,16 +200,27 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     expect(gitignore).toContain('.claude-sop/');
   });
 
-  // ─── INST-05 ──────────────────────────────────────────────────────────────
-  it('INST-05: CLAUDE.md has empty managed-section markers', async () => {
+  // ─── INST-05 (v15+): installer MUST NOT write legacy markers ─────────────
+  it('INST-05: installer does not touch CLAUDE.md (learner owns the managed section)', async () => {
     const { opts } = makeInstallOpts();
     await runInstall(opts);
-    const md = await fs.readFile(
-      path.join(tmp.projectRoot, 'CLAUDE.md'),
-      'utf8',
-    );
-    expect(md).toContain(MANAGED_BEGIN);
-    expect(md).toContain(MANAGED_END);
+    // With no pre-existing CLAUDE.md, the installer must not create one
+    // and must not emit legacy `<!-- claude-sop:begin -->` markers.
+    await expect(
+      fs.stat(path.join(tmp.projectRoot, 'CLAUDE.md')),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('INST-05b: installer preserves pre-existing CLAUDE.md byte-for-byte', async () => {
+    const claudeMdPath = path.join(tmp.projectRoot, 'CLAUDE.md');
+    const original = '# Existing Rules\n\nDo not touch me.\n';
+    await fs.writeFile(claudeMdPath, original);
+    const { opts } = makeInstallOpts();
+    await runInstall(opts);
+    const after = await fs.readFile(claudeMdPath, 'utf8');
+    expect(after).toBe(original);
+    expect(after).not.toContain(MANAGED_BEGIN);
+    expect(after).not.toContain(MANAGED_END);
   });
 
   // ─── SCHED-01 + SCHED-04 ─────────────────────────────────────────────────
@@ -337,9 +348,17 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
   });
 
   // ─── INST-06: default uninstall ───────────────────────────────────────────
-  it('INST-06: default uninstall removes hooks, scheduler, managed section, secrets.enc but preserves captures', async () => {
+  it('INST-06: default uninstall removes hooks, scheduler, legacy managed section, secrets.enc but preserves captures', async () => {
     const { opts, scheduler } = makeInstallOpts();
     await runInstall(opts);
+
+    // Simulate a pre-v15 install: seed CLAUDE.md with legacy markers so we can
+    // verify uninstall's backward-compat cleanup still strips them.
+    const claudeMdPath = path.join(tmp.projectRoot, 'CLAUDE.md');
+    await fs.writeFile(
+      claudeMdPath,
+      `# Project\n\n${MANAGED_BEGIN}\nstale content\n${MANAGED_END}\n`,
+    );
 
     // Seed a capture file that should survive default uninstall
     const capturesDir = path.join(tmp.projectRoot, '.claude-sop', 'captures');
@@ -373,11 +392,8 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
       }
     }
 
-    // Managed section stripped from CLAUDE.md
-    const md = await fs.readFile(
-      path.join(tmp.projectRoot, 'CLAUDE.md'),
-      'utf8',
-    );
+    // Legacy managed section stripped from pre-existing CLAUDE.md
+    const md = await fs.readFile(claudeMdPath, 'utf8');
     expect(md).not.toContain(MANAGED_BEGIN);
 
     // secrets.enc removed

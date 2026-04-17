@@ -9,6 +9,7 @@ export default defineConfig([
     sourcemap: false,
     clean: true,
     target: 'node18.17',
+    shims: true,
     outExtension({ format }) {
       return format === 'esm' ? { js: '.js' } : { js: '.cjs' };
     },

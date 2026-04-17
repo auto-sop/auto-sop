@@ -17,7 +17,10 @@ export function registerInstallVerb(program: Command): void {
     .option('--project <path>', 'project root', process.cwd())
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
-      const here = path.dirname(fileURLToPath(import.meta.url));
+      const here =
+        typeof __dirname !== 'undefined'
+          ? __dirname
+          : path.dirname(fileURLToPath(import.meta.url));
       const { root: packageRoot, pkg } = findPackageRoot(here);
       const packageVersion = pkg.version as string;
       const pluginBundleSrc = path.join(packageRoot, 'dist', 'plugin');
@@ -48,7 +51,6 @@ export function registerInstallVerb(program: Command): void {
           renderTable([
             ['version', result.installedVersion],
             ['scheduler', result.scheduler],
-            ['managed section', result.managedSection],
             ['.gitignore', result.gitignore],
           ]) + '\n',
         );

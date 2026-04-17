@@ -12,7 +12,6 @@ import { mergeGlobalMarketplace, mergeProjectHooks } from './merge-settings.js';
 import { buildHookEntries } from './hook-entries.js';
 import { writeTickScript } from '../scheduler/tick-wrapper.js';
 import { pickBackend, type SchedulerBackend } from '../scheduler/index.js';
-import { ensureManagedSection } from './managed-section.js';
 import { ensureGitignore } from './gitignore.js';
 import { recordLicenseOnInstall } from '../license/storage.js';
 import { getMachineId } from '../config/machine-id.js';
@@ -44,7 +43,6 @@ export interface InstallResult {
   warnings: string[];
   pluginBundleDst: string;
   scheduler: 'launchd' | 'systemd' | 'cron';
-  managedSection: 'created' | 'appended' | 'noop';
   gitignore: 'created' | 'appended' | 'noop';
 }
 
@@ -73,7 +71,6 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
     '.claude',
     'settings.json',
   );
-  const claudeMdPath = path.join(opts.projectRoot, 'CLAUDE.md');
   const gitignorePath = path.join(opts.projectRoot, '.gitignore');
   const installLockPath = path.join(claudeSopHome, 'install.lock');
 
@@ -174,8 +171,9 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
     });
     if (fallbackWarning) warnings.push(fallbackWarning);
 
-    // Step 8: Managed section + gitignore
-    const managedSection = await ensureManagedSection(claudeMdPath);
+    // Step 8: Gitignore
+    // Note: installer does NOT touch CLAUDE.md. The learner's ManagedSectionEditor
+    // (src/managed-section/editor.ts) owns the managed section exclusively.
     const gitignore = await ensureGitignore(gitignorePath, '.claude-sop/');
 
     // Step 9: Write version.txt LAST
@@ -196,7 +194,6 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
       warnings,
       pluginBundleDst: marketplaceDir,
       scheduler: schedulerBackend.name,
-      managedSection,
       gitignore,
     };
   } finally {

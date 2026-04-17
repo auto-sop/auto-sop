@@ -92,17 +92,53 @@ Claude Code natively reads `<project>/CLAUDE.md` into system context at session 
   5. A "looks-done-but-isn't" release checklist (≥20 items: no postinstall, no network egress, hook latency budget, scrubber recall, idempotency, reboot survival, etc.) is enforced in CI before a tag can be published.
 **Plans:** TBD
 
-### Phase 6: License & Distribution Security
-**Goal:** Turn the plugin into a commercial SaaS freemium product — license API key collection, signed backend validation, trial countdown, offline grace, and anti-reverse-engineering defense layers — without breaking the local-first feel.
-**Depends on:** Phase 5 (hardens the publishable package shape)
-**Requirements:** LIC-03, LIC-04, LIC-05, LIC-06, LIC-07, LIC-08, LIC-09, LIC-10
-**Success Criteria** (what must be TRUE):
-  1. License client calls the SaaS validation endpoint, verifies every response with an embedded ed25519 public key, and refuses to accept unsigned/invalid responses (fixture suite proves spoofed responses are rejected).
-  2. Trial countdown is driven by a tamper-resistant install timestamp in `secrets.enc`; expired trial without subscription blocks capture and learner (but not `uninstall`) with a clear subscribe URL.
-  3. Offline grace period (default 7 days) lets trial and paid users operate fully offline between validations; license check is infrequent and never blocks capture hot path.
-  4. Build pipeline produces a single obfuscated binary via Node SEA (`javascript-obfuscator` + `--experimental-sea-config`), with no source maps and `pkg`/`nexe` as documented fallback; published artifact is the binary, not raw JS.
-  5. `status` command shows license state (trial days remaining, subscription status, last validation, offline grace remaining); Layer 4 (runtime integrity) and Layer 5 (server-side critical logic) are documented as rejected with written rationale.
-**Plans:** TBD
+### Phase 6: SaaS Platform + Monetization (REVISED 2026-04-17)
+**Goal:** Turn the plugin into a commercial SaaS freemium product with a web dashboard, encrypted cloud sync, and subscription billing — while keeping all LLM analysis LOCAL (free via Claude Max).
+
+**Stack decision (confirmed):**
+- **Auth:** Clerk (JWT, <10K MAU free tier)
+- **DB + API:** Supabase (Postgres + RLS + Edge Functions)
+- **Billing:** Stripe (existing account, Checkout + Customer Portal)
+- **Frontend:** Next.js on Vercel (free hobby tier)
+- **Encryption:** Client-side AES-256, key derived from Clerk user_id + project_id (server never sees plaintext)
+
+**Business model (confirmed):**
+- **Free tier (15 days):** Full local + full dashboard access. After 15 days: dashboard read-only (shows stale data, nudges to subscribe), local CLAUDE.md continues working forever.
+- **Paid tier:** Live dashboard sync, cross-project analytics, directive history/trends, team sharing.
+- **Key insight:** LLM analysis stays local ($0 provider cost). Server only stores directives + stats. Revenue = dashboard visibility + management.
+
+**Cloud data policy (confirmed):**
+- Directives + recap summary sync to cloud (JSON, ~50 KB/project/month)
+- Raw captures NEVER leave the machine (privacy)
+- Client-side encryption: AES-256, key = hash(clerk_user_id + project_id). Server stores encrypted blobs only.
+
+**Architecture:**
+```
+LOCAL (free forever):
+  hooks → capture → learner → claude -p ($0) → directives → CLAUDE.md
+  ↓ (encrypted JSON, directives + stats only)
+CLOUD (15 days free → paid):
+  Clerk auth → Supabase DB → Dashboard (Next.js/Vercel)
+  Stripe billing → subscription gate on dashboard API
+```
+
+**Depends on:** Phase 5 (publishable package)
+**Requirements:** LIC-03..10 (revised to match new stack)
+**Planned versions:**
+  - v19: Supabase schema + Clerk auth + Stripe billing integration
+  - v20: CLI sync module (local directives → AES-256 encrypt → Supabase)
+  - v21: Dashboard frontend (Next.js + Vercel, cross-project view)
+  - v22: Installer Clerk login flow (browser popup auth)
+  - v23: Obfuscation + Node SEA binary (optional, anti-piracy)
+
+**Success Criteria** (revised):
+  1. User runs `claude-sop login` → browser popup → Clerk auth → JWT stored locally in `secrets.enc`.
+  2. Every learner tick: directives + recap stats encrypted client-side (AES-256) and synced to Supabase via Edge Function. Sync failure is non-blocking (offline grace 7 days).
+  3. Dashboard at `app.claude-sop.com` shows: all projects, active directives, directive history timeline, agent stats. Clerk auth required. Stripe subscription gates live data after 15-day trial.
+  4. Trial countdown: 15 days from first `claude-sop login`. Expired trial → dashboard read-only (stale data), local CLAUDE.md continues working, `status` shows "trial expired — subscribe at <url>".
+  5. `claude-sop status` shows subscription state (trial days remaining, active/expired, last sync time, offline grace). Stripe Customer Portal link for self-service billing.
+  6. Encrypted sync: server stores AES-256 encrypted blobs only. Supabase RLS ensures user can only read own data. No PII in server logs.
+**Plans:** TBD (v19-v23)
 
 ## Progress
 

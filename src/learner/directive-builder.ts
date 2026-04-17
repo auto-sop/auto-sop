@@ -3,13 +3,16 @@
  * markdown body that lives inside the managed section of CLAUDE.md.
  *
  * Determinism invariant:
- *   Given the same (project, scan, proposals, nowIso, candidateCount)
- *   inputs, this builder produces BYTE-IDENTICAL output. This is what
- *   lets the ManagedSectionEditor return verdict='unchanged' on
- *   repeat ticks where nothing has really changed (idempotency).
+ *   Given the same (project, scan, proposals, newestTurnFinalizedAt,
+ *   candidateCount) inputs, this builder produces BYTE-IDENTICAL
+ *   output. This is what lets the ManagedSectionEditor return
+ *   verdict='unchanged' on repeat ticks where nothing has really
+ *   changed (idempotency).
  *
  *   To ensure that:
- *   - Timestamp is rounded to the nearest minute (roundToMinute).
+ *   - Timestamp source is the newest captured-turn finalized_at
+ *     (data-anchored), NOT wall-clock `Date.now()`. Two ticks with no
+ *     new turns therefore produce identical bodies — B4 fix.
  *   - Agent roster is sorted.
  *   - Proposals are sorted (severity desc, then created_at asc, then id asc).
  *   - No random / nondeterministic fields leak into the body.
@@ -74,7 +77,21 @@ export function roundToMinute(isoTimestamp: string): string {
 export interface DirectiveInput {
   turnsTotalSeen: number;
   agentRoster: string[];
+  /**
+   * Wall-clock ISO timestamp — retained for API compatibility with the
+   * legacy `buildSampleDirectiveFromInput` entry point but NOT rendered
+   * into the body. The displayed timestamp comes from
+   * `newestTurnFinalizedAt` so consecutive no-new-data ticks produce
+   * byte-identical output (B4 fix).
+   */
   nowIso: string;
+  /**
+   * Max `finalized_at` across captured turns. Rendered as the stats-line
+   * "Data as of: …" value. Null when no turns exist (fresh install) —
+   * the builder emits a static "no turns yet" placeholder in that case,
+   * which is still deterministic.
+   */
+  newestTurnFinalizedAt?: string | null;
   /** Validated directive proposals that passed schema. */
   proposals: DirectiveProposalType[];
   /** Number of below-threshold candidate patterns (for "monitoring" text). */
@@ -191,20 +208,26 @@ export function buildDirectiveBodyFromInput(
   const {
     turnsTotalSeen,
     agentRoster,
-    nowIso,
+    newestTurnFinalizedAt,
     proposals,
     candidateCount,
     llmSummary,
   } = input;
 
-  const roundedTs = roundToMinute(nowIso);
+  // B4: render a DATA-anchored timestamp instead of wall-clock. When no
+  // turns have been captured yet we emit a static placeholder so the
+  // body is still deterministic across fresh-install ticks.
+  const dataAsOf =
+    typeof newestTurnFinalizedAt === 'string' && newestTurnFinalizedAt.length > 0
+      ? roundToMinute(newestTurnFinalizedAt)
+      : 'no turns yet';
   const agentList =
     agentRoster.length > 0 ? agentRoster.join(', ') : 'none detected';
   const turnsLabel = turnsTotalSeen === 1 ? 'turn' : 'turns';
   const agentCountLabel = agentRoster.length === 1 ? 'agent' : 'agents';
 
   const statsLine =
-    `_Last updated: ${roundedTs} \u00b7 ${turnsTotalSeen} ${turnsLabel} analyzed ` +
+    `_Data as of: ${dataAsOf} \u00b7 ${turnsTotalSeen} ${turnsLabel} analyzed ` +
     `\u00b7 ${agentRoster.length} ${agentCountLabel}: ${agentList}_`;
 
   const cleanedSummary = normalizeLlmSummary(llmSummary);
@@ -257,6 +280,7 @@ export function buildDirectiveBody(
   proposals: DirectiveProposalType[],
   candidateCount: number,
   llmSummary?: string,
+  newestTurnFinalizedAt?: string | null,
 ): ManagedSectionContent {
   const capturesDir = join(project.project_root, '.claude-sop', 'captures');
   const agentRoster = collectAgentRoster(capturesDir);
@@ -264,6 +288,7 @@ export function buildDirectiveBody(
     turnsTotalSeen,
     agentRoster,
     nowIso,
+    newestTurnFinalizedAt,
     proposals,
     candidateCount,
     llmSummary,
@@ -280,14 +305,24 @@ export function buildSampleDirective(
   project: ProjectRegistryEntry,
   nowIso: string,
   turnsTotalSeen: number,
+  newestTurnFinalizedAt?: string | null,
 ): ManagedSectionContent {
-  return buildDirectiveBody(project, nowIso, turnsTotalSeen, [], 0);
+  return buildDirectiveBody(
+    project,
+    nowIso,
+    turnsTotalSeen,
+    [],
+    0,
+    undefined,
+    newestTurnFinalizedAt,
+  );
 }
 
 export interface LegacyDirectiveInput {
   turnsTotalSeen: number;
   agentRoster: string[];
   nowIso: string;
+  newestTurnFinalizedAt?: string | null;
 }
 
 export function buildSampleDirectiveFromInput(

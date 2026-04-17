@@ -64,7 +64,6 @@ vi.mock('../../../src/installer/orchestrator.js', () => ({
     verdict: 'fresh',
     installedVersion: '0.0.0',
     scheduler: 'launchd',
-    managedSection: 'present',
     gitignore: 'updated',
     warnings: [],
   }),

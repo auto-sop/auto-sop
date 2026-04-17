@@ -85,10 +85,12 @@ describe('recap verb: dry-run diff computation', () => {
       '../../../src/managed-section/markers.js'
     );
 
-    // Existing CLAUDE.md with user content + old managed section
+    // Existing CLAUDE.md with user content + old managed section.
+    // B4: stats line now reads "_Data as of:" anchored to newest
+    // captured turn instead of wall-clock "_Last updated:".
     const userContent = '# My Project\n\nCustom rules here.\n\n';
     const oldBody =
-      '_Last updated: 2026-04-14T22:20:00Z · 3 turns analyzed · 2 agents: commander, main_\n\n**Learnings**\n\n_No directives generated yet — pattern detection ships in the next version._';
+      '_Data as of: 2026-04-14T22:20:00Z · 3 turns analyzed · 2 agents: commander, main_\n\n**Learnings**\n\n_No directives generated yet — pattern detection ships in the next version._';
     const oldSection = [BEGIN_MARKER, GENERATED_COMMENT, '', oldBody, '', END_MARKER].join('\n');
     const oldContent = userContent + oldSection + '\n';
 
@@ -97,6 +99,7 @@ describe('recap verb: dry-run diff computation', () => {
       turnsTotalSeen: 7,
       agentRoster: ['commander', 'main'],
       nowIso: '2026-04-14T22:20:00Z',
+      newestTurnFinalizedAt: '2026-04-14T22:20:00Z',
     });
     const newSection = buildSectionBlock(newDirective.body);
     const newContent = userContent + newSection + '\n';
@@ -107,8 +110,8 @@ describe('recap verb: dry-run diff computation', () => {
     });
 
     // Should show the change from 3 to 7 turns
-    expect(diff).toContain('-_Last updated: 2026-04-14T22:20:00Z · 3 turns analyzed');
-    expect(diff).toContain('+_Last updated: 2026-04-14T22:20:00Z · 7 turns analyzed');
+    expect(diff).toContain('-_Data as of: 2026-04-14T22:20:00Z · 3 turns analyzed');
+    expect(diff).toContain('+_Data as of: 2026-04-14T22:20:00Z · 7 turns analyzed');
     // User content should appear as context (unchanged)
     expect(diff).not.toContain('-# My Project');
     expect(diff).not.toContain('+# My Project');

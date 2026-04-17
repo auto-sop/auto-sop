@@ -103,7 +103,7 @@ describe('unifiedDiff', () => {
       '<!-- claude-sop:managed-section:begin v1 -->',
       '<!-- GENERATED - DO NOT EDIT. claude-sop owns this section. -->',
       '',
-      '_Last updated: 2026-04-14T22:20:00Z · 3 turns analyzed · 2 agents: commander, main_',
+      '_Data as of: 2026-04-14T22:20:00Z · 3 turns analyzed · 2 agents: commander, main_',
       '',
       '**Learnings**',
       '',
@@ -119,7 +119,7 @@ describe('unifiedDiff', () => {
     });
 
     expect(diff).toContain('+<!-- claude-sop:managed-section:begin v1 -->');
-    expect(diff).toContain('+_Last updated:');
+    expect(diff).toContain('+_Data as of:');
     expect(diff).toContain('+<!-- claude-sop:managed-section:end -->');
     // Original content should appear as context (equal lines)
     expect(diff).toContain(' # My Project');

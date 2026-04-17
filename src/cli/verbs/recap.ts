@@ -240,11 +240,18 @@ function simulateDirectiveWrite(
   const agentRoster = collectAgentRoster(capturesDir);
   const turnsTotalSeen = Number(entry.turns_total_seen ?? 0);
   const nowIso = String(entry.t ?? new Date().toISOString());
+  // B4: prefer the recap's newest-new-turn anchor so the preview matches
+  // what the live learner would write (data-anchored, not wall-clock).
+  const newestTurnFinalizedAt =
+    typeof entry.newest_new_turn_at === 'string' && entry.newest_new_turn_at.length > 0
+      ? entry.newest_new_turn_at
+      : null;
 
   const content = buildSampleDirectiveFromInput({
     turnsTotalSeen,
     agentRoster,
     nowIso,
+    newestTurnFinalizedAt,
   });
 
   const result = writeManagedSection({
