@@ -56,7 +56,8 @@ describe('renderPlist', () => {
       '<string>/Users/alice/.claude-sop/bin/tick.sh</string>',
     );
     expect(plist).toContain('<string>Background</string>');
-    expect(plist).toContain('CLAUDE_SOP_LEARNER');
+    expect(plist).toContain('CLAUDE_SOP_CAPTURE_SUPPRESS');
+    expect(plist).toContain('CLAUDE_SOP_LEARNER'); // legacy, backward compat
   });
 
   it('XML-escapes ampersand in paths', () => {

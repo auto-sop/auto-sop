@@ -455,6 +455,136 @@ describe('statusline verb', () => {
   });
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// B5 regression: statusline reads workspace JSON from stdin
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Claude Code's statusline integration pipes a JSON envelope on stdin:
+//   { "workspace": { "current_dir": "/absolute/path/to/project" }, ... }
+//
+// In dev-army panes (and other wrapper spawns) `process.cwd()` points at
+// the wrapper's directory, NOT the real project. Ignoring stdin → every
+// such pane reports `[sop:off]` even when hooks are installed. Fix: when
+// stdin is not a TTY, read and parse the envelope before falling back.
+//
+// Tests spawn the built CLI (`dist/cli.cjs`) so we can pipe real bytes
+// into stdin — in-process tests cannot exercise the /dev/stdin path.
+describe('statusline stdin JSON (B5 regression)', () => {
+  const CLI = path.join(process.cwd(), 'dist', 'cli.cjs');
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'statusline-stdin-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it.runIf(fs.existsSync(CLI))(
+    'stdin with valid workspace JSON → uses current_dir (detects installed hooks)',
+    async () => {
+      setupProjectWithFixture(tmpDir, 'real-settings-installed.json');
+      const { execFileSync } = await import('node:child_process');
+      const payload = JSON.stringify({
+        workspace: { current_dir: tmpDir },
+        session_id: 'stdin-smoke',
+      });
+      const out = execFileSync(process.execPath, [CLI, 'statusline'], {
+        input: payload,
+        encoding: 'utf8',
+        timeout: 5000,
+      });
+      expect(out).toBe('[sop:on]');
+    },
+  );
+
+  it.runIf(fs.existsSync(CLI))(
+    'stdin with empty input → falls back to cwd',
+    async () => {
+      const { execFileSync } = await import('node:child_process');
+      // Run from a directory with no hooks installed → expect [sop:off]
+      const out = execFileSync(process.execPath, [CLI, 'statusline'], {
+        input: '',
+        encoding: 'utf8',
+        cwd: tmpDir,
+        timeout: 5000,
+      });
+      expect(out).toBe('[sop:off]');
+    },
+  );
+
+  it.runIf(fs.existsSync(CLI))(
+    'stdin with malformed JSON → falls back to cwd, does not crash',
+    async () => {
+      const { execFileSync } = await import('node:child_process');
+      const out = execFileSync(process.execPath, [CLI, 'statusline'], {
+        input: '{not valid json at all',
+        encoding: 'utf8',
+        cwd: tmpDir,
+        timeout: 5000,
+      });
+      expect(out).toBe('[sop:off]');
+    },
+  );
+
+  it.runIf(fs.existsSync(CLI))(
+    '--project flag overrides stdin workspace.current_dir',
+    async () => {
+      // stdin points at a project with installed hooks, but --project points
+      // at an empty tmp dir → --project wins → [sop:off].
+      const projectWithHooks = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'statusline-hooks-'),
+      );
+      try {
+        setupProjectWithFixture(
+          projectWithHooks,
+          'real-settings-installed.json',
+        );
+        const { execFileSync } = await import('node:child_process');
+        const payload = JSON.stringify({
+          workspace: { current_dir: projectWithHooks },
+        });
+        const out = execFileSync(
+          process.execPath,
+          [CLI, 'statusline', '--project', tmpDir],
+          {
+            input: payload,
+            encoding: 'utf8',
+            timeout: 5000,
+          },
+        );
+        expect(out).toBe('[sop:off]');
+      } finally {
+        fs.rmSync(projectWithHooks, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.runIf(fs.existsSync(CLI))(
+    'stdin workspace with installed hooks → [sop:on] via --json has correct project_root',
+    async () => {
+      setupProjectWithFixture(tmpDir, 'real-settings-installed.json');
+      const { execFileSync } = await import('node:child_process');
+      const payload = JSON.stringify({
+        workspace: { current_dir: tmpDir },
+      });
+      const out = execFileSync(
+        process.execPath,
+        [CLI, '--json', 'statusline'],
+        {
+          input: payload,
+          encoding: 'utf8',
+          timeout: 5000,
+        },
+      );
+      const parsed = JSON.parse(out);
+      expect(parsed.on).toBe(true);
+      expect(parsed.project_root).toBe(tmpDir);
+    },
+  );
+});
+
 describe('install verb tip line', () => {
   let stdoutChunks: string[];
   let originalStdoutWrite: typeof process.stdout.write;

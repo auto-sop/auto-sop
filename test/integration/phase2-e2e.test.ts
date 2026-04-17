@@ -17,7 +17,7 @@
  * │ SCHED-01   │ scheduler.install called with absolute tick.sh path        │
  * │ SCHED-03   │ tick.sh exists, executable, NO flock                       │
  * │ SCHED-04   │ scheduler interval is 3600s                                │
- * │ SCHED-05   │ tick.sh is pure POSIX sh, sets CLAUDE_SOP_LEARNER=1       │
+ * │ SCHED-05   │ tick.sh is pure POSIX sh, sets CLAUDE_SOP_CAPTURE_SUPPRESS │
  * │ PRIV-06    │ --purge wipes captures                                     │
  * │ CLI-01     │ status returns all I3 fields after install                 │
  * │ CLI-05     │ pause/resume toggle paused.flag and status reflects it     │
@@ -234,7 +234,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
   });
 
   // ─── SCHED-03 + SCHED-05 ──────────────────────────────────────────────────
-  it('SCHED-03/05: tick.sh exists, is executable, is pure POSIX sh, NO flock, sets CLAUDE_SOP_LEARNER=1', async () => {
+  it('SCHED-03/05: tick.sh exists, is executable, is pure POSIX sh, NO flock, sets CLAUDE_SOP_CAPTURE_SUPPRESS=1', async () => {
     const { opts } = makeInstallOpts();
     await runInstall(opts);
     const tick = path.join(tmp.homeDir, '.claude-sop', 'bin', 'tick.sh');
@@ -252,7 +252,9 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     for (const line of nonCommentLines) {
       expect(line).not.toMatch(/\bflock\b/);
     }
-    // SCHED-05: CLAUDE_SOP_LEARNER env var set
+    // SCHED-05: CLAUDE_SOP_CAPTURE_SUPPRESS env var set (canonical)
+    expect(content).toContain('CLAUDE_SOP_CAPTURE_SUPPRESS=1');
+    // Legacy CLAUDE_SOP_LEARNER also still emitted for backward compat
     expect(content).toContain('CLAUDE_SOP_LEARNER=1');
     // Pure POSIX sh shebang
     expect(content.split('\n')[0]).toBe('#!/bin/sh');

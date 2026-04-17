@@ -73,6 +73,8 @@ export function renderPlist(opts: {
   <dict>
     <key>PATH</key>
     <string>/usr/local/bin:/usr/bin:/bin</string>
+    <key>CLAUDE_SOP_CAPTURE_SUPPRESS</key>
+    <string>1</string>
     <key>CLAUDE_SOP_LEARNER</key>
     <string>1</string>
   </dict>

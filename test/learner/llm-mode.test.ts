@@ -22,7 +22,7 @@
  *   - non-zero exit → error 'claude_exit_<n>'
  *   - markdown-fenced JSON → still parsed (resilience to LLM ignoring
  *     the "no fences" instruction)
- *   - recursion guard — CLAUDE_SOP_LEARNER=1 is forwarded in env
+ *   - recursion guard — CLAUDE_SOP_CAPTURE_SUPPRESS=1 is forwarded in env
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SpawnSyncReturns } from 'node:child_process';
@@ -207,7 +207,7 @@ describe('runLlmAnalysis', () => {
     expect(mockedExeca).toHaveBeenCalledTimes(1);
   });
 
-  it('passes CLAUDE_SOP_LEARNER=1 in spawned env (recursion guard)', async () => {
+  it('passes CLAUDE_SOP_CAPTURE_SUPPRESS=1 in spawned env (recursion guard)', async () => {
     mockedExeca.mockResolvedValue(
       execaReturn({
         stdout: wrapClaude({
@@ -228,7 +228,7 @@ describe('runLlmAnalysis', () => {
     const args = call?.[1] as string[];
     expect(args).toEqual(['-p', '--output-format', 'json', '--max-turns', '1']);
     const opts = call?.[2] as { env?: Record<string, string>; reject?: boolean };
-    expect(opts?.env?.CLAUDE_SOP_LEARNER).toBe('1');
+    expect(opts?.env?.CLAUDE_SOP_CAPTURE_SUPPRESS).toBe('1');
     expect(opts?.reject).toBe(false);
   });
 

@@ -53,7 +53,16 @@ describe('renderServiceUnit', () => {
     );
   });
 
-  it('contains Environment=CLAUDE_SOP_LEARNER=1', () => {
+  it('contains Environment=CLAUDE_SOP_CAPTURE_SUPPRESS=1 (canonical)', () => {
+    const unit = renderServiceUnit({
+      tickScriptPath: '/home/alice/.claude-sop/bin/tick.sh',
+      user: 'alice',
+      homeDir: '/home/alice',
+    });
+    expect(unit).toContain('Environment=CLAUDE_SOP_CAPTURE_SUPPRESS=1');
+  });
+
+  it('contains Environment=CLAUDE_SOP_LEARNER=1 (legacy backward compat)', () => {
     const unit = renderServiceUnit({
       tickScriptPath: '/home/alice/.claude-sop/bin/tick.sh',
       user: 'alice',

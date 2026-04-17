@@ -26,6 +26,7 @@ After=default.target
 
 [Service]
 Type=oneshot
+Environment=CLAUDE_SOP_CAPTURE_SUPPRESS=1
 Environment=CLAUDE_SOP_LEARNER=1
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStart=${opts.tickScriptPath}

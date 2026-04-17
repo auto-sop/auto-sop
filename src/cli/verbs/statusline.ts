@@ -10,9 +10,9 @@ export function registerStatuslineVerb(program: Command): void {
   program
     .command('statusline')
     .description('print [sop:on] or [sop:off] for statusline integration')
-    .option('--project <path>', 'project root', process.cwd())
+    .option('--project <path>', 'project root')
     .action((opts, cmd) => {
-      const projectRoot = path.resolve(opts.project as string);
+      const projectRoot = getProjectRoot(opts as { project?: string });
       const jsonFlag = !!(cmd.parent?.opts().json as boolean);
       const on = detectHooks(projectRoot);
 
@@ -28,6 +28,57 @@ export function registerStatuslineVerb(program: Command): void {
         process.stdout.write(on ? '[sop:on]' : '[sop:off]');
       }
     });
+}
+
+/**
+ * Resolve the project root in precedence order:
+ *   1. --project <path> flag (explicit user intent)
+ *   2. Claude Code statusline stdin JSON (workspace.current_dir)
+ *   3. process.cwd() fallback
+ *
+ * Claude Code invokes statusline commands by piping a JSON payload on stdin,
+ * e.g. `{"workspace":{"current_dir":"/path/to/project"}, …}`. In dev-army
+ * panes (and any other wrapper spawn) process.cwd() is the wrapper's dir,
+ * not the target project — reading stdin is the only reliable signal.
+ *
+ * All errors fall through silently so the command still returns [sop:off]
+ * rather than crashing.
+ */
+function getProjectRoot(opts: { project?: string }): string {
+  if (typeof opts.project === 'string' && opts.project.length > 0) {
+    return path.resolve(opts.project);
+  }
+
+  // Claude Code pipes workspace JSON on stdin for statusline commands.
+  // Only read when stdin is not a TTY — otherwise we'd block on a human.
+  if (process.stdin.isTTY !== true) {
+    try {
+      const input = readFileSync('/dev/stdin', 'utf8');
+      if (input.trim().length > 0) {
+        const parsed: unknown = JSON.parse(input);
+        if (
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          'workspace' in parsed
+        ) {
+          const ws = (parsed as { workspace?: unknown }).workspace;
+          if (
+            typeof ws === 'object' &&
+            ws !== null &&
+            'current_dir' in ws &&
+            typeof (ws as { current_dir?: unknown }).current_dir === 'string'
+          ) {
+            const dir = (ws as { current_dir: string }).current_dir;
+            if (dir.length > 0) return path.resolve(dir);
+          }
+        }
+      }
+    } catch {
+      /* fall through to cwd */
+    }
+  }
+
+  return process.cwd();
 }
 
 /**

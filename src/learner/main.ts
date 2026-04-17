@@ -257,13 +257,16 @@ async function runLearnerTick(
       // which skips the `claude -p` invocation and runs only the
       // rule-based detectors.
       //
-      // Also skip LLM when the parent process set CLAUDE_SOP_LEARNER=1
+      // Also skip LLM when the parent process set CLAUDE_SOP_CAPTURE_SUPPRESS=1
       // (recursion guard): this env is set inside a learner-spawned
       // `claude -p` child, so if Phase-2 capture somehow gets hold of
       // a turn from that child, a subsequent learner tick must not
-      // re-invoke LLM against its own analysis output.
+      // re-invoke LLM against its own analysis output. The legacy
+      // `CLAUDE_SOP_LEARNER` name is still honored for backward compat
+      // with tick scripts installed by older versions.
       const isOffline =
         process.env.CLAUDE_SOP_LEARNER_MODE === 'offline' ||
+        process.env.CLAUDE_SOP_CAPTURE_SUPPRESS === '1' ||
         process.env.CLAUDE_SOP_LEARNER === '1';
 
       // Load turn data ONCE per project per tick (shared across all detectors)

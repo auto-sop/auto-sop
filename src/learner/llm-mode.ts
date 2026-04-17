@@ -19,10 +19,11 @@
  *     that ignores the prompt's "never copy raw text" instruction
  *     still cannot smuggle large attacker-controlled strings into
  *     CLAUDE.md.
- *   - The spawned `claude -p` child receives `CLAUDE_SOP_LEARNER=1`
+ *   - The spawned `claude -p` child receives `CLAUDE_SOP_CAPTURE_SUPPRESS=1`
  *     in its environment as a recursion guard — the Stop hook checks
- *     this var and skips Phase-2 capture inside the learner subprocess
- *     so analyses do not feed back into themselves.
+ *     this var (plus the legacy `CLAUDE_SOP_LEARNER`) and skips Phase-2
+ *     capture inside the learner subprocess so analyses do not feed
+ *     back into themselves.
  */
 import { spawnSync } from 'node:child_process';
 import { execa } from 'execa';
@@ -122,7 +123,7 @@ export async function runLlmAnalysis(
           // Recursion guard: tells our own Phase-2 capture (if it
           // somehow runs inside this child) that the parent is the
           // learner and to skip recording its own turns.
-          CLAUDE_SOP_LEARNER: '1',
+          CLAUDE_SOP_CAPTURE_SUPPRESS: '1',
         },
         reject: false,
       },

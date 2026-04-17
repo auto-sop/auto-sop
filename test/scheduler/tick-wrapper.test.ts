@@ -26,7 +26,12 @@ describe('renderTickScript', () => {
     expect(script).toContain('set -eu');
   });
 
-  it('contains CLAUDE_SOP_LEARNER=1', () => {
+  it('contains CLAUDE_SOP_CAPTURE_SUPPRESS=1 (canonical)', () => {
+    const script = renderTickScript(baseOpts);
+    expect(script).toContain('CLAUDE_SOP_CAPTURE_SUPPRESS=1');
+  });
+
+  it('contains CLAUDE_SOP_LEARNER=1 (legacy, backward compat)', () => {
     const script = renderTickScript(baseOpts);
     expect(script).toContain('CLAUDE_SOP_LEARNER=1');
   });
