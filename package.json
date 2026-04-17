@@ -33,6 +33,8 @@
     "test:smoke": "npm run build && vitest run --config vitest.smoke.config.ts",
     "test:all": "npm run test && npm run test:smoke",
     "test:watch": "vitest",
+    "test:golden": "vitest run test/managed-section/golden.test.ts",
+    "test:golden:update": "GOLDEN_UPDATE=1 tsx test/managed-section/golden/write-fixtures.ts && GOLDEN_UPDATE=1 tsx test/managed-section/golden/update-goldens.ts",
     "lint": "eslint . && prettier --check .",
     "typecheck": "tsc --noEmit",
     "bench:shim": "node scripts/bench-shim.mjs",

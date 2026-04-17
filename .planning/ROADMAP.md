@@ -1,19 +1,21 @@
 # Roadmap: claude-sop
 
 **Created:** 2026-04-13
+**Last updated:** 2026-04-17
 **Depth:** standard
-**Phases:** 7
+**Phases:** 8 (Phase 7 added for smart directive targeting)
 **Coverage:** 61/61 v1 requirements mapped
 
 ## Phases
 
-- [x] **Phase 0: Distribution Decision + Foundations** — Resolve hybrid distribution model, build pure-logic foundations (PathResolver, Config, Scrubber) with scrubber passing secret-corpus gate. _(v1 — shipped 2026-04-13)_
-- [x] **Phase 1: Capture Foundation** — Hook shim, capture writer, and turn-directory store produce scrubbed, finalized captures on disk with <50ms hook latency and fail-open semantics. _(v2 — shipped 2026-04-13, hardened v4-v8)_
-- [x] **Phase 2: Installer + Scheduler + CLI Skeleton** — First working `npx claude-sop install` wires hooks, registers hourly launchd/systemd scheduler, and exposes inspection/control CLI end-to-end. _(v3 — shipped 2026-04-13, hotfixes v4-v8, launchd reliability v12)_
-- [ ] **Phase 3: Learner (Offline then `claude` CLI)** — Hourly learner reads captures, runs deterministic detectors with evidence threshold N=3, emits strict-JSON directive proposals, injection-resistant. _(v9 shipped MVP — observable batch, project registry, cursor, recap.log. Detectors + schema + LLM mode remaining → v13-v14)_
-- [ ] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware writer appends learner directives to CLAUDE.md managed section without ever clobbering user edits; revertible. _(v10 shipped light — basic atomic editor, sample directive, statusline, backup. Hash-check + git-aware + revert + TTL remaining → v15)_
-- [ ] **Phase 5: Inspection CLI + Packaging Hardening** — `recent`/`show` inspection commands land; publish-ready packaging (provenance, publint, attw, CC version matrix, docs, "looks-done" checklist). _(not started → v17-v18)_
-- [ ] **Phase 6: License & Distribution Security** — License client with ed25519-signed responses, trial countdown, subscription gate, offline grace, obfuscated build pipeline, Node SEA binary compile. _(not started → v19-v22)_
+- [x] **Phase 0: Distribution Decision + Foundations** — Resolve hybrid distribution model, build pure-logic foundations (PathResolver, Config, Scrubber). _(v1 — shipped 2026-04-13)_
+- [x] **Phase 1: Capture Foundation** — Hook shim, capture writer, turn-directory store. <50ms hook latency, fail-open. _(v2 — shipped 2026-04-13, hardened v4-v8)_
+- [x] **Phase 2: Installer + Scheduler + CLI Skeleton** — `npx claude-sop install`, hourly launchd/systemd, status/doctor/pause CLI. _(v3 — shipped 2026-04-13, hotfixes v4-v8, launchd reliability v12)_
+- [~] **Phase 3: Learner (Offline then `claude` CLI)** — Rule-based detectors (N≥3 evidence) + LLM-driven directive generation via `claude -p`. _(v9 MVP batch, v13 detectors+schema+injection, v14 LLM default ON → 85% done. Remaining: I6 hard-kill, I7 learn-now verb → v17)_
+- [~] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware CLAUDE.md writer, never clobbers user edits, revertible. _(v10+v11 light editor + statusline, v16 hardening in progress — E1-E7 → Phase 4 completes with v16)_
+- [ ] **Phase 5: Inspection CLI + Packaging Hardening** — `recent`/`show` verbs + npm publish --provenance + publint + attw + CC version matrix + docs + "looks-done" checklist. _(→ v17-v18)_
+- [ ] **Phase 6: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `claude-sop-cloud/`.** CLI gains thin sync module. _(→ v19-v23)_
+- [ ] **Phase 7: Smart Directive Targeting** — Scope-aware directive placement: universal rules → CLAUDE.md (steering), context-specific → Claude Code Skills (on-demand). Prevents context bloat at scale. _(→ v24-v26, after 1-2 months of dogfood identifies real pollution patterns)_
 
 ### Key discovery: Recall gate NOT needed
 Claude Code natively reads `<project>/CLAUDE.md` into system context at session start. Directives written by the learner to the managed section are automatically visible to Claude in the next session. No separate recall-gate binary or UserPromptSubmit hook injection is required. This eliminates the R1 backlog item and simplifies the Phase 3→4 bridge.
@@ -124,12 +126,21 @@ CLOUD (15 days free → paid):
 
 **Depends on:** Phase 5 (publishable package)
 **Requirements:** LIC-03..10 (revised to match new stack)
+
+**Repository structure (decided 2026-04-17):**
+SaaS work lives in a **SEPARATE repository/directory**, NOT this project.
+
+- `~/Developer/claude-sop/` — **THIS repo.** The CLI plugin, learner, capture pipeline, CLAUDE.md editor. Open-source/semi-OSS friendly, runs locally.
+- `~/Developer/claude-sop-cloud/` — **NEW repo.** Backend API (Supabase Edge Functions), frontend dashboard (Next.js), billing webhooks. Private, monetization layer.
+
+The CLI in this repo gains a thin `sync` module that talks to the cloud repo's public API. The two repos version and deploy independently.
+
 **Planned versions:**
-  - v19: Supabase schema + Clerk auth + Stripe billing integration
-  - v20: CLI sync module (local directives → AES-256 encrypt → Supabase)
-  - v21: Dashboard frontend (Next.js + Vercel, cross-project view)
-  - v22: Installer Clerk login flow (browser popup auth)
-  - v23: Obfuscation + Node SEA binary (optional, anti-piracy)
+  - v19: `claude-sop-cloud/` repo bootstrap — Supabase schema + Clerk auth + Stripe billing scaffolding. No CLI integration yet.
+  - v20: CLI `sync` module (THIS repo) — local directives → AES-256 encrypt → POST to cloud API.
+  - v21: Dashboard frontend in `claude-sop-cloud/` — Next.js + Vercel, cross-project view.
+  - v22: CLI `login`/`logout` verbs (THIS repo) — Clerk browser popup auth, JWT stored in `secrets.enc`.
+  - v23: Obfuscation + Node SEA binary (THIS repo) — optional, anti-piracy hardening.
 
 **Success Criteria** (revised):
   1. User runs `claude-sop login` → browser popup → Clerk auth → JWT stored locally in `secrets.enc`.
@@ -140,6 +151,38 @@ CLOUD (15 days free → paid):
   6. Encrypted sync: server stores AES-256 encrypted blobs only. Supabase RLS ensures user can only read own data. No PII in server logs.
 **Plans:** TBD (v19-v23)
 
+### Phase 7: Smart Directive Targeting
+**Goal:** Prevent CLAUDE.md context bloat at scale by routing directives to the right surface — universal rules stay in CLAUDE.md (always in system prompt), context-specific rules become Claude Code Skills (on-demand, loaded only when relevant).
+
+**Problem this solves:**
+- CLAUDE.md is a "steering file" — loaded into EVERY Claude Code session's system prompt
+- Directives accumulate over months (even with v16 TTL cap at 25)
+- Narrow directives (e.g. "for hero carousel, use transform-only animations") waste context when user is editing backend code
+- Dolu context prompt following'i zayıflatır (frontier model weakness)
+
+**Solution:**
+LLM classifier tags each proposal's scope:
+- `universal` → CLAUDE.md managed section (current behavior)
+- `skill:<skill_name>` → separate skill markdown file, invoked on-demand via Claude Code's Skill tool or slash command
+- `file:<glob>` → context-specific, injected only when target files are in the conversation
+
+**Planned versions:**
+  - v24: Scope classification in directive schema (Zod extension) + LLM prompt update to request scope
+  - v25: Skill file generation — write `~/.claude/skills/<project>-<skill>.md` per scope, update plugin manifest
+  - v26: CLAUDE.md vs Skills split + migration tool for existing directives
+
+**Depends on:** Phase 4 (hardened editor must exist), 1-2 months of real dogfood data to identify pollution patterns.
+
+**Success Criteria:**
+  1. LLM proposal includes `scope` field (universal | skill:<name> | file:<glob>), validated by Zod.
+  2. `claude-sop recap --run` routes directives: universal → CLAUDE.md, skill-scoped → `~/.claude/skills/`, file-scoped → metadata for future file-aware injection.
+  3. `CLAUDE.md` managed section stays compact (<15 directives typical) even for power users with months of history.
+  4. Claude Code Skill files are invokable via `/claude-sop:<skill-name>` slash commands.
+  5. Migration: existing CLAUDE.md directives (pre-v24) are analyzed and optionally split into skills by `claude-sop migrate-directives --classify`.
+**Plans:** TBD (v24-v26)
+
+_Credit for this design insight: İbrahim Işkın (2026-04-17). Ibrahim pointed out that steering files grow unbounded and that Claude Code's Skills mechanism is the right home for context-specific knowledge._
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -147,10 +190,11 @@ CLOUD (15 days free → paid):
 | 0. Distribution Decision + Foundations | 1/1 | **COMPLETE** | v1 |
 | 1. Capture Foundation | 1/1 | **COMPLETE** | v2, v4-v8 |
 | 2. Installer + Scheduler + CLI | 2/2 | **COMPLETE** | v3, v4-v8, v12 |
-| 3. Learner | 2/3 | **Detectors shipped, LLM in flight** | v9 (batch), v13 (detectors), v14 (LLM — in progress) |
-| 4. ManagedSectionEditor | 1/2 | **Light shipped** | v10-v11 (editor+statusline), v16 (hardening) |
+| 3. Learner | 2/3 | **85% — LLM shipped, hard-kill + learn-now verb remain** | v9, v13, v14 done; I6+I7 → v17 |
+| 4. ManagedSectionEditor | 1/2 | **In progress — hardening underway** | v10-v11 done; v16 E1-E7 in flight |
 | 5. Inspection CLI + Packaging | 0/2 | Not started | v17, v18 |
-| 6. License & Distribution Security | 0/4 | Not started | v19-v22 |
+| 6. SaaS Platform + Monetization | 0/5 | Not started (separate repo) | v19-v23 |
+| 7. Smart Directive Targeting | 0/3 | Not started | v24-v26 |
 
 ## Execution History
 
@@ -230,12 +274,20 @@ CLOUD (15 days free → paid):
 - **D2** dispatch-task.sh stderr fix → formal commit + review
 - **D3** Agent-poll inbox watcher stability
 
+### Smart Directive Targeting (v24-v26) — NEW Phase 7
+- **SD1** Scope classification field in DirectiveProposal Zod schema
+- **SD2** LLM prompt update — ask Claude to label each directive's scope
+- **SD3** Skill file generator (`~/.claude/skills/<project>-<skill>.md`)
+- **SD4** CLAUDE.md vs Skills routing in directive-builder
+- **SD5** Migration tool: `claude-sop migrate-directives --classify` for existing CLAUDE.md directives
+
 ### Cross-cutting (parallel)
 - **X1** Linux CI matrix (systemd + cron)
 - **X2** Multi-project cross-project pattern detection
 - **X3** User directive feedback (like/reject)
 - **X4** ADR finalize (sideload vs marketplace)
 - **X5** Plugin distribution → Claude Code marketplace
+- **X6** I8 — LLM skip if turns_new=0 (avoid wasteful analysis on idle ticks)
 
 ## Coverage Validation
 

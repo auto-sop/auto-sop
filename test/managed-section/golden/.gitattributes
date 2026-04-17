@@ -1,0 +1,6 @@
+# Golden fixtures are byte-exact regression artifacts.
+# Disable any git-side munging (autocrlf, eol, working-tree-encoding) so the
+# bytes on disk match the bytes in the repo across Windows/macOS/Linux.
+* -text
+*.md binary
+*.expected.md binary

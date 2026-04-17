@@ -8,6 +8,11 @@
  * - Atomic rename for the main file write
  * - Dry-run never touches the filesystem
  * - Idempotent: same content → verdict 'unchanged', no file write
+ *
+ * v16 hardening:
+ * - E1 drift detection: compares stored SHA-256 of last-known managed
+ *   section against the current file. On drift → backup + abort, no write.
+ * - E2 git-aware: skips writes during rebase/merge/cherry-pick/bisect/revert.
  */
 import {
   readFileSync,
@@ -21,7 +26,7 @@ import {
   closeSync,
   chmodSync,
 } from 'node:fs';
-import { join, resolve, isAbsolute } from 'node:path';
+import { join, isAbsolute } from 'node:path';
 import {
   BEGIN_MARKER,
   GENERATED_COMMENT,
@@ -32,6 +37,13 @@ import {
   AmbiguousMarkersError,
   MalformedMarkersError,
 } from './markers.js';
+import {
+  readLastHash,
+  writeLastHash,
+  clearLastHash,
+  sha256,
+} from './hash-store.js';
+import { isGitBusy } from './git-state.js';
 
 // Re-export error classes for consumers
 export { AmbiguousMarkersError, MalformedMarkersError } from './markers.js';
@@ -43,9 +55,29 @@ export interface ManagedSectionContent {
   body: string;
 }
 
+/**
+ * Optional structured logger. The editor calls this to emit
+ *   'managed_section_drift_detected'
+ *   'managed_section_skip_git_state'
+ * events. The default behaviour (no logger) is a silent no-op so existing
+ * call sites and tests are unaffected.
+ */
+export type ManagedSectionLogger = (kind: string, data?: unknown) => void;
+
 export interface WriteResult {
-  verdict: 'created' | 'updated' | 'unchanged' | 'dry_run';
+  verdict:
+    | 'created'
+    | 'updated'
+    | 'unchanged'
+    | 'dry_run'
+    | 'drift_aborted'
+    | 'git_busy';
   claudeMdPath: string;
+  /**
+   * - normal write: path to the rolling backup (CLAUDE.md.backup)
+   * - drift abort: path to the conflict snapshot under managed-history/
+   * - skip/dry-run/unchanged/created: null
+   */
   backupPath: string | null;
   bytesBefore: number;
   bytesAfter: number;
@@ -59,6 +91,8 @@ export interface WriteOptions {
   content: ManagedSectionContent;
   /** If true, compute new content but write nothing to disk. */
   dryRun?: boolean | undefined;
+  /** Optional structured-event logger (drift / git-busy). */
+  logger?: ManagedSectionLogger | undefined;
 }
 
 // ─── Path traversal guard ────────────────────────────────
@@ -73,16 +107,96 @@ function assertNoTraversal(projectRoot: string): void {
   }
 }
 
+// ─── Pure render ─────────────────────────────────────────
+
+/**
+ * Pure function that computes the post-write contents of CLAUDE.md given:
+ *
+ *   - `currentContent`  — the existing file contents, or null if the file
+ *                          does not exist yet.
+ *   - `body`            — the managed-section body to embed between markers.
+ *
+ * Does NOT touch the filesystem, does NOT consult git state, does NOT
+ * consult the hash store. It encapsulates exactly the three branches of
+ * `writeManagedSection`'s splice logic so that golden-file regression tests
+ * (E7) can assert byte-for-byte output without needing to fake a whole
+ * project root. A fresh write through `writeManagedSection` with `dryRun:
+ * true` returns the same bytes in `newContent` (assuming no drift / git
+ * busy short-circuit fires).
+ *
+ * May throw `AmbiguousMarkersError` / `MalformedMarkersError` when the
+ * markers in `currentContent` are malformed. That is the same surface
+ * `writeManagedSection` exposes, and tests rely on it.
+ */
+export function renderManagedSection(
+  currentContent: string | null,
+  body: string,
+): string {
+  const sectionBlock = buildSectionBlock(body);
+
+  if (currentContent === null) {
+    return CLAUDE_MD_HEADER + '\n' + sectionBlock + '\n';
+  }
+
+  const markers = findMarkers(currentContent);
+  if (markers === null) {
+    return currentContent.replace(/\n*$/, '\n\n') + sectionBlock + '\n';
+  }
+
+  const before = currentContent.slice(0, markers.beginStart);
+  const after = currentContent.slice(markers.endAfter);
+  return before + sectionBlock + '\n' + after;
+}
+
+// ─── Hash helpers ────────────────────────────────────────
+
+/**
+ * Compute the canonical hash of the managed section currently present in
+ * `fileContent`. Returns the empty string when no managed section is found
+ * (file missing or markers absent). The hashed range is exactly
+ * [beginStart, endAfter) — the same byte range we splice on writes — so a
+ * fresh write followed by an immediate re-hash yields the identical digest.
+ */
+function computeManagedHash(fileContent: string | null): string {
+  if (fileContent === null) return '';
+  let markers: ReturnType<typeof findMarkers>;
+  try {
+    markers = findMarkers(fileContent);
+  } catch {
+    // Malformed/ambiguous markers → can't hash a meaningful section. Treat
+    // as "no section" so the editor's normal error path (re-thrown by the
+    // caller) can surface the parse error instead of a confusing drift.
+    return '';
+  }
+  if (markers === null) return '';
+  return sha256(fileContent.slice(markers.beginStart, markers.endAfter));
+}
+
 // ─── Write ───────────────────────────────────────────────
 
 export function writeManagedSection(opts: WriteOptions): WriteResult {
-  const { projectRoot, content, dryRun } = opts;
+  const { projectRoot, content, dryRun, logger } = opts;
   assertNoTraversal(projectRoot);
 
   const claudeMdPath = join(projectRoot, 'CLAUDE.md');
   const tmpPath = claudeMdPath + '.tmp';
   const backupDir = join(projectRoot, '.claude-sop', 'state');
   const backupPath = join(backupDir, 'CLAUDE.md.backup');
+
+  // 0. E2 — Git-busy short-circuit. Honoured even on dry-run: if a rebase
+  //    is in flight, dry-run output is misleading because the file may be
+  //    in a transient state.
+  if (isGitBusy(projectRoot)) {
+    if (logger) logger('managed_section_skip_git_state', { projectRoot });
+    return {
+      verdict: 'git_busy',
+      claudeMdPath,
+      backupPath: null,
+      bytesBefore: 0,
+      bytesAfter: 0,
+      markersPresent: 'before_write',
+    };
+  }
 
   // 1. Read current content
   let current: string | null = null;
@@ -96,27 +210,72 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
 
   const bytesBefore = current !== null ? Buffer.byteLength(current, 'utf-8') : 0;
 
-  // 2. Find existing markers (may throw AmbiguousMarkersError / MalformedMarkersError)
+  // 2. Find existing markers (may throw AmbiguousMarkersError / MalformedMarkersError).
+  //    These intentionally propagate — drift checking can't proceed against
+  //    a malformed section, and the caller already handles these errors.
   const markers = current !== null ? findMarkers(current) : null;
   const markersPresent: WriteResult['markersPresent'] =
     markers !== null ? 'before_write' : 'after_write';
 
-  // 3. Construct new content
-  const sectionBlock = buildSectionBlock(content.body);
-  let newContent: string;
-
-  if (current === null) {
-    // No file exists: create from scratch
-    newContent = CLAUDE_MD_HEADER + '\n' + sectionBlock + '\n';
-  } else if (markers === null) {
-    // File exists but no markers: append section at the bottom
-    newContent = current.replace(/\n*$/, '\n\n') + sectionBlock + '\n';
-  } else {
-    // File exists with markers: splice in new section
-    const before = current.slice(0, markers.beginStart);
-    const after = current.slice(markers.endAfter);
-    newContent = before + sectionBlock + '\n' + after;
+  // 2a. E1 — Drift detection.
+  //     If we've previously recorded a hash AND it no longer matches what's
+  //     on disk, the user (or some other tool) edited the managed section
+  //     between writes. Snapshot the conflicting file, abort, do not write.
+  const stored = readLastHash(projectRoot);
+  if (stored !== null) {
+    const currentHash = computeManagedHash(current);
+    if (currentHash !== stored.lastHash) {
+      let conflictPath: string | null = null;
+      // On dry-run we surface the drift in the recap but never touch disk —
+      // creating a backup file would violate the dry-run contract.
+      if (dryRun !== true && current !== null) {
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        const historyDir = join(
+          projectRoot,
+          '.claude-sop',
+          'state',
+          'managed-history',
+        );
+        try {
+          mkdirSync(historyDir, { recursive: true });
+        } catch {
+          // best-effort; if mkdir fails we still log and abort
+        }
+        conflictPath = join(historyDir, `conflict-${ts}.md`);
+        try {
+          writeFileSync(conflictPath, current, { mode: 0o600 });
+        } catch {
+          // If the snapshot write fails, we still abort the main write —
+          // losing the snapshot is preferable to clobbering the user.
+          conflictPath = null;
+        }
+      }
+      if (logger) {
+        logger('managed_section_drift_detected', {
+          projectRoot,
+          conflictPath,
+          storedHash: stored.lastHash,
+          currentHash,
+        });
+      }
+      return {
+        verdict: 'drift_aborted',
+        claudeMdPath,
+        backupPath: conflictPath,
+        bytesBefore,
+        bytesAfter: 0,
+        markersPresent,
+      };
+    }
   }
+
+  // 3. Construct new content via the pure renderer so dry-run output and the
+  //    eventual on-disk bytes cannot diverge. `renderManagedSection` parses
+  //    `current` itself, which would double-cost here if it weren't for the
+  //    fact that we've already proven it's well-formed (step 2 did not
+  //    throw). The re-parse is a few string scans — negligible next to the
+  //    filesystem calls that dominate this function.
+  const newContent = renderManagedSection(current, content.body);
 
   const bytesAfter = Buffer.byteLength(newContent, 'utf-8');
 
@@ -146,10 +305,30 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
   }
 
   // 6. Backup (BEFORE main write — crash safety)
+  //    Uses the same tmp → fsync → rename pattern as the main write so a
+  //    crash mid-backup cannot leave a partial/corrupt backup on disk that
+  //    `revert` might silently restore.
   let didBackup = false;
   if (current !== null) {
     mkdirSync(backupDir, { recursive: true });
-    writeFileSync(backupPath, current, { mode: 0o600 });
+    const backupTmp = backupPath + '.tmp-' + process.pid + '-' + Date.now();
+    try {
+      writeFileSync(backupTmp, current, { mode: 0o600 });
+      const bfd = openSync(backupTmp, 'r');
+      try {
+        fsyncSync(bfd);
+      } finally {
+        closeSync(bfd);
+      }
+      renameSync(backupTmp, backupPath);
+    } catch (err) {
+      try {
+        unlinkSync(backupTmp);
+      } catch {
+        // ignore cleanup errors
+      }
+      throw err;
+    }
     didBackup = true;
   }
 
@@ -175,6 +354,21 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
 
   // Ensure final permissions
   chmodSync(claudeMdPath, 0o644);
+
+  // 8. Record the post-write hash so the next run can detect drift.
+  //    Computed against the same byte range we'd extract on read, so
+  //    re-hashing the file later yields the identical digest.
+  try {
+    const postHash = computeManagedHash(newContent);
+    if (postHash.length > 0) {
+      writeLastHash(projectRoot, postHash);
+    }
+  } catch (err) {
+    // Hash-store failure is non-fatal — the next run will treat us as
+    // first-run and proceed without drift checking. Surface via logger
+    // so operators can debug if it persists.
+    if (logger) logger('managed_section_hash_store_failed', { err: String(err) });
+  }
 
   const verdict: WriteResult['verdict'] = current === null ? 'created' : 'updated';
 
@@ -285,5 +479,15 @@ export function removeManagedSection(projectRoot: string): void {
       // ignore
     }
     throw err;
+  }
+
+  // Clear the stored hash — the managed section no longer exists on disk, so
+  // keeping an old hash would cause the next writeManagedSection to compute
+  // '' (no markers) against a non-empty stored hash and abort as drift,
+  // wedging the learner. Best-effort; matches the pattern used by revert.ts.
+  try {
+    clearLastHash(projectRoot);
+  } catch {
+    // best-effort — same pattern as revert.ts
   }
 }

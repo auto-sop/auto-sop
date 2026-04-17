@@ -30,7 +30,15 @@ export interface PerProjectRecap {
   newest_new_turn_at: string | null;
   duration_ms: number;
   llm_mode: boolean;
-  directive_written?: 'created' | 'updated' | 'unchanged' | 'dry_run' | 'error' | null;
+  directive_written?:
+    | 'created'
+    | 'updated'
+    | 'unchanged'
+    | 'dry_run'
+    | 'error'
+    | 'drift_aborted'
+    | 'git_busy'
+    | null;
   directive_bytes?: number;
   directive_backup?: boolean;
   /** Number of validated directive proposals written to the managed section. */
@@ -41,6 +49,19 @@ export interface PerProjectRecap {
   detectors_run?: number;
   /** Count of detectors that threw during execution (fail-open). */
   detectors_failed?: number;
+  /**
+   * (E4) Number of proposals dropped by the semantic-fingerprint dedup
+   * pass — the total count of losers across all duplicate groups. Does
+   * NOT include id-based dedup losses or items dropped by the cap.
+   */
+  merge_deduped_count?: number;
+  /**
+   * (E5) Number of directives the history module pruned from the active
+   * set this tick — the difference between "proposals that reached the
+   * history stage" and "directives that actually rendered into CLAUDE.md".
+   * Includes both TTL expiries and cap overflow.
+   */
+  directives_pruned_count?: number;
 
   // ── LLM analysis fields (PLAN-v14) ────────────────────────
   // All optional so existing recap entries deserialize unchanged.

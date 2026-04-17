@@ -235,6 +235,64 @@ describe('directive-schema', () => {
       const result = DirectiveProposal.safeParse(bad);
       expect(result.success).toBe(false);
     });
+
+    // ── SEC-001 (APEX P2) — turn_id nanoid-alphabet enforcement ─
+
+    it('APEX SEC-001: rejects turn_id containing markdown-link breakout chars', () => {
+      const proposal = validProposal();
+      const adversarial = 'x) [evil](https://attacker.example)';
+      const bad = {
+        ...proposal,
+        evidence: { ...proposal.evidence, turn_ids: [adversarial] },
+      };
+      const result = DirectiveProposal.safeParse(bad);
+      expect(result.success).toBe(false);
+    });
+
+    it('APEX SEC-001: rejects turn_id containing spaces', () => {
+      const proposal = validProposal();
+      const bad = {
+        ...proposal,
+        evidence: { ...proposal.evidence, turn_ids: ['has space'] },
+      };
+      const result = DirectiveProposal.safeParse(bad);
+      expect(result.success).toBe(false);
+    });
+
+    it('APEX SEC-001: rejects turn_id longer than 128 chars', () => {
+      const proposal = validProposal();
+      const tooLong = 'a'.repeat(129);
+      const bad = {
+        ...proposal,
+        evidence: { ...proposal.evidence, turn_ids: [tooLong] },
+      };
+      const result = DirectiveProposal.safeParse(bad);
+      expect(result.success).toBe(false);
+    });
+
+    it('APEX SEC-001: accepts a canonical 21-char nanoid as turn_id', () => {
+      const proposal = validProposal();
+      const ok = {
+        ...proposal,
+        evidence: {
+          ...proposal.evidence,
+          turn_ids: ['V1StGXR8_Z5jdHi6B-myT'],
+        },
+      };
+      const result = DirectiveProposal.safeParse(ok);
+      expect(result.success).toBe(true);
+    });
+
+    it('APEX SEC-001: accepts turn_id at exactly 128 chars', () => {
+      const proposal = validProposal();
+      const max = 'A'.repeat(128);
+      const ok = {
+        ...proposal,
+        evidence: { ...proposal.evidence, turn_ids: [max] },
+      };
+      const result = DirectiveProposal.safeParse(ok);
+      expect(result.success).toBe(true);
+    });
   });
 
   describe('generateProposalId', () => {

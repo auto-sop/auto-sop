@@ -173,27 +173,71 @@ function sortProposals(proposals: DirectiveProposalType[]): DirectiveProposalTyp
 }
 
 /**
+ * Build a relative path from the project root to a captured turn
+ * directory. `turnId` is the nanoid stored in meta.json's `turn_id`
+ * field (see src/capture/writer/turn-dir.ts). The actual on-disk
+ * directory name is `<ts>-<agent>-<filehash>-<turnId>`, but we emit
+ * the bare turn_id here so the link is deterministic without a
+ * filesystem lookup — users can `ls .claude-sop/captures/*<id>*` to
+ * find the exact directory. This keeps the builder pure (no I/O) and
+ * the rendered body byte-stable under E7 golden-file tests.
+ */
+function turnPathForLink(turnId: string): string {
+  return `.claude-sop/captures/${turnId}`;
+}
+
+/**
+ * Defense-in-depth (SEC-001): strip any character outside the nanoid
+ * alphabet from a turn_id before we render it into a markdown link.
+ * The schema (directive-schema.ts) also enforces this, but a detector
+ * that bypasses the schema or a future refactor that loosens it must
+ * never produce a link target capable of breaking out of the
+ * `[label](target)` syntax — hence this final-stage whitelist.
+ * Returns an empty string if nothing survives sanitization, signalling
+ * the caller to fall back to a linkless evidence line.
+ */
+function sanitizeTurnId(raw: string): string {
+  return raw.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 128);
+}
+
+/**
  * Format a single proposal as a markdown bullet.
  * - First line: severity tag + rule_text
- * - Second line (indented): evidence summary
+ * - Second line (indented): evidence summary with `[view turns]` pointer
+ *
+ * E6 (PLAN-v16 Wave 3): the evidence line includes a markdown link to
+ * the first captured turn that triggered the directive, plus `[+K more]`
+ * when additional turns were aggregated. When `turn_ids` is missing or
+ * empty (defensive — schema requires min(1) but defense-in-depth matters
+ * since the managed section is user-facing), we fall back to session
+ * count only so a malformed proposal never crashes rendering.
  */
 function formatProposalBullet(p: DirectiveProposalType): string {
   const sessionCount = p.evidence.session_ids.length;
-  const firstSeenDate = p.evidence.first_seen.slice(0, 10); // YYYY-MM-DD
   const sessionsLabel = sessionCount === 1 ? 'session' : 'sessions';
-  return (
-    '- **[' +
-    p.severity +
-    ']** ' +
-    p.rule_text +
-    '\n  _(evidence: ' +
-    sessionCount +
-    ' ' +
-    sessionsLabel +
-    ', first seen ' +
-    firstSeenDate +
-    ')_'
-  );
+  const turnIds = Array.isArray(p.evidence.turn_ids) ? p.evidence.turn_ids : [];
+
+  // SEC-001: sanitize the link target. If the first turn_id contains
+  // anything outside the nanoid alphabet, sanitizeTurnId returns a
+  // stripped-down version; if nothing survives, we drop the link
+  // entirely and render only the session-count summary (same fallback
+  // we already use for empty turn_ids).
+  const safeFirstTurn =
+    turnIds.length === 0 ? '' : sanitizeTurnId(turnIds[0]!);
+
+  let evidenceLine: string;
+  if (safeFirstTurn.length === 0) {
+    evidenceLine = `_(evidence: ${sessionCount} ${sessionsLabel})_`;
+  } else {
+    const firstTurnPath = turnPathForLink(safeFirstTurn);
+    const remaining = turnIds.length - 1;
+    const moreSuffix = remaining > 0 ? ` [+${remaining} more]` : '';
+    evidenceLine =
+      `_(evidence: ${sessionCount} ${sessionsLabel} \u00b7 ` +
+      `[view turns](${firstTurnPath})${moreSuffix})_`;
+  }
+
+  return `- **[${p.severity}]** ${p.rule_text}\n  ${evidenceLine}`;
 }
 
 /**

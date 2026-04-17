@@ -39,7 +39,19 @@ export const DirectiveProposal = z.object({
         (ids) => new Set(ids).size >= 3,
         'session_ids must contain at least 3 distinct values',
       ),
-    turn_ids: z.array(z.string().min(1)).min(1),
+    // SEC-001 (APEX P2): restrict turn_ids to the nanoid alphabet. A turn_id
+    // flows directly into a markdown link target in the evidence bullet —
+    // without this, a turn_id containing `)` could break out of the link
+    // and render an attacker-controlled hyperlink in CLAUDE.md. Keep the
+    // bound (128 chars) well above nanoid's 21 so we never reject the
+    // capture pipeline's own output.
+    turn_ids: z
+      .array(
+        z
+          .string()
+          .regex(/^[A-Za-z0-9_-]{1,128}$/, 'turn_id must be nanoid-safe'),
+      )
+      .min(1),
     pattern: z.string().min(1),
     occurrence_count: z.number().int().min(3),
     first_seen: z.string().min(1),

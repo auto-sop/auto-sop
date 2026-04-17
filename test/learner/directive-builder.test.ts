@@ -257,7 +257,10 @@ describe('directive-builder', () => {
       expect(result.body).toContain('- **[warning]**');
       expect(result.body).toContain('Command `npm test`');
       expect(result.body).toContain('evidence: 3 sessions');
-      expect(result.body).toContain('first seen 2026-04-14');
+      // E6: evidence line now carries a `[view turns]` link + `[+N more]`
+      // instead of a "first seen" date.
+      expect(result.body).toContain('[view turns](.claude-sop/captures/t1)');
+      expect(result.body).toContain('[+2 more]');
     });
 
     it('singular "turn" / "agent" for count of 1', () => {
@@ -466,6 +469,235 @@ describe('directive-builder', () => {
         llmSummary: malicious,
       });
       expect(result.body).not.toContain('<!-- GENERATED');
+    });
+
+    // ── E6: evidence pointer rendering (PLAN-v16 Wave 3) ──────
+
+    describe('E6 evidence pointer', () => {
+      it('single-turn evidence renders view-turns link WITHOUT "[+N more]"', () => {
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [
+            makeProposal({
+              evidence: {
+                session_ids: ['s1', 's2', 's3'],
+                turn_ids: ['solo-turn'],
+                pattern: 'npm test',
+                occurrence_count: 3,
+                first_seen: '2026-04-14T10:00:00.000Z',
+              },
+            }),
+          ],
+          candidateCount: 0,
+        });
+        expect(result.body).toContain(
+          '[view turns](.claude-sop/captures/solo-turn)',
+        );
+        expect(result.body).not.toContain('more]');
+      });
+
+      it('multiple-turn evidence renders first turn + "[+K more]"', () => {
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [
+            makeProposal({
+              evidence: {
+                session_ids: ['s1', 's2', 's3'],
+                turn_ids: ['first-turn', 'second-turn', 'third-turn'],
+                pattern: 'npm test',
+                occurrence_count: 4,
+                first_seen: '2026-04-14T10:00:00.000Z',
+              },
+            }),
+          ],
+          candidateCount: 0,
+        });
+        expect(result.body).toContain(
+          '[view turns](.claude-sop/captures/first-turn) [+2 more]',
+        );
+        // Only the FIRST turn id appears as a link target.
+        expect(result.body).not.toContain(
+          '[view turns](.claude-sop/captures/second-turn)',
+        );
+        expect(result.body).not.toContain(
+          '[view turns](.claude-sop/captures/third-turn)',
+        );
+      });
+
+      it('empty turn_ids falls back to bare session count (no link)', () => {
+        // Build proposal via type-cast (schema requires min 1 turn_id,
+        // but the formatter must defend against malformed input).
+        const p = makeProposal();
+        (p.evidence as unknown as { turn_ids: string[] }).turn_ids = [];
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [p],
+          candidateCount: 0,
+        });
+        expect(result.body).toContain('_(evidence: 3 sessions)_');
+        expect(result.body).not.toContain('[view turns]');
+      });
+
+      it('relative path is project-root-relative (no absolute, no leading slash)', () => {
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [
+            makeProposal({
+              evidence: {
+                session_ids: ['s1', 's2', 's3'],
+                turn_ids: ['abc123def456'],
+                pattern: 'npm test',
+                occurrence_count: 3,
+                first_seen: '2026-04-14T10:00:00.000Z',
+              },
+            }),
+          ],
+          candidateCount: 0,
+        });
+        const expected = '[view turns](.claude-sop/captures/abc123def456)';
+        expect(result.body).toContain(expected);
+        // No absolute path leakage.
+        expect(result.body).not.toMatch(/\[view turns\]\(\//);
+      });
+
+      it('2-turn evidence renders "[+1 more]" (singular handled uniformly)', () => {
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [
+            makeProposal({
+              evidence: {
+                session_ids: ['s1', 's2', 's3'],
+                turn_ids: ['alpha', 'beta'],
+                pattern: 'npm test',
+                occurrence_count: 3,
+                first_seen: '2026-04-14T10:00:00.000Z',
+              },
+            }),
+          ],
+          candidateCount: 0,
+        });
+        expect(result.body).toContain(
+          '[view turns](.claude-sop/captures/alpha) [+1 more]',
+        );
+      });
+
+      it('uses · (middle dot) separator between session count and link', () => {
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [makeProposal()],
+          candidateCount: 0,
+        });
+        // Middle dot comes from the existing stats header — make sure
+        // the evidence line ALSO uses it, not a hyphen or comma.
+        expect(result.body).toContain(
+          '3 sessions \u00b7 [view turns](.claude-sop/captures/t1)',
+        );
+      });
+
+      // ── APEX SEC-001 — defense-in-depth turn_id sanitization ──
+      //
+      // The schema already rejects turn_ids outside the nanoid
+      // alphabet; these tests cover the SECOND line of defense in
+      // formatProposalBullet. We bypass Zod by injecting via type-
+      // cast so if a future refactor ever loosens the schema, the
+      // builder still produces safe markdown.
+
+      it('APEX SEC-001: adversarial turn_id cannot inject a markdown link', () => {
+        const p = makeProposal();
+        (p.evidence as unknown as { turn_ids: string[] }).turn_ids = [
+          'x) [evil](https://evil.example',
+          'also-bad',
+        ];
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [p],
+          candidateCount: 0,
+        });
+        // The injected URL and label must NOT appear.
+        expect(result.body).not.toContain('evil.example');
+        expect(result.body).not.toContain('[evil]');
+        // Sanitizer keeps only nanoid-alphabet chars: 'x) [evil]…' →
+        // 'xevilhttpsevilexample'. That stripped form must be the
+        // one that ends up in the link — a single link, not two.
+        const viewTurnLinks = result.body.match(/\[view turns\]/g) ?? [];
+        expect(viewTurnLinks).toHaveLength(1);
+      });
+
+      it('APEX SEC-001: turn_id that sanitizes to empty → no link at all', () => {
+        const p = makeProposal();
+        // Only non-alphabet chars → sanitizer returns ''.
+        (p.evidence as unknown as { turn_ids: string[] }).turn_ids = [
+          '!@#$%^&*()',
+        ];
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [p],
+          candidateCount: 0,
+        });
+        expect(result.body).toContain('_(evidence: 3 sessions)_');
+        expect(result.body).not.toContain('[view turns]');
+        // No accidental leakage of the attacker payload either.
+        expect(result.body).not.toContain('!@#$');
+      });
+
+      it('APEX SEC-001: markdown output never has unbalanced brackets from turn_id', () => {
+        const p = makeProposal();
+        (p.evidence as unknown as { turn_ids: string[] }).turn_ids = [
+          'aaa)bbb]ccc(ddd',
+        ];
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [p],
+          candidateCount: 0,
+        });
+        // Split off the evidence line for focused inspection.
+        const evidenceLine = result.body
+          .split('\n')
+          .find((l) => l.includes('evidence:'))!;
+        const opens = (evidenceLine.match(/\(/g) ?? []).length;
+        const closes = (evidenceLine.match(/\)/g) ?? []).length;
+        const opensBracket = (evidenceLine.match(/\[/g) ?? []).length;
+        const closesBracket = (evidenceLine.match(/\]/g) ?? []).length;
+        expect(opens).toBe(closes);
+        expect(opensBracket).toBe(closesBracket);
+      });
+
+      it('APEX SEC-001: turn_id > 128 chars is truncated in the link target', () => {
+        const p = makeProposal();
+        const huge = 'a'.repeat(500);
+        (p.evidence as unknown as { turn_ids: string[] }).turn_ids = [huge];
+        const result = buildDirectiveBodyFromInput({
+          turnsTotalSeen: 3,
+          agentRoster: ['main'],
+          nowIso: '2026-04-14T22:20:00Z',
+          proposals: [p],
+          candidateCount: 0,
+        });
+        // The link target is capped at 128 chars.
+        expect(result.body).toContain(
+          `[view turns](.claude-sop/captures/${'a'.repeat(128)})`,
+        );
+        // And crucially, the full 500-a string is NOT present anywhere.
+        expect(result.body).not.toContain('a'.repeat(129));
+      });
     });
 
     it('llmSummary over 500 chars is truncated', () => {

@@ -58,6 +58,10 @@ function directiveLabel(entry: Record<string, unknown>): string {
       return pc.cyan('dry_run');
     case 'error':
       return pc.red('error');
+    case 'drift_aborted':
+      return pc.red('drift_aborted');
+    case 'git_busy':
+      return pc.dim('git_busy');
     default:
       return String(val);
   }

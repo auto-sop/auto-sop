@@ -15,6 +15,12 @@ import { readCursor, writeCursor, withCursorLock } from './cursor.js';
 import { scanNewTurns, type TurnSummary } from './turn-scanner.js';
 import { appendRecap, type PerProjectRecap, type TickSummary } from './recap-log.js';
 import { writeManagedSection } from '../managed-section/editor.js';
+import { isGitBusy } from '../managed-section/git-state.js';
+import {
+  applyDirectiveHistory,
+  getDirectiveConfig,
+  type DirectiveHistoryEntry,
+} from '../managed-section/directive-history.js';
 import { buildDirectiveBody } from './directive-builder.js';
 import { loadTurnsForDetection } from './turn-loader.js';
 import {
@@ -27,7 +33,7 @@ import {
   type DirectiveProposalType,
 } from './directive-schema.js';
 import { runLlmAnalysis } from './llm-mode.js';
-import { mergeProposals } from './merge-proposals.js';
+import { mergeProposalsWithDedup } from './merge-proposals.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -351,18 +357,63 @@ async function runLearnerTick(
       }
 
       // Merge rule-based + LLM proposals. On LLM failure, llmResult.proposals
-      // is empty so mergeProposals degrades gracefully to rule-only output.
-      const mergedProposals = mergeProposals(
+      // is empty so the merger degrades gracefully to rule-only output.
+      // E4: capture semantic-dedup count so it surfaces in the recap.
+      const mergeResult = mergeProposalsWithDedup(
         ruleProposals,
         llmResult.proposals,
       );
+      const mergedProposals = mergeResult.proposals;
+      result.merge_deduped_count = mergeResult.dedupedCount;
+
+      // E5: Run proposals through the directive history module.
+      // Ordering constraint (PLAN-v16): history must happen AFTER the
+      // git-busy check and BEFORE the hash drift check. The git-busy
+      // check lives inside writeManagedSection; mirror it here so that
+      // when git is busy we skip updating history entirely (avoids a
+      // bogus last_reinforced bump for a tick that won't render).
+      // writeManagedSection still performs its own git-busy check below
+      // and returns the canonical 'git_busy' verdict.
+      let activeEntries: DirectiveHistoryEntry[] | null = null;
+      const busy = (() => {
+        try {
+          return isGitBusy(validRoot);
+        } catch {
+          return false;
+        }
+      })();
+      if (!busy) {
+        try {
+          const hist = applyDirectiveHistory(validRoot, mergedProposals, {
+            config: getDirectiveConfig(),
+          });
+          activeEntries = hist.active;
+          result.directives_pruned_count =
+            mergedProposals.length - hist.active.length;
+        } catch (err) {
+          // History failure is non-fatal — fall back to rendering the
+          // merged proposals directly so we don't silently drop a tick.
+          logError('directive_history_failed', err, home);
+          activeEntries = null;
+        }
+      }
+
+      // Translate history entries back into DirectiveProposalType shape
+      // expected by buildDirectiveBody. When history is unavailable
+      // (git-busy or error path) we pass mergedProposals directly.
+      const renderProposals: DirectiveProposalType[] =
+        activeEntries !== null
+          ? activeEntries
+              .map((e) => mergedProposals.find((p) => p.id === e.id))
+              .filter((p): p is DirectiveProposalType => p !== undefined)
+          : mergedProposals;
 
       try {
         const directiveContent = buildDirectiveBody(
           project,
           now,
           result.turns_total_seen,
-          mergedProposals,
+          renderProposals,
           candidateCount,
           // Only render the AI analysis line when the LLM actually ran
           // AND produced a summary. Suppress on fallback so stale
@@ -379,6 +430,10 @@ async function runLearnerTick(
           projectRoot: validRoot,
           content: directiveContent,
           dryRun: process.env.CLAUDE_SOP_LEARNER_DRY_RUN === '1',
+          // Forward structured editor events
+          // (managed_section_drift_detected / managed_section_skip_git_state)
+          // into the learner's existing errors.log.
+          logger: (kind, data) => logError(kind, data, home),
         });
         result.directive_written = writeResult.verdict;
         result.directive_bytes = writeResult.bytesAfter;
@@ -388,7 +443,7 @@ async function runLearnerTick(
         result.directive_written = 'error';
       }
 
-      result.directives_active = mergedProposals.length;
+      result.directives_active = renderProposals.length;
       result.directives_candidates = candidateCount;
       result.detectors_run = detectorsRun;
       result.detectors_failed = detectorsFailed;
@@ -398,11 +453,12 @@ async function runLearnerTick(
       result.llm_mode = !isOffline;
       result.llm_duration_ms = llmResult.durationMs;
       result.llm_directives_proposed = llmResult.proposals.length;
-      // The number of LLM proposals that actually landed after merge
-      // dedup — i.e. the count that survived to CLAUDE.md. Computed as
-      // "merged items whose id came from the LLM set".
+      // The number of LLM proposals that actually landed in the managed
+      // section — i.e. survived id dedup, semantic dedup, history TTL,
+      // and the cap. Computed as "rendered items whose id came from the
+      // LLM set".
       const llmIds = new Set(llmResult.proposals.map((p) => p.id));
-      result.llm_directives_accepted = mergedProposals.filter((p) =>
+      result.llm_directives_accepted = renderProposals.filter((p) =>
         llmIds.has(p.id),
       ).length;
       result.llm_directives_rejected =
