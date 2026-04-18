@@ -10,6 +10,13 @@ import {
 import { HOOK_EVENTS, CLAUDE_SOP_HOOK_ID } from './hook-entries.js';
 import type { SchedulerBackend } from '../scheduler/types.js';
 import { removeProject } from '../learner/project-registry.js';
+import { readManagedSection } from '../managed-section/editor.js';
+import {
+  loadHistory,
+  saveHistory,
+  extractDirectivesFromBody,
+  updateFromProposals,
+} from '../managed-section/directive-history.js';
 
 export interface UninstallOptions {
   projectRoot: string;
@@ -77,6 +84,39 @@ export async function runUninstall(
       steps.push({ step: name, outcome: 'warning', detail: msg });
     }
   }
+
+  // Step 0.5 (I9): Defensive directive backup. If CLAUDE.md has directives
+  // but directive-history.json is missing/empty, extract directives from the
+  // managed section body and write to directive-history.json BEFORE stripping.
+  // This ensures directives survive even if the history file was manually deleted.
+  await step('defensive-directive-backup', async () => {
+    try {
+      const managed = readManagedSection(opts.projectRoot);
+      if (!managed || managed.body.trim().length === 0) return 'no managed section';
+
+      const history = loadHistory(opts.projectRoot);
+      const hasActiveEntries = Object.values(history.entries).some((e) => !e.pruned);
+      if (hasActiveEntries) return 'directive-history already has active entries';
+
+      // Managed section has content but history is missing/empty — extract
+      const nowIso = new Date(now).toISOString();
+      const extracted = extractDirectivesFromBody(managed.body, nowIso);
+      if (extracted.length === 0) return 'no directives found in managed section';
+
+      // Build proposals from extracted entries for updateFromProposals
+      const proposals = extracted.map((e) => ({
+        id: e.id,
+        rule_text: e.rule_text,
+        severity: e.severity,
+        evidence: { first_seen: e.first_seen },
+      }));
+      const updated = updateFromProposals(history, proposals, nowIso);
+      saveHistory(opts.projectRoot, updated);
+      return `backed up ${extracted.length} directives to directive-history.json`;
+    } catch {
+      return 'defensive backup failed (non-fatal)';
+    }
+  });
 
   // Step 1: Backup managed-section content from CLAUDE.md
   await step('backup-managed-section', async () => {

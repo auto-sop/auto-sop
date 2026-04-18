@@ -784,3 +784,86 @@ describe('APEX SEC-006: saveHistory creates 0700 state directory', () => {
     expect(dirStat.mode & 0o777).toBe(0o700);
   });
 });
+
+// ─── SEC-L01 / SEC-L02 hardening tests ─────────────────
+
+describe('SEC-L01: string length capping in coerceEntry', () => {
+  let root: string;
+  beforeEach(() => { root = makeTmpDir(); });
+  afterEach(() => { rmSync(root, { recursive: true, force: true }); });
+
+  it('truncates oversized id and rule_text on load', () => {
+    const longId = 'x'.repeat(100_000);
+    const longRule = 'r'.repeat(100_000);
+    const raw = {
+      entries: {
+        [longId]: {
+          id: longId,
+          rule_text: longRule,
+          severity: 'info',
+          first_seen: '2025-01-01T00:00:00.000Z',
+          last_reinforced: '2025-01-01T00:00:00.000Z',
+          occurrence_count: 1,
+          pruned: false,
+        },
+      },
+      updated_at: '2025-01-01T00:00:00.000Z',
+    };
+    mkdirSync(join(root, '.claude-sop', 'state'), { recursive: true });
+    writeFileSync(
+      join(root, '.claude-sop', 'state', 'directive-history.json'),
+      JSON.stringify(raw),
+    );
+    const h = loadHistory(root);
+    const entries = Object.values(h.entries);
+    expect(entries.length).toBe(1);
+    expect(entries[0].id.length).toBeLessThanOrEqual(256);
+    expect(entries[0].rule_text.length).toBeLessThanOrEqual(2048);
+  });
+});
+
+describe('SEC-L02: reserved key filtering in applyTTLAndCap', () => {
+  it('skips __proto__, constructor, prototype keys', () => {
+    const now = new Date('2025-06-01T00:00:00.000Z');
+    const entry = makeEntry({
+      id: 'legit',
+      rule_text: 'legit rule',
+      first_seen: '2025-05-01T00:00:00.000Z',
+      last_reinforced: '2025-05-30T00:00:00.000Z',
+    });
+    const poisoned: DirectiveHistory = {
+      entries: Object.create(null) as Record<string, DirectiveHistoryEntry>,
+      updated_at: '2025-05-30T00:00:00.000Z',
+    };
+    // Add legitimate + reserved keys
+    poisoned.entries['legit'] = entry;
+    // Force reserved keys via Object.defineProperty to bypass Object.create(null)
+    Object.defineProperty(poisoned.entries, '__proto__', {
+      value: { ...entry, id: '__proto__' },
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(poisoned.entries, 'constructor', {
+      value: { ...entry, id: 'constructor' },
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(poisoned.entries, 'prototype', {
+      value: { ...entry, id: 'prototype' },
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+
+    const result = applyTTLAndCap(poisoned, now, 30, 25);
+    // Only 'legit' should survive
+    expect(result.active.length).toBe(1);
+    expect(result.active[0].id).toBe('legit');
+    const historyKeys = Object.keys(result.history.entries);
+    expect(historyKeys).not.toContain('__proto__');
+    expect(historyKeys).not.toContain('constructor');
+    expect(historyKeys).not.toContain('prototype');
+  });
+});

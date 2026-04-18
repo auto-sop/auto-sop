@@ -13,11 +13,9 @@
  * The legacy `--llm` flag is removed; use `--offline` to opt out.
  */
 import type { Command } from 'commander';
-import os from 'node:os';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { existsSync, readFileSync, watchFile, unwatchFile } from 'node:fs';
-import { execa } from 'execa';
+import { readFileSync, watchFile } from 'node:fs';
 import { renderTable, warn } from '../output/human.js';
 import { emit } from '../output/json.js';
 import pc from 'picocolors';
@@ -25,10 +23,7 @@ import { unifiedDiff } from '../diff.js';
 import { buildSampleDirectiveFromInput, collectAgentRoster } from '../../learner/directive-builder.js';
 import { writeManagedSection } from '../../managed-section/editor.js';
 import { readRegistry } from '../../learner/project-registry.js';
-
-function recapLogPath(home?: string): string {
-  return path.join(home ?? os.homedir(), '.claude-sop', 'logs', 'recap.log');
-}
+import { runLearner, recapLogPath } from '../shared/learner-spawn.js';
 
 function parseLines(text: string): unknown[] {
   const entries: unknown[] = [];
@@ -301,89 +296,59 @@ export function registerRecapVerb(program: Command): void {
         return;
       }
 
-      // --run: spawn learner child process
+      // --run: spawn learner child process (deprecated — use `claude-sop learn-now`)
       if (opts.run) {
-        const learnerPath = findLearnerCjs();
-        if (!learnerPath) {
+        process.stderr.write(
+          pc.yellow('[deprecated] recap --run is deprecated. Use: claude-sop learn-now\n'),
+        );
+
+        const result = await runLearner({
+          dryRun: opts.dryRun,
+          offline: opts.offline,
+        });
+
+        if (result.error) {
           if (jsonMode) {
-            emit({ ok: false, verb: 'recap', error: 'learner.cjs not found' });
+            emit({ ok: false, verb: 'recap', error: result.error });
           } else {
-            process.stderr.write(pc.red('error: learner.cjs not found. Run `claude-sop install` first.\n'));
+            if (result.error === 'learner.cjs not found') {
+              process.stderr.write(
+                pc.red('error: learner.cjs not found. Run `claude-sop install` first.\n'),
+              );
+            } else {
+              warn(`learner exited with error: ${result.error}`);
+            }
           }
-          return;
-        }
-
-        // Record pre-run line count
-        let preRunLines = 0;
-        try {
-          const text = readFileSync(logPath, 'utf8');
-          preRunLines = text.split('\n').filter((l) => l.trim()).length;
-        } catch {
-          // file doesn't exist yet
-        }
-
-        // Spawn learner. LLM mode is ON by default; --offline sets
-        // CLAUDE_SOP_LEARNER_MODE=offline which main.ts interprets as
-        // "skip LLM, run only rule-based detectors".
-        const env: Record<string, string> = {
-          HOME: os.homedir(),
-          PATH: process.env.PATH ?? '',
-        };
-        if (opts.offline) {
-          env.CLAUDE_SOP_LEARNER_MODE = 'offline';
-        }
-        if (opts.dryRun) {
-          env.CLAUDE_SOP_LEARNER_DRY_RUN = '1';
-        }
-
-        try {
-          await execa('node', [learnerPath], { env, timeout: 130_000 });
-        } catch (err) {
-          if (jsonMode) {
-            emit({ ok: false, verb: 'recap', error: String(err) });
-          } else {
-            warn(`learner exited with error: ${err instanceof Error ? err.message : String(err)}`);
-          }
+          if (result.error === 'learner.cjs not found') return;
         }
 
         // Show new lines
-        try {
-          const text = readFileSync(logPath, 'utf8');
-          const allLines = text.split('\n').filter((l) => l.trim());
-          const newLines = allLines.slice(preRunLines);
-          if (jsonMode) {
-            for (const line of newLines) {
-              process.stdout.write(line + '\n');
-            }
+        if (jsonMode) {
+          for (const entry of result.recapLines) {
+            process.stdout.write(JSON.stringify(entry) + '\n');
+          }
+        } else {
+          if (result.recapLines.length === 0) {
+            process.stdout.write(pc.dim('(no new recap entries)\n'));
           } else {
-            if (newLines.length === 0) {
-              process.stdout.write(pc.dim('(no new recap entries)\n'));
-            } else {
-              const parsedEntries: Record<string, unknown>[] = [];
-              for (const line of newLines) {
-                try {
-                  const entry = JSON.parse(line) as Record<string, unknown>;
-                  process.stdout.write(formatEntry(entry) + '\n\n');
-                  parsedEntries.push(entry);
-                } catch {
-                  process.stdout.write(line + '\n');
-                }
-              }
+            const parsedEntries: Record<string, unknown>[] = [];
+            for (const entry of result.recapLines) {
+              const rec = entry as Record<string, unknown>;
+              process.stdout.write(formatEntry(rec) + '\n\n');
+              parsedEntries.push(rec);
+            }
 
-              // In dry-run mode, print diffs for each project with directive_written==='dry_run'
-              if (opts.dryRun) {
-                const dryRunEntries = parsedEntries.filter(
-                  (e) => e.directive_written === 'dry_run' && !e.summary,
-                );
-                if (dryRunEntries.length > 0) {
-                  process.stdout.write(pc.bold('\n── Dry-run diffs ──\n\n'));
-                  printDryRunDiffs(dryRunEntries);
-                }
+            // In dry-run mode, print diffs for each project with directive_written==='dry_run'
+            if (opts.dryRun) {
+              const dryRunEntries = parsedEntries.filter(
+                (e) => e.directive_written === 'dry_run' && !e.summary,
+              );
+              if (dryRunEntries.length > 0) {
+                process.stdout.write(pc.bold('\n── Dry-run diffs ──\n\n'));
+                printDryRunDiffs(dryRunEntries);
               }
             }
           }
-        } catch {
-          process.stdout.write(pc.dim('(no recap log)\n'));
         }
         return;
       }
@@ -467,14 +432,3 @@ export function registerRecapVerb(program: Command): void {
     });
 }
 
-function findLearnerCjs(): string | null {
-  // Check installed location first
-  const installed = path.join(os.homedir(), '.claude-sop', 'marketplace', 'claude-sop', 'learner.cjs');
-  if (existsSync(installed)) return installed;
-
-  // Check dist/plugin/ (dev mode)
-  const devPath = path.resolve('dist/plugin/learner.cjs');
-  if (existsSync(devPath)) return devPath;
-
-  return null;
-}

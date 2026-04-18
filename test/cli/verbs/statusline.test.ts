@@ -22,7 +22,7 @@
  * v10 bug: the parser iterated TOP-level keys and checked val.hooks directly,
  * missing the event-name → entries nesting. All fixtures here use the real shape.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { runCli } from '../../../src/cli/main.js';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -470,8 +470,35 @@ describe('statusline verb', () => {
 // Tests spawn the built CLI (`dist/cli.cjs`) so we can pipe real bytes
 // into stdin — in-process tests cannot exercise the /dev/stdin path.
 describe('statusline stdin JSON (B5 regression)', () => {
-  const CLI = path.join(process.cwd(), 'dist', 'cli.cjs');
+  // B11: Copy dist/cli.cjs into an isolated tmpdir at suite start.
+  // When vitest runs the full suite in parallel, another test may rebuild
+  // dist/ while these spawns are mid-flight, causing ENOENT races.
+  const SRC_CLI = path.join(process.cwd(), 'dist', 'cli.cjs');
+  let cliBinDir: string;
+  let CLI: string;
   let tmpDir: string;
+
+  // NODE_PATH allows the copied cli.cjs to resolve project deps (execa, nanoid, etc.)
+  const spawnEnv = { ...process.env, NODE_PATH: path.join(process.cwd(), 'node_modules') };
+
+  beforeAll(() => {
+    if (fs.existsSync(SRC_CLI)) {
+      cliBinDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-sop-statusline-bin-'));
+      CLI = path.join(cliBinDir, 'cli.cjs');
+      // Copy content (not symlink) to survive concurrent rebuilds, but
+      // spawn with NODE_PATH so require() resolves project deps.
+      fs.copyFileSync(SRC_CLI, CLI);
+    } else {
+      cliBinDir = '';
+      CLI = SRC_CLI; // tests guarded by .runIf will skip
+    }
+  });
+
+  afterAll(() => {
+    if (cliBinDir) {
+      fs.rmSync(cliBinDir, { recursive: true, force: true });
+    }
+  });
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'statusline-stdin-'));
@@ -481,7 +508,7 @@ describe('statusline stdin JSON (B5 regression)', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it.runIf(fs.existsSync(CLI))(
+  it.runIf(fs.existsSync(SRC_CLI))(
     'stdin with valid workspace JSON → uses current_dir (detects installed hooks)',
     async () => {
       setupProjectWithFixture(tmpDir, 'real-settings-installed.json');
@@ -493,13 +520,14 @@ describe('statusline stdin JSON (B5 regression)', () => {
       const out = execFileSync(process.execPath, [CLI, 'statusline'], {
         input: payload,
         encoding: 'utf8',
+        env: spawnEnv,
         timeout: 5000,
       });
       expect(out).toBe('[sop:on]');
     },
   );
 
-  it.runIf(fs.existsSync(CLI))(
+  it.runIf(fs.existsSync(SRC_CLI))(
     'stdin with empty input → falls back to cwd',
     async () => {
       const { execFileSync } = await import('node:child_process');
@@ -507,6 +535,7 @@ describe('statusline stdin JSON (B5 regression)', () => {
       const out = execFileSync(process.execPath, [CLI, 'statusline'], {
         input: '',
         encoding: 'utf8',
+        env: spawnEnv,
         cwd: tmpDir,
         timeout: 5000,
       });
@@ -514,13 +543,14 @@ describe('statusline stdin JSON (B5 regression)', () => {
     },
   );
 
-  it.runIf(fs.existsSync(CLI))(
+  it.runIf(fs.existsSync(SRC_CLI))(
     'stdin with malformed JSON → falls back to cwd, does not crash',
     async () => {
       const { execFileSync } = await import('node:child_process');
       const out = execFileSync(process.execPath, [CLI, 'statusline'], {
         input: '{not valid json at all',
         encoding: 'utf8',
+        env: spawnEnv,
         cwd: tmpDir,
         timeout: 5000,
       });
@@ -528,7 +558,7 @@ describe('statusline stdin JSON (B5 regression)', () => {
     },
   );
 
-  it.runIf(fs.existsSync(CLI))(
+  it.runIf(fs.existsSync(SRC_CLI))(
     '--project flag overrides stdin workspace.current_dir',
     async () => {
       // stdin points at a project with installed hooks, but --project points
@@ -551,6 +581,7 @@ describe('statusline stdin JSON (B5 regression)', () => {
           {
             input: payload,
             encoding: 'utf8',
+            env: spawnEnv,
             timeout: 5000,
           },
         );
@@ -561,7 +592,7 @@ describe('statusline stdin JSON (B5 regression)', () => {
     },
   );
 
-  it.runIf(fs.existsSync(CLI))(
+  it.runIf(fs.existsSync(SRC_CLI))(
     'stdin workspace with installed hooks → [sop:on] via --json has correct project_root',
     async () => {
       setupProjectWithFixture(tmpDir, 'real-settings-installed.json');
@@ -575,6 +606,7 @@ describe('statusline stdin JSON (B5 regression)', () => {
         {
           input: payload,
           encoding: 'utf8',
+          env: spawnEnv,
           timeout: 5000,
         },
       );

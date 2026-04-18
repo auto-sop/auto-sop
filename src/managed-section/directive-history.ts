@@ -65,6 +65,13 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MAX_TTL_DAYS = 3650; // ~10 years
 const MAX_DIRECTIVES_CAP = 1000;
 
+/** SEC-L01: cap string lengths when reading untrusted JSON. */
+const MAX_ID_LENGTH = 256;
+const MAX_RULE_TEXT_LENGTH = 2048;
+
+/** SEC-L02: prototype-pollution-safe key set. */
+const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 // ─── Types ───────────────────────────────────────────────
 
 export type DirectiveSeverity = 'error' | 'warning' | 'info';
@@ -245,9 +252,9 @@ function coerceEntry(
 ): DirectiveHistoryEntry | null {
   if (!isRecord(v)) return null;
   const rec = v as Record<string, unknown>;
-  const id = typeof rec.id === 'string' ? rec.id : idKey;
+  const id = typeof rec.id === 'string' ? rec.id.slice(0, MAX_ID_LENGTH) : idKey.slice(0, MAX_ID_LENGTH);
   if (id.length === 0) return null;
-  const rule_text = typeof rec.rule_text === 'string' ? rec.rule_text : '';
+  const rule_text = typeof rec.rule_text === 'string' ? rec.rule_text.slice(0, MAX_RULE_TEXT_LENGTH) : '';
   if (rule_text.length === 0) return null;
   const sev = rec.severity;
   if (sev !== 'error' && sev !== 'warning' && sev !== 'info') return null;
@@ -409,8 +416,10 @@ export function applyTTLAndCap(
   const nowIso = now.toISOString();
 
   // Work on a copy so we never mutate input.
-  const nextEntries: Record<string, DirectiveHistoryEntry> = {};
+  // SEC-L02: Object.create(null) avoids prototype-pollution; skip reserved keys.
+  const nextEntries = Object.create(null) as Record<string, DirectiveHistoryEntry>;
   for (const [k, v] of Object.entries(history.entries)) {
+    if (RESERVED_KEYS.has(k)) continue;
     nextEntries[k] = { ...v };
   }
 
@@ -537,4 +546,118 @@ export function applyDirectiveHistory(
     // empty/partial file via loadHistory.
   }
   return result;
+}
+
+// ─── I9: Directive preservation helpers ─────────────────
+
+/**
+ * Path to the just_restored flag file. When present, the next learner
+ * tick skips LLM analysis (directives were restored from history, not
+ * re-discovered) and clears the flag so subsequent ticks resume normally.
+ */
+function justRestoredPath(projectRoot: string): string {
+  return join(projectRoot, '.claude-sop', 'state', 'just-restored.flag');
+}
+
+/**
+ * Set the just_restored flag. Called by the install orchestrator after
+ * restoring directives from history.
+ */
+export function setJustRestored(projectRoot: string): void {
+  assertNoTraversal(projectRoot);
+  const dir = join(projectRoot, '.claude-sop', 'state');
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const flagPath = justRestoredPath(projectRoot);
+  writeFileSync(flagPath, new Date().toISOString(), { mode: 0o600 });
+}
+
+/**
+ * Check whether the just_restored flag is set AND clear it atomically.
+ * Returns true exactly once after a restore; subsequent calls return false.
+ * Fail-open: any error → false (never wedge the learner).
+ */
+export function consumeJustRestored(projectRoot: string): boolean {
+  assertNoTraversal(projectRoot);
+  const flagPath = justRestoredPath(projectRoot);
+  if (!existsSync(flagPath)) return false;
+  try {
+    unlinkSync(flagPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Parse directive bullets from a managed section body. Used for defensive
+ * backup: when CLAUDE.md has directives but directive-history.json is
+ * missing, we extract structured entries from the rendered Markdown.
+ *
+ * Format: `- **[severity]** rule_text`
+ *
+ * Returns minimal DirectiveHistoryEntry objects with synthetic ids and
+ * timestamps. Entries that don't match the expected format are skipped.
+ */
+export function extractDirectivesFromBody(body: string, now: string): DirectiveHistoryEntry[] {
+  const entries: DirectiveHistoryEntry[] = [];
+  const lines = body.split('\n');
+  for (const line of lines) {
+    const match = line.match(/^- \*\*\[(error|warning|info)\]\*\* (.+)$/);
+    if (!match) continue;
+    const severity = match[1] as DirectiveSeverity;
+    const ruleText = match[2]!;
+    // Synthetic id from rule text hash (deterministic)
+    const id = `restored-${simpleHash(ruleText)}`;
+    entries.push({
+      id,
+      rule_text: ruleText,
+      severity,
+      first_seen: now,
+      last_reinforced: now,
+      occurrence_count: 1,
+      pruned: false,
+    });
+  }
+  return entries;
+}
+
+/**
+ * Simple deterministic hash for generating synthetic ids.
+ * Not cryptographic — just needs to be stable and collision-resistant
+ * enough for ~25 directives.
+ */
+function simpleHash(input: string): string {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36).slice(0, 8);
+}
+
+/**
+ * Load only active (non-pruned) directives from history. Used by the
+ * install orchestrator to restore directives after reinstall.
+ *
+ * Returns entries sorted by (severity DESC, last_reinforced DESC, id ASC)
+ * for deterministic rendering. Returns an empty array when history is
+ * missing, corrupt, or has no active directives.
+ */
+export function loadActiveDirectives(
+  projectRoot: string,
+): DirectiveHistoryEntry[] {
+  assertNoTraversal(projectRoot);
+  const history = loadHistory(projectRoot);
+  const entries = Object.values(history.entries).filter((e) => !e.pruned);
+  if (entries.length === 0) return [];
+  // Sort: severity DESC (error=0 < warning=1 < info=2), last_reinforced DESC, id ASC
+  entries.sort((a, b) => {
+    const sevDiff = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
+    if (sevDiff !== 0) return sevDiff;
+    const aMs = Date.parse(a.last_reinforced);
+    const bMs = Date.parse(b.last_reinforced);
+    const tsDiff = bMs - aMs;
+    if (tsDiff !== 0) return tsDiff;
+    return a.id.localeCompare(b.id);
+  });
+  return entries;
 }

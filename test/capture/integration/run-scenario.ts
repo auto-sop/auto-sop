@@ -224,7 +224,10 @@ export async function runScenario(opts: RunScenarioOpts): Promise<ScenarioRun> {
   // B8: bumped from 10s → 30s → 50s because under load (multiple army
   // sessions, full suite) the subagent scenario can take 30s+. The
   // surrounding `beforeAll` hook timeouts are 60s to leave headroom.
-  await waitForQuiescence(captureDir, claudeSopTmpDir, 50000);
+  // B12: bumped from 50s → 120s. Under full suite + dev-army load the
+  // large-output scenario (CAPT-09) can exceed 50s, causing cascading
+  // skips for dependent assertions.
+  await waitForQuiescence(captureDir, claudeSopTmpDir, 120000);
 
   return run;
 }

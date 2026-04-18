@@ -1,9 +1,9 @@
 # Roadmap: claude-sop
 
 **Created:** 2026-04-13
-**Last updated:** 2026-04-17
+**Last updated:** 2026-04-18
 **Depth:** standard
-**Phases:** 8 (Phase 7 added for smart directive targeting)
+**Phases:** 9 (Phase 6 = Native Windows inserted before SaaS)
 **Coverage:** 61/61 v1 requirements mapped
 
 ## Phases
@@ -11,11 +11,19 @@
 - [x] **Phase 0: Distribution Decision + Foundations** — Resolve hybrid distribution model, build pure-logic foundations (PathResolver, Config, Scrubber). _(v1 — shipped 2026-04-13)_
 - [x] **Phase 1: Capture Foundation** — Hook shim, capture writer, turn-directory store. <50ms hook latency, fail-open. _(v2 — shipped 2026-04-13, hardened v4-v8)_
 - [x] **Phase 2: Installer + Scheduler + CLI Skeleton** — `npx claude-sop install`, hourly launchd/systemd, status/doctor/pause CLI. _(v3 — shipped 2026-04-13, hotfixes v4-v8, launchd reliability v12)_
-- [~] **Phase 3: Learner (Offline then `claude` CLI)** — Rule-based detectors (N≥3 evidence) + LLM-driven directive generation via `claude -p`. _(v9 MVP batch, v13 detectors+schema+injection, v14 LLM default ON → 85% done. Remaining: I6 hard-kill, I7 learn-now verb → v17)_
-- [~] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware CLAUDE.md writer, never clobbers user edits, revertible. _(v10+v11 light editor + statusline, v16 hardening in progress — E1-E7 → Phase 4 completes with v16)_
+- [~] **Phase 3: Learner (Offline then `claude` CLI)** — Rule-based detectors (N≥3 evidence) + LLM-driven directive generation via `claude -p`. _(v9 MVP batch, v13 detectors+schema+injection, v14 LLM default ON → 95% done. Remaining: I6 hard-kill, I7 learn-now verb → v17)_
+- [x] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware CLAUDE.md writer, never clobbers user edits, revertible. _(v10-v11 light editor + statusline, v16 hardening DONE → all of MD-01..08 satisfied)_
 - [ ] **Phase 5: Inspection CLI + Packaging Hardening** — `recent`/`show` verbs + npm publish --provenance + publint + attw + CC version matrix + docs + "looks-done" checklist. _(→ v17-v18)_
-- [ ] **Phase 6: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `claude-sop-cloud/`.** CLI gains thin sync module. _(→ v19-v23)_
-- [ ] **Phase 7: Smart Directive Targeting** — Scope-aware directive placement: universal rules → CLAUDE.md (steering), context-specific → Claude Code Skills (on-demand). Prevents context bloat at scale. _(→ v24-v26, after 1-2 months of dogfood identifies real pollution patterns)_
+- [ ] **Phase 6: Native Windows Support (NEW — inserted 2026-04-18)** — Task Scheduler backend (schtasks), .cmd shim wrappers, NTFS ACL permissions, Windows CI matrix. Unblocks ~20% of the developer market. Must land BEFORE SaaS so cloud paying users aren't immediately shut out. _(→ v20-v22, after MVP publish + dogfood observation)_
+- [ ] **Phase 7: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `claude-sop-cloud/`.** CLI gains thin sync module. _(→ v23-v27)_
+- [ ] **Phase 8: Smart Directive Targeting** — Scope-aware directive placement: universal rules → CLAUDE.md (steering), context-specific → Claude Code Skills (on-demand). Prevents context bloat at scale. _(→ v28-v30, after 1-2 months of dogfood identifies real pollution patterns)_
+
+### Reordering rationale (2026-04-18)
+Phase 6 (Native Windows) moved AHEAD of SaaS. Two reasons:
+1. **Moral/commercial hazard:** selling a SaaS subscription to a user whose OS is then refused by the CLI is unacceptable.
+2. **Dogfood realism:** we want to see LLM-generated directives across diverse real environments before committing to a cloud schema. Windows users bring a different failure distribution (path separators, shell quirks, Node version variance) than macOS/Linux power users.
+
+Between v18 (MVP publish) and v20 (Windows work) there is an explicit **dogfood milestone** — 1-2 weeks of running the tool on real projects, collecting real directives, publishing small hotfix patches (v18.1, v18.2, …) as needed. This period produces the data that informs Phase 6 implementation priorities AND Phase 8 detector tuning.
 
 ### Key discovery: Recall gate NOT needed
 Claude Code natively reads `<project>/CLAUDE.md` into system context at session start. Directives written by the learner to the managed section are automatically visible to Claude in the next session. No separate recall-gate binary or UserPromptSubmit hook injection is required. This eliminates the R1 backlog item and simplifies the Phase 3→4 bridge.
@@ -94,7 +102,44 @@ Claude Code natively reads `<project>/CLAUDE.md` into system context at session 
   5. A "looks-done-but-isn't" release checklist (≥20 items: no postinstall, no network egress, hook latency budget, scrubber recall, idempotency, reboot survival, etc.) is enforced in CI before a tag can be published.
 **Plans:** TBD
 
-### Phase 6: SaaS Platform + Monetization (REVISED 2026-04-17)
+### Phase 6: Native Windows Support (NEW — inserted 2026-04-18)
+**Goal:** Make claude-sop run natively on Windows (not just WSL). The current `platform-check.ts` refuses `win32` with exit 1 — this has to become a supported platform before paying SaaS subscribers can be acquired from the Windows developer population.
+
+**Why this blocks SaaS:**
+A user pays $X/month for cloud dashboard → runs claude-sop install on their Windows box → CLI refuses → immediate refund + negative review. Cannot ship SaaS while this is the experience.
+
+**What native Windows actually needs:**
+
+| Layer | Current (macOS/Linux) | Windows port |
+|---|---|---|
+| Scheduler | launchd / systemd | **Task Scheduler** (`schtasks.exe /Create /SC HOURLY`) |
+| Scheduler wrapper | `tick.sh` bash script | `tick.cmd` or `tick.ps1` |
+| Hook shim shebang | `#!/usr/bin/env node` | `.cmd` wrapper that invokes `node shim.cjs` (Claude Code runs hooks via cmd.exe on Windows) |
+| Detached writer spawn | `spawn(..., { detached: true })` + `unref()` | Same API but "session leader" has no meaning — needs Windows-specific daemonization idiom (possibly `CREATE_NEW_PROCESS_GROUP` flag) |
+| File permissions | `chmod 0600 / 0700` | NTFS ACLs — `icacls` or Node's built-in `fs.chmod` is a no-op on Windows. Need ACL-based equivalent via `child_process` call to `icacls` |
+| Path home | `~/.claude-sop/` | `%USERPROFILE%\.claude-sop\` — already handled by `os.homedir()` but all docs/error messages need rewording |
+| Process kill-switch env | `CLAUDE_SOP_CAPTURE_SUPPRESS=1` | Same — works cross-platform |
+| proper-lockfile | Works | Works (verified cross-platform) |
+
+**Dependencies:**
+- Phase 5 (must have a publishable package first — no point in Windows CI if we haven't shipped v1)
+- Claude Code itself must support Windows (verify before starting — if Claude Code is Linux/macOS only, Phase 6 is blocked)
+- Dogfood observation period (v18→v20 gap) to understand macOS/Linux issues before chasing Windows issues
+
+**Planned versions:**
+  - v20: Windows scheduler backend — `src/scheduler/windows-schtasks.ts` with Task Scheduler XML generation, install/uninstall via `schtasks.exe`
+  - v21: Windows shim adapter — `.cmd` wrapper files bundled in plugin, path translation in `src/installer/`, ACL-based permissions
+  - v22: Windows CI matrix — GitHub Actions `windows-latest` runner, isolated smoke tests for scheduler + hook firing + capture pipeline
+
+**Success Criteria:**
+  1. `npx claude-sop install` on Windows 10/11 completes with zero errors, hook entries written to `.claude/settings.json`, Task Scheduler job registered, CLAUDE.md managed section created.
+  2. Hourly Task Scheduler tick fires the learner. LLM analysis runs (`claude -p` works on Windows if Claude Code supports it).
+  3. Hook shim fires on `UserPromptSubmit` from Windows Claude Code session; capture pipeline produces turn directories with correct ACL permissions (owner-only).
+  4. `claude-sop uninstall` removes the Task Scheduler job cleanly, no stale entries survive a reboot.
+  5. CI green on `ubuntu-latest`, `macos-latest`, AND `windows-latest`. Smoke test includes install→capture→learner tick→managed section write→uninstall end-to-end.
+**Plans:** TBD (v20-v22)
+
+### Phase 7: SaaS Platform + Monetization (REVISED 2026-04-17)
 **Goal:** Turn the plugin into a commercial SaaS freemium product with a web dashboard, encrypted cloud sync, and subscription billing — while keeping all LLM analysis LOCAL (free via Claude Max).
 
 **Stack decision (confirmed):**
@@ -135,12 +180,12 @@ SaaS work lives in a **SEPARATE repository/directory**, NOT this project.
 
 The CLI in this repo gains a thin `sync` module that talks to the cloud repo's public API. The two repos version and deploy independently.
 
-**Planned versions:**
-  - v19: `claude-sop-cloud/` repo bootstrap — Supabase schema + Clerk auth + Stripe billing scaffolding. No CLI integration yet.
-  - v20: CLI `sync` module (THIS repo) — local directives → AES-256 encrypt → POST to cloud API.
-  - v21: Dashboard frontend in `claude-sop-cloud/` — Next.js + Vercel, cross-project view.
-  - v22: CLI `login`/`logout` verbs (THIS repo) — Clerk browser popup auth, JWT stored in `secrets.enc`.
-  - v23: Obfuscation + Node SEA binary (THIS repo) — optional, anti-piracy hardening.
+**Planned versions (RENUMBERED 2026-04-18 — pushed back by Phase 6 Windows insertion):**
+  - v23: `claude-sop-cloud/` repo bootstrap — Supabase schema + Clerk auth + Stripe billing scaffolding. No CLI integration yet.
+  - v24: CLI `sync` module (THIS repo) — local directives → AES-256 encrypt → POST to cloud API.
+  - v25: Dashboard frontend in `claude-sop-cloud/` — Next.js + Vercel, cross-project view.
+  - v26: CLI `login`/`logout` verbs (THIS repo) — Clerk browser popup auth, JWT stored in `secrets.enc`.
+  - v27: Obfuscation + Node SEA binary (THIS repo) — optional, anti-piracy hardening. Must produce Windows-native binary too (Phase 6 requirement).
 
 **Success Criteria** (revised):
   1. User runs `claude-sop login` → browser popup → Clerk auth → JWT stored locally in `secrets.enc`.
@@ -151,7 +196,7 @@ The CLI in this repo gains a thin `sync` module that talks to the cloud repo's p
   6. Encrypted sync: server stores AES-256 encrypted blobs only. Supabase RLS ensures user can only read own data. No PII in server logs.
 **Plans:** TBD (v19-v23)
 
-### Phase 7: Smart Directive Targeting
+### Phase 8: Smart Directive Targeting (RENUMBERED from Phase 7)
 **Goal:** Prevent CLAUDE.md context bloat at scale by routing directives to the right surface — universal rules stay in CLAUDE.md (always in system prompt), context-specific rules become Claude Code Skills (on-demand, loaded only when relevant).
 
 **Problem this solves:**
@@ -167,9 +212,9 @@ LLM classifier tags each proposal's scope:
 - `file:<glob>` → context-specific, injected only when target files are in the conversation
 
 **Planned versions:**
-  - v24: Scope classification in directive schema (Zod extension) + LLM prompt update to request scope
-  - v25: Skill file generation — write `~/.claude/skills/<project>-<skill>.md` per scope, update plugin manifest
-  - v26: CLAUDE.md vs Skills split + migration tool for existing directives
+  - v28: Scope classification in directive schema (Zod extension) + LLM prompt update to request scope
+  - v29: Skill file generation — write `~/.claude/skills/<project>-<skill>.md` per scope, update plugin manifest
+  - v30: CLAUDE.md vs Skills split + migration tool for existing directives
 
 **Depends on:** Phase 4 (hardened editor must exist), 1-2 months of real dogfood data to identify pollution patterns.
 
@@ -179,7 +224,7 @@ LLM classifier tags each proposal's scope:
   3. `CLAUDE.md` managed section stays compact (<15 directives typical) even for power users with months of history.
   4. Claude Code Skill files are invokable via `/claude-sop:<skill-name>` slash commands.
   5. Migration: existing CLAUDE.md directives (pre-v24) are analyzed and optionally split into skills by `claude-sop migrate-directives --classify`.
-**Plans:** TBD (v24-v26)
+**Plans:** TBD (v28-v30)
 
 _Credit for this design insight: İbrahim Işkın (2026-04-17). Ibrahim pointed out that steering files grow unbounded and that Claude Code's Skills mechanism is the right home for context-specific knowledge._
 
@@ -190,11 +235,12 @@ _Credit for this design insight: İbrahim Işkın (2026-04-17). Ibrahim pointed 
 | 0. Distribution Decision + Foundations | 1/1 | **COMPLETE** | v1 |
 | 1. Capture Foundation | 1/1 | **COMPLETE** | v2, v4-v8 |
 | 2. Installer + Scheduler + CLI | 2/2 | **COMPLETE** | v3, v4-v8, v12 |
-| 3. Learner | 2/3 | **85% — LLM shipped, hard-kill + learn-now verb remain** | v9, v13, v14 done; I6+I7 → v17 |
-| 4. ManagedSectionEditor | 1/2 | **In progress — hardening underway** | v10-v11 done; v16 E1-E7 in flight |
-| 5. Inspection CLI + Packaging | 0/2 | Not started | v17, v18 |
-| 6. SaaS Platform + Monetization | 0/5 | Not started (separate repo) | v19-v23 |
-| 7. Smart Directive Targeting | 0/3 | Not started | v24-v26 |
+| 3. Learner | 2/3 | **95% — LLM shipped, hard-kill + learn-now verb remain** | v9, v13, v14 done; I6+I7 → v17 |
+| 4. ManagedSectionEditor | 2/2 | **COMPLETE** | v10, v11, v16 |
+| 5. Inspection CLI + Packaging | 0/2 | In progress | v17 (partial), v18 |
+| 6. Native Windows Support (NEW) | 0/3 | Not started — blocks SaaS | v20-v22 |
+| 7. SaaS Platform + Monetization | 0/5 | Not started (separate repo) | v23-v27 |
+| 8. Smart Directive Targeting | 0/3 | Not started | v28-v30 |
 
 ## Execution History
 
@@ -213,8 +259,10 @@ _Credit for this design insight: İbrahim Işkın (2026-04-17). Ibrahim pointed 
 | v11 | `555fb39` | Hotfix: statusline parser reads real Claude Code settings.json structure |
 | v12 | `84b180b` | Hotfix: launchd bootstrap + warmup kickstart + doctor effective check |
 | v13 | `860434d` | Phase 3: first detectors — repeated bash failure + edit match fail + strict schema |
-| v14 | _(in progress)_ | Phase 3: LLM-driven directive generation — claude -p default ON, $0 cost |
-| v15 | _(queued)_ | Bug fix sprint — B1-B8 cleaned (legacy markers, flaky tests, import.meta, etc.) |
+| v14 | `9841bb7` | Phase 3: LLM-driven directive generation — claude -p default ON, $0 cost (Claude Max) |
+| v15 | `e99673e` | Bug fix sprint — B1-B8 cleaned (legacy markers, flaky tests, import.meta, pane cwd, env var rename) |
+| v16 | `5a694d7` | Phase 4 hardening — hash check + git-aware + revert + TTL + dedup + evidence links + golden tests |
+| v17 | _(in progress)_ | Phase 3 completion + Inspection CLI + bug cleanup (I6-I9 + C1+C2 + B9-B12) |
 
 ## Remaining Backlog (39 items — 8 bugs move to v15, I1-I4 done in v13)
 
@@ -258,23 +306,36 @@ _Credit for this design insight: İbrahim Işkın (2026-04-17). Ibrahim pointed 
 - **P5** Dual ESM+CJS entry point validation
 - **P6** README polish + demo GIF/video
 
-### SaaS / monetization (v19-v22) — Phase 6
-- **S1** License API backend (external server, ed25519)
-- **S2** License client (embedded pubkey verify)
-- **S3** Trial countdown (14 days, tamper-resistant)
-- **S4** Subscription gate
+### Dogfood observation milestone (between v18 and v20)
+_Not a planned code version — 1-2 week period of running the tool on real projects after MVP publish. Hotfix patches (v18.1, v18.2…) as needed. Outputs: directive quality data, Windows user count, Phase 6 priority input._
+
+### Native Windows Support (v20-v22) — Phase 6 (NEW)
+- **WIN1** Windows scheduler backend — `src/scheduler/windows-schtasks.ts` with Task Scheduler XML + install/uninstall via `schtasks.exe`
+- **WIN2** Windows hook shim adapter — `.cmd` wrapper bundled in plugin, ACL-based permissions via `icacls`, path translation
+- **WIN3** Windows CI matrix — GitHub Actions `windows-latest` runner, smoke tests for scheduler + hook firing + capture pipeline
+- **WIN4** `platform-check.ts` updated to ALLOW `win32` when all 3 above are green
+- **WIN5** Verify `claude -p` binary support on Windows (LLM mode must work)
+- **WIN6** Docs: Windows-specific install section in README, troubleshooting guide
+
+### SaaS / monetization (v23-v27) — Phase 7
+- **S1** License API backend (external server, ed25519) → superseded by Supabase + Clerk + Stripe stack
+- **S2** License client (Clerk SDK verify + JWT)
+- **S3** Trial countdown (15 days via Stripe trial period)
+- **S4** Subscription gate (dashboard read-only post-trial)
 - **S5** Offline grace (7 days)
 - **S6** Obfuscation pipeline
-- **S7** Node SEA binary
-- **S8** Pricing page + billing
-- **S9** Website / landing page
+- **S7** Node SEA binary (macOS + Linux + **Windows** — Phase 6 req)
+- **S8** Pricing page + Stripe Customer Portal
+- **S9** Website / landing page (Next.js + Vercel)
+- **S10** Dashboard app (claude-sop-cloud/ repo, Next.js)
+- **S11** CLI sync module (encrypted directive push to Supabase)
 
 ### dev-army improvements (parallel)
 - **D1** Commander default to dispatch-and-wait.sh
 - **D2** dispatch-task.sh stderr fix → formal commit + review
 - **D3** Agent-poll inbox watcher stability
 
-### Smart Directive Targeting (v24-v26) — NEW Phase 7
+### Smart Directive Targeting (v28-v30) — Phase 8
 - **SD1** Scope classification field in DirectiveProposal Zod schema
 - **SD2** LLM prompt update — ask Claude to label each directive's scope
 - **SD3** Skill file generator (`~/.claude/skills/<project>-<skill>.md`)

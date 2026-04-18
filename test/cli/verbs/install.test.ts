@@ -20,6 +20,7 @@ function cannedResult(overrides: Partial<InstallResult> = {}): InstallResult {
     pluginBundleDst: '/home/.claude-sop/marketplace/claude-sop',
     scheduler: 'launchd',
     gitignore: 'created',
+    directivesRestored: 0,
     ...overrides,
   };
 }

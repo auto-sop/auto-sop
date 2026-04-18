@@ -15,6 +15,7 @@ export function registerInstallVerb(program: Command): void {
     .description('install claude-sop into the current project')
     .option('--license <key>', 'license key (non-interactive; skips prompt)')
     .option('--project <path>', 'project root', process.cwd())
+    .option('--no-restore', 'skip restoring directives from previous install (clean slate)')
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
       const here =
@@ -40,6 +41,7 @@ export function registerInstallVerb(program: Command): void {
         nodeBin: process.execPath,
         shimAbsPath: path.join(marketplaceDir, 'shim.cjs'),
         learnerAbsPath: path.join(marketplaceDir, 'learner.cjs'),
+        noRestore: opts.restore === false,
       });
       if (jsonMode) {
         emit({ ok: true, verb: 'install', ...result });
@@ -47,13 +49,18 @@ export function registerInstallVerb(program: Command): void {
         process.stdout.write(
           pc.green(`\u2713 claude-sop ${result.verdict} install complete\n`),
         );
-        process.stdout.write(
-          renderTable([
-            ['version', result.installedVersion],
-            ['scheduler', result.scheduler],
-            ['.gitignore', result.gitignore],
-          ]) + '\n',
-        );
+        const tableRows: Array<[string, string]> = [
+          ['version', result.installedVersion],
+          ['scheduler', result.scheduler],
+          ['.gitignore', result.gitignore],
+        ];
+        if (result.directivesRestored > 0) {
+          tableRows.push([
+            'directives',
+            `${result.directivesRestored} restored from previous install`,
+          ]);
+        }
+        process.stdout.write(renderTable(tableRows) + '\n');
         for (const w of result.warnings) warn(w);
         process.stdout.write(
           '\n' +

@@ -20,6 +20,12 @@ import { PreconditionError } from '../cli/errors.js';
 import { upsertProject } from '../learner/project-registry.js';
 import { resolveIdentity } from '../path-resolver/identity.js';
 import { RealGitRunner } from '../path-resolver/git-runner.js';
+import {
+  loadActiveDirectives,
+  setJustRestored,
+  type DirectiveHistoryEntry,
+} from '../managed-section/directive-history.js';
+import { writeManagedSection } from '../managed-section/editor.js';
 
 export interface InstallOptions {
   projectRoot: string;
@@ -30,6 +36,8 @@ export interface InstallOptions {
   nodeBin: string;
   shimAbsPath: string;
   learnerAbsPath: string;
+  /** Skip directive restoration from previous install (clean slate). */
+  noRestore?: boolean | undefined;
   // Test hooks:
   promptLicense?: (() => Promise<string>) | undefined;
   schedulerBackend?: SchedulerBackend | undefined;
@@ -44,6 +52,8 @@ export interface InstallResult {
   pluginBundleDst: string;
   scheduler: 'launchd' | 'systemd' | 'cron';
   gitignore: 'created' | 'appended' | 'noop';
+  /** Number of directives restored from a previous install, or 0. */
+  directivesRestored: number;
 }
 
 export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
@@ -172,9 +182,33 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
     if (fallbackWarning) warnings.push(fallbackWarning);
 
     // Step 8: Gitignore
-    // Note: installer does NOT touch CLAUDE.md. The learner's ManagedSectionEditor
-    // (src/managed-section/editor.ts) owns the managed section exclusively.
     const gitignore = await ensureGitignore(gitignorePath, '.claude-sop/');
+
+    // Step 8.5 (I9): Directive restoration. After a reinstall, restore
+    // active directives from directive-history.json to the managed section
+    // in CLAUDE.md so users don't lose their learned directives. The
+    // learner's ManagedSectionEditor is the canonical writer — we use it
+    // here too, which means the hash store, drift detection, and atomic
+    // write guarantees all apply. The just_restored flag tells the next
+    // learner tick to skip LLM analysis (the directives are already known).
+    let directivesRestored = 0;
+    if (!opts.noRestore) {
+      try {
+        const entries = loadActiveDirectives(opts.projectRoot);
+        if (entries.length > 0) {
+          const body = buildRestoredBody(entries);
+          writeManagedSection({
+            projectRoot: opts.projectRoot,
+            content: body,
+          });
+          setJustRestored(opts.projectRoot);
+          directivesRestored = entries.length;
+        }
+      } catch {
+        // Directive restore is non-critical — fail-open. The learner will
+        // eventually re-discover directives through normal analysis.
+      }
+    }
 
     // Step 9: Write version.txt LAST
     await writeInstalledVersion(versionTxtPath, opts.packageVersion);
@@ -195,6 +229,7 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
       pluginBundleDst: marketplaceDir,
       scheduler: schedulerBackend.name,
       gitignore,
+      directivesRestored,
     };
   } finally {
     if (releaseLock) {
@@ -203,4 +238,22 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
       });
     }
   }
+}
+
+/**
+ * Build a managed section body from restored directive history entries.
+ * Simpler than the full buildDirectiveBodyFromInput — no agent roster,
+ * LLM summary, or turn statistics needed for a restore.
+ */
+function buildRestoredBody(
+  entries: DirectiveHistoryEntry[],
+): { body: string } {
+  const count = entries.length;
+  const label = count === 1 ? 'directive' : 'directives';
+  const header = `_Directives restored from previous install._\n`;
+  const learnings = `**Learnings** (${count} active ${label})`;
+  const bullets = entries
+    .map((e) => `- **[${e.severity}]** ${e.rule_text}`)
+    .join('\n\n');
+  return { body: `${header}\n${learnings}\n\n${bullets}` };
 }

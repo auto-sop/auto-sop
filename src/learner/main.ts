@@ -19,6 +19,7 @@ import { isGitBusy } from '../managed-section/git-state.js';
 import {
   applyDirectiveHistory,
   getDirectiveConfig,
+  consumeJustRestored,
   type DirectiveHistoryEntry,
 } from '../managed-section/directive-history.js';
 import { buildDirectiveBody } from './directive-builder.js';
@@ -37,8 +38,66 @@ import { mergeProposalsWithDedup } from './merge-proposals.js';
 
 // ── Constants ──────────────────────────────────────────────
 
-const HARD_TIMEOUT_MS = 120_000; // 2 minutes
+/**
+ * (PLAN-v17 I6) Hard-timeout for the entire learner tick. Covers every
+ * layer: detectors, file I/O, cursor locks, `claude -p`. On expiry:
+ *   1. log `learner_hard_timeout` to errors.log
+ *   2. write a partial recap summary with `hard_timeout: true`
+ *   3. process.exit(0) — fail-open policy
+ *
+ * SECURITY: this value is NOT overridable via env var or flag. A
+ * malicious or misconfigured environment cannot disable the watchdog.
+ *
+ * Exported so unit tests can reference the exact production constant
+ * without duplicating the magic number. The export is read-only (const).
+ */
+export const HARD_TIMEOUT_MS = 600_000; // 10 minutes
+/** Inner budget for the `claude -p` spawn itself. Bounded well below
+ *  HARD_TIMEOUT_MS so the watchdog remains a true fallback, not the
+ *  primary kill path. */
+export const LLM_SPAWN_TIMEOUT_MS = 120_000; // 2 minutes
 const MAX_TURNS_FIRST_RUN = 500;
+
+// ── Testable helpers ───────────────────────────────────────
+
+/**
+ * (PLAN-v17 I6) Build the partial TickSummary written when the
+ * hard-timeout watchdog fires. Extracted so unit tests can assert on
+ * the exact shape without spinning up a full learner tick. Pure —
+ * depends only on arguments + Date.now().
+ */
+export function buildHardTimeoutSummary(
+  tickId: string,
+  tickStart: number,
+): TickSummary {
+  return {
+    v: 1,
+    t: new Date().toISOString(),
+    tick_id: tickId,
+    summary: true,
+    projects_processed: 0,
+    projects_skipped: 0,
+    projects_locked: 0,
+    projects_missing: 0,
+    total_turns_new: 0,
+    total_duration_ms: Date.now() - tickStart,
+    errors: ['learner_hard_timeout'],
+    hard_timeout: true,
+  };
+}
+
+/**
+ * (PLAN-v17 I8) Decide whether to skip the LLM for this tick because
+ * no new turns arrived. Respects CLAUDE_SOP_FORCE_LLM=1 override.
+ * Pure — environment is explicit, so tests don't have to mutate
+ * process.env.
+ */
+export function shouldSkipLlmForIdleTick(
+  turnsNew: number,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return turnsNew === 0 && env.CLAUDE_SOP_FORCE_LLM !== '1';
+}
 
 // ── Error logger (inline, fail-safe) ───────────────────────
 
@@ -102,7 +161,7 @@ function acquireLearnerLock(home: string): (() => void) | null {
   try {
     lockSync(lockFile, {
       lockfilePath: lockFile + '.proper',
-      stale: HARD_TIMEOUT_MS + 10_000, // stale after 130s
+      stale: HARD_TIMEOUT_MS + 10_000, // stale ~10s after hard-timeout
       retries: 0,
     });
     return () => {
@@ -119,18 +178,36 @@ function acquireLearnerLock(home: string): (() => void) | null {
 
 // ── Main ───────────────────────────────────────────────────
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const home = homedir();
   const tickId = makeTickId();
   const tickStart = Date.now();
 
-  // Hard timeout via AbortController (SEC-002: hard-kill fallback for sync ops)
+  // (PLAN-v17 I6) Hard-timeout watchdog. Covers every hang point:
+  // detectors, file locks, claude -p, even synchronous I/O. Fires
+  // UNCONDITIONALLY — no env/flag can disable it.
   const ac = new AbortController();
   const timeout = setTimeout(() => {
     ac.abort();
-    // If abort doesn't stop sync operations within 5s, force-exit
-    const killTimer = setTimeout(() => process.exit(0), 5000);
-    killTimer.unref();
+    // Best-effort: log + write a partial recap summary so observers
+    // can distinguish "learner crashed" from "learner was killed by
+    // the watchdog after running too long".
+    logError(
+      'learner_hard_timeout',
+      `learner tick exceeded ${HARD_TIMEOUT_MS}ms budget`,
+      home,
+    );
+    try {
+      appendRecap(buildHardTimeoutSummary(tickId, tickStart), home);
+    } catch (err) {
+      // appendRecap can itself fail (disk full, permission). Log and
+      // continue — the timeout handler must never throw.
+      logError('learner_hard_timeout_recap_failed', err, home);
+    }
+    // Fail-open: exit 0 immediately. The extra 5s window that the v16
+    // handler granted is unnecessary now that we proactively write the
+    // partial summary before exit.
+    process.exit(0);
   }, HARD_TIMEOUT_MS);
   timeout.unref();
 
@@ -161,7 +238,7 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-async function runLearnerTick(
+export async function runLearnerTick(
   home: string,
   tickId: string,
   tickStart: number,
@@ -337,23 +414,69 @@ async function runLearnerTick(
         durationMs: 0,
         error: null,
       };
-      try {
-        // Count distinct sessions represented in the turn set so the LLM
-        // prompt accurately reports "N turns from M sessions" rather than
-        // treating every turn as its own session.
-        const sessionCount = new Set(turnData.map((t) => t.session_id)).size;
-        llmResult = await runLlmAnalysis(
-          turnData,
-          project.slug,
-          sessionCount,
-          { offline: isOffline, timeout: 120_000 },
-        );
-        if (llmResult.error !== null && !isOffline) {
-          logError('learner_llm_error', llmResult.error, home);
+
+      // (PLAN-v17 I9) Skip LLM when directives were just restored from
+      // a previous install. The learner would otherwise see the old
+      // directives in past turns, conclude no new patterns, and write
+      // "No recurring patterns detected yet" — losing all directives.
+      // consumeJustRestored reads + deletes the flag atomically, so the
+      // skip fires exactly once.
+      const justRestored = (() => {
+        try {
+          return consumeJustRestored(validRoot);
+        } catch {
+          return false;
         }
-      } catch (err) {
-        // runLlmAnalysis is documented never to throw, but guard anyway.
-        logError('learner_llm_error', err, home);
+      })();
+
+      // (PLAN-v17 I8) Skip the LLM entirely when no new turns arrived
+      // this tick. `claude -p` takes 10–30s even for an empty prompt,
+      // so skipping idle ticks is a large wall-clock win. Override via
+      // CLAUDE_SOP_FORCE_LLM=1 (wired to `claude-sop learn-now --force-llm`
+      // in Wave 2).
+      if (justRestored) {
+        result.llm_skipped = 'just_restored';
+        llmResult = {
+          proposals: [],
+          summary: '',
+          turnsAnalyzed: 0,
+          patternsBelowThreshold: 0,
+          durationMs: 0,
+          error: 'skipped_just_restored',
+        };
+      } else if (shouldSkipLlmForIdleTick(result.turns_new)) {
+        // Record the skip in the recap. `llm_error` stays 'skipped_no_new_turns'
+        // so structured log analysis can count skip events, but
+        // `llm_fallback` is explicitly cleared below because a skip is
+        // an optimization, not a failure.
+        result.llm_skipped = 'no_new_turns';
+        llmResult = {
+          proposals: [],
+          summary: '',
+          turnsAnalyzed: 0,
+          patternsBelowThreshold: 0,
+          durationMs: 0,
+          error: 'skipped_no_new_turns',
+        };
+      } else {
+        try {
+          // Count distinct sessions represented in the turn set so the LLM
+          // prompt accurately reports "N turns from M sessions" rather than
+          // treating every turn as its own session.
+          const sessionCount = new Set(turnData.map((t) => t.session_id)).size;
+          llmResult = await runLlmAnalysis(
+            turnData,
+            project.slug,
+            sessionCount,
+            { offline: isOffline, timeout: LLM_SPAWN_TIMEOUT_MS },
+          );
+          if (llmResult.error !== null && !isOffline) {
+            logError('learner_llm_error', llmResult.error, home);
+          }
+        } catch (err) {
+          // runLlmAnalysis is documented never to throw, but guard anyway.
+          logError('learner_llm_error', err, home);
+        }
       }
 
       // Merge rule-based + LLM proposals. On LLM failure, llmResult.proposals
@@ -464,7 +587,14 @@ async function runLearnerTick(
       result.llm_directives_rejected =
         llmResult.proposals.length - (result.llm_directives_accepted ?? 0);
       result.llm_error = llmResult.error;
-      result.llm_fallback = llmResult.error !== null;
+      // (PLAN-v17 I8) A deliberate skip is NOT a fallback — it's an
+      // optimization. The skip reason lives in `llm_skipped`; clearing
+      // `llm_fallback` prevents dashboards from treating an idle tick
+      // as a regression.
+      result.llm_fallback =
+        llmResult.error !== null &&
+        llmResult.error !== 'skipped_no_new_turns' &&
+        llmResult.error !== 'skipped_just_restored';
 
       // Append per-project recap
       appendRecap(result, home);
@@ -508,18 +638,27 @@ function sum(turns: TurnSummary[], key: keyof TurnSummary): number {
 
 // ── Entry ──────────────────────────────────────────────────
 
-main().catch((err) => {
-  // Ultimate fail-open: even if main() somehow rejects uncaught
-  try {
-    const logDir = join(homedir(), '.claude-sop', 'logs');
-    mkdirSync(logDir, { recursive: true });
-    appendFileSync(
-      join(logDir, 'errors.log'),
-      JSON.stringify({ t: new Date().toISOString(), kind: 'learner_fatal', err: String(err) }) + '\n',
-      { mode: 0o600 },
-    );
-  } catch {
-    // absolutely nothing we can do
-  }
-  process.exit(0);
-});
+/**
+ * Auto-invoke main() when this module is executed as a script
+ * (production path: `node dist/plugin/learner.cjs`). When imported
+ * by unit tests (Vitest sets `VITEST=true`), skip the auto-invocation
+ * so tests can exercise `main` / `runLearnerTick` in a controlled
+ * environment without process.exit firing at import time.
+ */
+if (process.env.VITEST !== 'true') {
+  main().catch((err) => {
+    // Ultimate fail-open: even if main() somehow rejects uncaught
+    try {
+      const logDir = join(homedir(), '.claude-sop', 'logs');
+      mkdirSync(logDir, { recursive: true });
+      appendFileSync(
+        join(logDir, 'errors.log'),
+        JSON.stringify({ t: new Date().toISOString(), kind: 'learner_fatal', err: String(err) }) + '\n',
+        { mode: 0o600 },
+      );
+    } catch {
+      // absolutely nothing we can do
+    }
+    process.exit(0);
+  });
+}

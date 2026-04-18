@@ -90,5 +90,14 @@ export default defineConfig([
     outExtension() {
       return { js: '.cjs' };
     },
+    // B10: unicorn-magic (transitive via execa → npm-run-path) imports
+    // execFileSync from node:child_process but tree-shaking eliminates
+    // the call site. The warning comes from rollup's tree-shake pass
+    // which tsup doesn't expose an onwarn callback for, so we suppress
+    // all warnings here via silent:true.
+    // NOTE: This suppresses ALL warnings for this bundle entry (plugin/learner),
+    // not just the unicorn-magic one. Revisit if we see real missing externals
+    // or circular dependency warnings that should not be silenced.
+    silent: true,
   },
 ]);

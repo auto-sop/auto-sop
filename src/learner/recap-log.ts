@@ -78,8 +78,22 @@ export interface PerProjectRecap {
    *  'timeout', 'claude_exit_1'). `null`/`undefined` when the call
    *  succeeded. */
   llm_error?: string | null;
-  /** True when the LLM call errored and we fell back to rule-based only. */
+  /** True when the LLM call errored and we fell back to rule-based only.
+   *  Intentionally NOT set for optimization skips (e.g. turns_new == 0)
+   *  — those are captured in `llm_skipped` instead. */
   llm_fallback?: boolean;
+
+  // ── LLM skip optimization (PLAN-v17 I8) ──────────────────
+  /**
+   * Optimization code indicating why the LLM was skipped this tick
+   * (not an error). Current values:
+   *   - 'no_new_turns' — scan.turns_new === 0 and CLAUDE_SOP_FORCE_LLM
+   *     was not set, so we short-circuited before spawning `claude -p`.
+   *   - 'just_restored' — directives were restored from a previous install
+   *     (I9), so LLM analysis is skipped to prevent false-negative heuristic.
+   * `undefined` when the LLM actually ran (or failed while running).
+   */
+  llm_skipped?: 'no_new_turns' | 'just_restored' | null;
 }
 
 export interface TickSummary {
@@ -94,6 +108,14 @@ export interface TickSummary {
   total_turns_new: number;
   total_duration_ms: number;
   errors: string[];
+  /**
+   * (PLAN-v17 I6) True when the learner was killed by the 600s
+   * hard-timeout watchdog. The summary is a "partial" recap written
+   * from the timeout handler — counts are best-effort and may be zero
+   * because the timeout can fire before any project is processed.
+   * Absent/undefined on normal ticks.
+   */
+  hard_timeout?: boolean;
 }
 
 // ── Paths ──────────────────────────────────────────────────
