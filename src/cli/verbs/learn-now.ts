@@ -5,12 +5,12 @@
  * Roadmap: LEARN-07.
  *
  * Usage:
- *   claude-sop learn-now                 — run learner (LLM ON by default)
- *   claude-sop learn-now --offline       — rule-based detectors only
- *   claude-sop learn-now --dry-run       — show what would change, don't write
- *   claude-sop learn-now --force-llm     — force LLM even if turns_new==0
- *   claude-sop learn-now --json          — JSON output
- *   claude-sop learn-now --limit <n>     — limit to N recap entries shown
+ *   auto-sop learn-now                 — run learner (LLM ON by default)
+ *   auto-sop learn-now --offline       — rule-based detectors only
+ *   auto-sop learn-now --dry-run       — show what would change, don't write
+ *   auto-sop learn-now --force-llm     — force LLM even if turns_new==0
+ *   auto-sop learn-now --json          — JSON output
+ *   auto-sop learn-now --limit <n>     — limit to N recap entries shown
  */
 import type { Command } from 'commander';
 import pc from 'picocolors';
@@ -106,7 +106,7 @@ export function registerLearnNowVerb(program: Command): void {
           emit({ ok: false, verb: 'learn-now', error: result.error });
         } else {
           process.stderr.write(
-            pc.red('error: learner.cjs not found. Run `claude-sop install` first.\n'),
+            pc.red('error: learner.cjs not found. Run `auto-sop install` first.\n'),
           );
         }
         process.exitCode = 1;

@@ -91,7 +91,7 @@ describe('shared learner-spawn module', () => {
       '../../../src/cli/shared/learner-spawn.js'
     );
     const p = recapLogPath('/fake/home');
-    expect(p).toContain('.claude-sop');
+    expect(p).toContain('.auto-sop');
     expect(p).toContain('recap.log');
     expect(p).toContain('/fake/home');
   });

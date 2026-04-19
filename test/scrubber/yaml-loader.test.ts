@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { installNoNetworkGuards, restoreNetworkGuards } from '../setup/no-network.js';
 import { loadRulePack, rulePackSchema } from '../../src/scrubber/yaml-loader.js';
 
-const TMP = join(tmpdir(), 'claude-sop-yaml-loader-test');
+const TMP = join(tmpdir(), 'auto-sop-yaml-loader-test');
 
 beforeAll(async () => {
   installNoNetworkGuards();

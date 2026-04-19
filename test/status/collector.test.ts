@@ -84,7 +84,7 @@ describe('collectStatus', () => {
 
   it('fully installed project returns correct state', async () => {
     // version.txt
-    const claudeSopHome = path.join(homeDir, '.claude-sop');
+    const claudeSopHome = path.join(homeDir, '.auto-sop');
     await mkdirSafe(claudeSopHome);
     await fs.writeFile(path.join(claudeSopHome, 'version.txt'), '2.0.1\n');
 
@@ -149,7 +149,7 @@ describe('collectStatus', () => {
   });
 
   it('paused flag present → paused: true', async () => {
-    const sopDir = path.join(projectRoot, '.claude-sop');
+    const sopDir = path.join(projectRoot, '.auto-sop');
     await mkdirSafe(sopDir);
     await fs.writeFile(path.join(sopDir, 'paused.flag'), '');
 
@@ -170,7 +170,7 @@ describe('collectStatus', () => {
   });
 
   it('errors.jsonl with mixed timestamps → counts only last 24h', async () => {
-    const sopDir = path.join(projectRoot, '.claude-sop');
+    const sopDir = path.join(projectRoot, '.auto-sop');
     await mkdirSafe(sopDir);
 
     const now = Date.now();
@@ -193,7 +193,7 @@ describe('collectStatus', () => {
   });
 
   it('disk usage sums file sizes in captures dir', async () => {
-    const capturesDir = path.join(projectRoot, '.claude-sop', 'captures');
+    const capturesDir = path.join(projectRoot, '.auto-sop', 'captures');
     await mkdirSafe(capturesDir);
 
     await fs.writeFile(path.join(capturesDir, 'a.json'), 'x'.repeat(100));
@@ -206,7 +206,7 @@ describe('collectStatus', () => {
   });
 
   it('expired license returns correct status and negative daysRemaining', async () => {
-    const claudeSopHome = path.join(homeDir, '.claude-sop');
+    const claudeSopHome = path.join(homeDir, '.auto-sop');
     await mkdirSafe(claudeSopHome);
 
     const payload = {
@@ -260,7 +260,7 @@ describe('collectStatus', () => {
   });
 
   it('pending captures counts all entries when learner never ran', async () => {
-    const capturesDir = path.join(projectRoot, '.claude-sop', 'captures');
+    const capturesDir = path.join(projectRoot, '.auto-sop', 'captures');
     await mkdirSafe(capturesDir);
     await fs.writeFile(path.join(capturesDir, 'cap1.json'), '{}');
     await fs.writeFile(path.join(capturesDir, 'cap2.json'), '{}');

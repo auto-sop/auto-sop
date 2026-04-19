@@ -99,7 +99,7 @@ describe('status verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'status',
       '--project',
       '/tmp/proj',
@@ -107,7 +107,7 @@ describe('status verb', () => {
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
-    expect(output).toContain('claude-sop status');
+    expect(output).toContain('auto-sop status');
     expect(output).toContain('project root');
     expect(output).toContain('project hash');
     expect(output).toContain('project slug');
@@ -129,7 +129,7 @@ describe('status verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'status',
       '--project',
@@ -167,7 +167,7 @@ describe('status verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'status',
       '--project',
       '/tmp/proj',
@@ -186,7 +186,7 @@ describe('status verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'status',
       '--project',
       '/tmp/proj',

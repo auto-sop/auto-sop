@@ -6,7 +6,7 @@
  * before clobbering the user's work.
  *
  * Storage:
- *   <projectRoot>/.claude-sop/state/managed-section-hash.json
+ *   <projectRoot>/.auto-sop/state/managed-section-hash.json
  *
  * Schema:
  *   { lastHash: string, updatedAt: string }
@@ -47,7 +47,7 @@ function assertNoTraversal(projectRoot: string): void {
 }
 
 function hashStorePath(projectRoot: string): string {
-  return join(projectRoot, '.claude-sop', 'state', 'managed-section-hash.json');
+  return join(projectRoot, '.auto-sop', 'state', 'managed-section-hash.json');
 }
 
 // ─── SHA-256 helper ──────────────────────────────────────
@@ -126,7 +126,7 @@ export function writeLastHash(projectRoot: string, hash: string): void {
   }
 
   const path = hashStorePath(projectRoot);
-  const dir = join(projectRoot, '.claude-sop', 'state');
+  const dir = join(projectRoot, '.auto-sop', 'state');
   // SEC-006: user-only state dir (0o700). Even though each file inside
   // is written with 0600, a world-readable parent dir would let other
   // local users enumerate filenames and infer which projects are being

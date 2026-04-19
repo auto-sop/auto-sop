@@ -30,10 +30,10 @@ afterAll(() => restoreNetworkGuards());
 beforeEach(() => {
   vol.reset();
   // Ensure parent directory exists in memfs
-  vol.mkdirSync('/tmp/test-project/.claude-sop', { recursive: true });
+  vol.mkdirSync('/tmp/test-project/.auto-sop', { recursive: true });
 });
 
-const SECRETS_PATH = '/tmp/test-project/.claude-sop/secrets.enc';
+const SECRETS_PATH = '/tmp/test-project/.auto-sop/secrets.enc';
 const MACHINE_ID = 'deadbeef01234567890abcdef0123456';
 const BASE_NOW = 1700000000000; // ms
 
@@ -207,7 +207,7 @@ describe('recordLicenseOnInstall', () => {
 
     // Reset for user key test
     vol.reset();
-    vol.mkdirSync('/tmp/test-project/.claude-sop', { recursive: true });
+    vol.mkdirSync('/tmp/test-project/.auto-sop', { recursive: true });
 
     const userResult = await recordLicenseOnInstall({
       secretsEncPath: SECRETS_PATH,

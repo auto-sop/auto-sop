@@ -19,7 +19,7 @@ export async function makeTempHome(): Promise<{
   projectRoot: string;
   cleanup: () => Promise<void>;
 }> {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-sop-e2e-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'auto-sop-e2e-'));
   const homeDir = path.join(root, 'home');
   const projectRoot = path.join(root, 'project');
   await fs.mkdir(homeDir, { recursive: true });

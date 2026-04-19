@@ -123,6 +123,7 @@ export async function runLlmAnalysis(
           // Recursion guard: tells our own Phase-2 capture (if it
           // somehow runs inside this child) that the parent is the
           // learner and to skip recording its own turns.
+          AUTO_SOP_CAPTURE_SUPPRESS: '1',
           CLAUDE_SOP_CAPTURE_SUPPRESS: '1',
         },
         reject: false,

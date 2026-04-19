@@ -28,7 +28,7 @@ export const DirectiveProposal = z.object({
     .min(10, 'rule_text must be at least 10 chars')
     .max(500, 'rule_text must be at most 500 chars')
     .refine(
-      (s) => !/<!--\s*claude-sop:managed-section:(begin|end)/i.test(s) && !/<!--\s*GENERATED/i.test(s),
+      (s) => !/<!--\s*auto-sop:managed-section:(begin|end)/i.test(s) && !/<!--\s*GENERATED/i.test(s),
       'rule_text must not contain managed-section markers',
     ),
   evidence: z.object({

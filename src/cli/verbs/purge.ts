@@ -24,7 +24,7 @@ export function registerPurgeVerb(program: Command): void {
       const projectHash12 = identity.projectId;
       const projectCaptures = path.join(
         projectRoot,
-        '.claude-sop',
+        '.auto-sop',
         'captures',
       );
       const globalProject = path.join(

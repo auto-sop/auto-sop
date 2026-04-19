@@ -60,11 +60,11 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
   const warnings: string[] = [];
 
   // Derived paths
-  const claudeSopHome = path.join(opts.homeDir, '.claude-sop');
+  const claudeSopHome = path.join(opts.homeDir, '.auto-sop');
   const marketplaceDir = path.join(
     claudeSopHome,
     'marketplace',
-    'claude-sop',
+    'auto-sop',
   );
   const binDir = path.join(claudeSopHome, 'bin');
   const tickScriptPath = path.join(binDir, 'tick.sh');
@@ -182,7 +182,7 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
     if (fallbackWarning) warnings.push(fallbackWarning);
 
     // Step 8: Gitignore
-    const gitignore = await ensureGitignore(gitignorePath, '.claude-sop/');
+    const gitignore = await ensureGitignore(gitignorePath, '.auto-sop/');
 
     // Step 8.5 (I9): Directive restoration. After a reinstall, restore
     // active directives from directive-history.json to the managed section

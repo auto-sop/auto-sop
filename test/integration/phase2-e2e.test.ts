@@ -11,7 +11,7 @@
  * │ INST-01    │ install wires hooks, creates secrets.enc, copies bundle    │
  * │ INST-02    │ re-install is idempotent (byte-identical settings.json)    │
  * │ INST-03    │ install preserves pre-existing user hooks                  │
- * │ INST-04    │ install appends .claude-sop/ to .gitignore                 │
+ * │ INST-04    │ install appends .auto-sop/ to .gitignore                 │
  * │ INST-05    │ CLAUDE.md has managed-section markers                      │
  * │ INST-06    │ uninstall removes hooks, scheduler, secrets; --purge caps  │
  * │ SCHED-01   │ scheduler.install called with absolute tick.sh path        │
@@ -69,9 +69,9 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     const homeDir = tmp.homeDir;
     const marketplaceDir = path.join(
       homeDir,
-      '.claude-sop',
+      '.auto-sop',
       'marketplace',
-      'claude-sop',
+      'auto-sop',
     );
     return {
       opts: {
@@ -106,7 +106,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     expect(scheduler.calls.install).toHaveLength(1);
     // secrets.enc exists
     const secretsStat = await fs.stat(
-      path.join(tmp.homeDir, '.claude-sop', 'secrets.enc'),
+      path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'),
     );
     expect(secretsStat.isFile()).toBe(true);
     // Hooks wired in project settings.json
@@ -190,14 +190,14 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
   });
 
   // ─── INST-04 ──────────────────────────────────────────────────────────────
-  it('INST-04: install appends .claude-sop/ to project .gitignore', async () => {
+  it('INST-04: install appends .auto-sop/ to project .gitignore', async () => {
     const { opts } = makeInstallOpts();
     await runInstall(opts);
     const gitignore = await fs.readFile(
       path.join(tmp.projectRoot, '.gitignore'),
       'utf8',
     );
-    expect(gitignore).toContain('.claude-sop/');
+    expect(gitignore).toContain('.auto-sop/');
   });
 
   // ─── INST-05 (v15+): installer MUST NOT write legacy markers ─────────────
@@ -205,7 +205,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     const { opts } = makeInstallOpts();
     await runInstall(opts);
     // With no pre-existing CLAUDE.md, the installer must not create one
-    // and must not emit legacy `<!-- claude-sop:begin -->` markers.
+    // and must not emit legacy `<!-- auto-sop:begin -->` markers.
     await expect(
       fs.stat(path.join(tmp.projectRoot, 'CLAUDE.md')),
     ).rejects.toMatchObject({ code: 'ENOENT' });
@@ -237,7 +237,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
   it('SCHED-03/05: tick.sh exists, is executable, is pure POSIX sh, NO flock, sets CLAUDE_SOP_CAPTURE_SUPPRESS=1', async () => {
     const { opts } = makeInstallOpts();
     await runInstall(opts);
-    const tick = path.join(tmp.homeDir, '.claude-sop', 'bin', 'tick.sh');
+    const tick = path.join(tmp.homeDir, '.auto-sop', 'bin', 'tick.sh');
     const st = await fs.stat(tick);
     expect(st.isFile()).toBe(true);
     // eslint-disable-next-line no-bitwise
@@ -266,7 +266,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     await runInstall(opts);
     const { readSecrets } = await import('../../src/license/storage.js');
     const payload = await readSecrets(
-      path.join(tmp.homeDir, '.claude-sop', 'secrets.enc'),
+      path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'),
     );
     expect(payload).not.toBeNull();
     expect(payload!.schema_version).toBe(1);
@@ -289,7 +289,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
 
     const { readSecrets } = await import('../../src/license/storage.js');
     const payload = await readSecrets(
-      path.join(tmp.homeDir, '.claude-sop', 'secrets.enc'),
+      path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'),
     );
     // trial.started_at must be the FIRST install's timestamp, not the re-install's
     expect(payload!.trial.started_at).toBe(1_700_000_000_000);
@@ -324,7 +324,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     await runInstall(opts);
 
     // Simulate pause: write paused.flag
-    const flagPath = path.join(tmp.projectRoot, '.claude-sop', 'paused.flag');
+    const flagPath = path.join(tmp.projectRoot, '.auto-sop', 'paused.flag');
     await fs.mkdir(path.dirname(flagPath), { recursive: true });
     await fs.writeFile(flagPath, JSON.stringify({ paused_at: Date.now() }));
 
@@ -363,7 +363,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     );
 
     // Seed a capture file that should survive default uninstall
-    const capturesDir = path.join(tmp.projectRoot, '.claude-sop', 'captures');
+    const capturesDir = path.join(tmp.projectRoot, '.auto-sop', 'captures');
     await fs.mkdir(capturesDir, { recursive: true });
     await fs.writeFile(path.join(capturesDir, 'turn-001.json'), '{"id":"001"}');
 
@@ -400,17 +400,17 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
 
     // secrets.enc removed
     await expect(
-      fs.stat(path.join(tmp.homeDir, '.claude-sop', 'secrets.enc')),
+      fs.stat(path.join(tmp.homeDir, '.auto-sop', 'secrets.enc')),
     ).rejects.toThrow();
 
     // tick.sh removed
     await expect(
-      fs.stat(path.join(tmp.homeDir, '.claude-sop', 'bin', 'tick.sh')),
+      fs.stat(path.join(tmp.homeDir, '.auto-sop', 'bin', 'tick.sh')),
     ).rejects.toThrow();
 
     // version.txt removed
     await expect(
-      fs.stat(path.join(tmp.homeDir, '.claude-sop', 'version.txt')),
+      fs.stat(path.join(tmp.homeDir, '.auto-sop', 'version.txt')),
     ).rejects.toThrow();
 
     // Captures preserved
@@ -429,7 +429,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     const { opts, scheduler } = makeInstallOpts();
     await runInstall(opts);
 
-    const capturesDir = path.join(tmp.projectRoot, '.claude-sop', 'captures');
+    const capturesDir = path.join(tmp.projectRoot, '.auto-sop', 'captures');
     await fs.mkdir(capturesDir, { recursive: true });
     await fs.writeFile(path.join(capturesDir, 'turn-001.json'), '{}');
 

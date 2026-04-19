@@ -3,7 +3,7 @@
  * Reads project registry, scans captures, produces recap log entries.
  *
  * FAIL-OPEN POLICY: Every error at every layer is caught, logged to
- * ~/.claude-sop/logs/errors.log as one-line JSON, then process exits 0.
+ * ~/.auto-sop/logs/errors.log as one-line JSON, then process exits 0.
  * No non-zero exit path anywhere.
  */
 import { existsSync, mkdirSync, appendFileSync, writeFileSync, unlinkSync, statSync } from 'node:fs';
@@ -96,14 +96,14 @@ export function shouldSkipLlmForIdleTick(
   turnsNew: number,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return turnsNew === 0 && env.CLAUDE_SOP_FORCE_LLM !== '1';
+  return turnsNew === 0 && env.AUTO_SOP_FORCE_LLM !== '1' && env.CLAUDE_SOP_FORCE_LLM !== '1';
 }
 
 // ── Error logger (inline, fail-safe) ───────────────────────
 
 function logError(kind: string, err: unknown, home?: string): void {
   try {
-    const logDir = join(home ?? homedir(), '.claude-sop', 'logs');
+    const logDir = join(home ?? homedir(), '.auto-sop', 'logs');
     mkdirSync(logDir, { recursive: true });
     const line = JSON.stringify({
       t: new Date().toISOString(),
@@ -130,7 +130,7 @@ function makeTickId(): string {
 function isPaused(home: string): boolean {
   try {
     // Check global pause flag
-    return existsSync(join(home, '.claude-sop', 'paused.flag'));
+    return existsSync(join(home, '.auto-sop', 'paused.flag'));
   } catch {
     return false;
   }
@@ -139,7 +139,7 @@ function isPaused(home: string): boolean {
 // ── Learner lock ───────────────────────────────────────────
 
 function acquireLearnerLock(home: string): (() => void) | null {
-  const lockDir = join(home, '.claude-sop');
+  const lockDir = join(home, '.auto-sop');
   const lockFile = join(lockDir, 'learner.lock');
   mkdirSync(lockDir, { recursive: true });
 
@@ -279,8 +279,8 @@ export async function runLearnerTick(
         continue;
       }
 
-      const stateDir = join(validRoot, '.claude-sop', 'state');
-      const capturesDir = join(validRoot, '.claude-sop', 'captures');
+      const stateDir = join(validRoot, '.auto-sop', 'state');
+      const capturesDir = join(validRoot, '.auto-sop', 'captures');
 
       // Acquire cursor lock
       const lockResult = withCursorLock(stateDir, () => {
@@ -348,7 +348,9 @@ export async function runLearnerTick(
       // `CLAUDE_SOP_LEARNER` name is still honored for backward compat
       // with tick scripts installed by older versions.
       const isOffline =
+        process.env.AUTO_SOP_LEARNER_MODE === 'offline' ||
         process.env.CLAUDE_SOP_LEARNER_MODE === 'offline' ||
+        process.env.AUTO_SOP_CAPTURE_SUPPRESS === '1' ||
         process.env.CLAUDE_SOP_CAPTURE_SUPPRESS === '1' ||
         process.env.CLAUDE_SOP_LEARNER === '1';
 
@@ -432,7 +434,7 @@ export async function runLearnerTick(
       // (PLAN-v17 I8) Skip the LLM entirely when no new turns arrived
       // this tick. `claude -p` takes 10–30s even for an empty prompt,
       // so skipping idle ticks is a large wall-clock win. Override via
-      // CLAUDE_SOP_FORCE_LLM=1 (wired to `claude-sop learn-now --force-llm`
+      // AUTO_SOP_FORCE_LLM=1 (wired to `auto-sop learn-now --force-llm`
       // in Wave 2).
       if (justRestored) {
         result.llm_skipped = 'just_restored';
@@ -552,7 +554,7 @@ export async function runLearnerTick(
         const writeResult = writeManagedSection({
           projectRoot: validRoot,
           content: directiveContent,
-          dryRun: process.env.CLAUDE_SOP_LEARNER_DRY_RUN === '1',
+          dryRun: process.env.AUTO_SOP_LEARNER_DRY_RUN === '1' || process.env.CLAUDE_SOP_LEARNER_DRY_RUN === '1',
           // Forward structured editor events
           // (managed_section_drift_detected / managed_section_skip_git_state)
           // into the learner's existing errors.log.
@@ -572,7 +574,7 @@ export async function runLearnerTick(
       result.detectors_failed = detectorsFailed;
 
       // Populate LLM-mode fields on the per-project recap so
-      // `claude-sop recap` can surface what happened.
+      // `auto-sop recap` can surface what happened.
       result.llm_mode = !isOffline;
       result.llm_duration_ms = llmResult.durationMs;
       result.llm_directives_proposed = llmResult.proposals.length;
@@ -649,7 +651,7 @@ if (process.env.VITEST !== 'true') {
   main().catch((err) => {
     // Ultimate fail-open: even if main() somehow rejects uncaught
     try {
-      const logDir = join(homedir(), '.claude-sop', 'logs');
+      const logDir = join(homedir(), '.auto-sop', 'logs');
       mkdirSync(logDir, { recursive: true });
       appendFileSync(
         join(logDir, 'errors.log'),

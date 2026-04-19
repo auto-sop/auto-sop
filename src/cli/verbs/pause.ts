@@ -13,7 +13,7 @@ export function registerPauseVerb(program: Command): void {
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
       const projectRoot = path.resolve(opts.project);
-      const flagPath = path.join(projectRoot, '.claude-sop', 'paused.flag');
+      const flagPath = path.join(projectRoot, '.auto-sop', 'paused.flag');
       await fs.mkdir(path.dirname(flagPath), { recursive: true });
       await writeFileAtomic(
         flagPath,

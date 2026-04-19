@@ -82,7 +82,7 @@ function getProjectRoot(opts: { project?: string }): string {
 }
 
 /**
- * Check if .claude/settings.json has any hook with 'claude-sop' in command.
+ * Check if .claude/settings.json has any hook with 'auto-sop' or 'claude-sop' in command.
  * Fail-closed: any error → false.
  *
  * Real Claude Code settings.json structure (three levels deep):
@@ -118,9 +118,11 @@ function detectHooks(projectRoot: string): boolean {
             typeof hook === 'object' &&
             hook !== null &&
             typeof (hook as Record<string, unknown>).command === 'string' &&
-            ((hook as Record<string, unknown>).command as string).includes(
+            (((hook as Record<string, unknown>).command as string).includes(
+              'auto-sop',
+            ) || ((hook as Record<string, unknown>).command as string).includes(
               'claude-sop',
-            )
+            ))
           ) {
             return true;
           }

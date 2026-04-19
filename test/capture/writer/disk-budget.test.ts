@@ -12,7 +12,7 @@ import {
 } from '~/capture/writer/disk-budget.js';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `claude-sop-test-${randomUUID()}`);
+  const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
   mkdirSync(dir, { recursive: true });
   return dir;
 }

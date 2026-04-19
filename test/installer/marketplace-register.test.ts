@@ -21,14 +21,14 @@ describe('registerMarketplace', () => {
   });
 
   it('delegates to mergeGlobalMarketplace correctly', async () => {
-    const mpDir = '/usr/local/lib/node_modules/claude-sop/marketplace';
+    const mpDir = '/usr/local/lib/node_modules/auto-sop/marketplace';
     await registerMarketplace({
       globalSettingsPath: settingsPath,
       marketplaceDir: mpDir,
     });
     const text = await fs.readFile(settingsPath, 'utf8');
     const parsed = parse(text);
-    expect(parsed.extraKnownMarketplaces['claude-sop'].source.path).toBe(
+    expect(parsed.extraKnownMarketplaces['auto-sop'].source.path).toBe(
       mpDir,
     );
   });

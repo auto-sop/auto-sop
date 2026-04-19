@@ -40,7 +40,7 @@ import {
 } from '../../src/managed-section/directive-history.js';
 
 function makeTmpDir(): string {
-  return mkdtempSync(join(tmpdir(), 'claude-sop-dh-'));
+  return mkdtempSync(join(tmpdir(), 'auto-sop-dh-'));
 }
 
 function makeEntry(
@@ -71,7 +71,7 @@ function makeProposal(
 }
 
 function historyFile(root: string): string {
-  return join(root, '.claude-sop', 'state', 'directive-history.json');
+  return join(root, '.auto-sop', 'state', 'directive-history.json');
 }
 
 // ─── load / save ─────────────────────────────────────────
@@ -92,14 +92,14 @@ describe('directive-history load/save', () => {
   });
 
   it('returns empty history when file is corrupt JSON', () => {
-    mkdirSync(join(root, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(root, '.auto-sop', 'state'), { recursive: true });
     writeFileSync(historyFile(root), 'this is not JSON{{');
     const h = loadHistory(root);
     expect(h.entries).toEqual({});
   });
 
   it('returns empty history when schema is missing fields', () => {
-    mkdirSync(join(root, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(root, '.auto-sop', 'state'), { recursive: true });
     // Entries not an object → treat as empty.
     writeFileSync(historyFile(root), JSON.stringify({ entries: 'bad' }));
     const h = loadHistory(root);
@@ -130,7 +130,7 @@ describe('directive-history load/save', () => {
   });
 
   it('skips malformed individual entries but keeps good ones', () => {
-    mkdirSync(join(root, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(root, '.auto-sop', 'state'), { recursive: true });
     writeFileSync(
       historyFile(root),
       JSON.stringify({
@@ -668,7 +668,7 @@ describe('APEX SEC-003: __proto__ key in history file does not pollute Object.pr
   });
 
   it('does not pollute Object.prototype when history file has __proto__ key', () => {
-    mkdirSync(join(root, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(root, '.auto-sop', 'state'), { recursive: true });
     // Craft a JSON file whose entries contains a `__proto__` key with
     // an otherwise-valid entry shape. If the loader used a plain
     // object, assigning to `entriesOut['__proto__']` could pollute the
@@ -700,7 +700,7 @@ describe('APEX SEC-003: __proto__ key in history file does not pollute Object.pr
   });
 
   it('does not pollute Object.prototype via constructor key either', () => {
-    mkdirSync(join(root, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(root, '.auto-sop', 'state'), { recursive: true });
     writeFileSync(
       historyFile(root),
       JSON.stringify({
@@ -776,11 +776,11 @@ describe('APEX SEC-006: saveHistory creates 0700 state directory', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it('creates .claude-sop/state with user-only (0o700) mode', () => {
+  it('creates .auto-sop/state with user-only (0o700) mode', () => {
     // POSIX-only — on Windows, file-mode bits are not meaningful.
     if (process.platform === 'win32') return;
     saveHistory(root, emptyHistory());
-    const dirStat = statSync(join(root, '.claude-sop', 'state'));
+    const dirStat = statSync(join(root, '.auto-sop', 'state'));
     expect(dirStat.mode & 0o777).toBe(0o700);
   });
 });
@@ -809,9 +809,9 @@ describe('SEC-L01: string length capping in coerceEntry', () => {
       },
       updated_at: '2025-01-01T00:00:00.000Z',
     };
-    mkdirSync(join(root, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(root, '.auto-sop', 'state'), { recursive: true });
     writeFileSync(
-      join(root, '.claude-sop', 'state', 'directive-history.json'),
+      join(root, '.auto-sop', 'state', 'directive-history.json'),
       JSON.stringify(raw),
     );
     const h = loadHistory(root);

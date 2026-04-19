@@ -130,7 +130,7 @@ describe('doctor verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'doctor',
       '--project',
       '/tmp/proj',
@@ -138,7 +138,7 @@ describe('doctor verb', () => {
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
-    expect(output).toContain('claude-sop doctor');
+    expect(output).toContain('auto-sop doctor');
   });
 
   it('one check fails → exit 3 (PreconditionError)', async () => {
@@ -153,7 +153,7 @@ describe('doctor verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'doctor',
       '--project',
       '/tmp/proj',
@@ -173,7 +173,7 @@ describe('doctor verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'doctor',
       '--project',
@@ -198,7 +198,7 @@ describe('doctor verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'doctor',
       '--project',
@@ -219,7 +219,7 @@ describe('doctor verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'doctor',
       '--project',
       '/tmp/proj',
@@ -237,7 +237,7 @@ describe('doctor verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'doctor',
       '--project',
@@ -263,7 +263,7 @@ describe('doctor verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'doctor',
       '--project',
@@ -293,7 +293,7 @@ describe('doctor verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'doctor',
       '--project',
@@ -326,7 +326,7 @@ describe('doctor verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'doctor',
       '--project',
       '/tmp/proj',
@@ -372,7 +372,7 @@ describe('scheduler effective check — verdict branches', () => {
   async function runDoctorAndGetSchedulerCheck() {
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'doctor',
       '--project',
@@ -391,7 +391,7 @@ describe('scheduler effective check — verdict branches', () => {
     mockExeca.mockResolvedValueOnce({
       exitCode: 113,
       stdout: '',
-      stderr: 'Could not find service "gui/501/com.claude-sop.learner"',
+      stderr: 'Could not find service "gui/501/com.auto-sop.learner"',
     } as any);
 
     const { check } = await runDoctorAndGetSchedulerCheck();

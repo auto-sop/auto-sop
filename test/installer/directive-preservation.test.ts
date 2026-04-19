@@ -101,7 +101,7 @@ describe('I9: directive preservation', () => {
   });
 
   function baseOpts(overrides: Partial<InstallOptions> = {}): InstallOptions {
-    const marketplaceDir = join(homeDir, '.claude-sop', 'marketplace', 'claude-sop');
+    const marketplaceDir = join(homeDir, '.auto-sop', 'marketplace', 'auto-sop');
     return {
       projectRoot,
       homeDir,

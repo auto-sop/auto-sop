@@ -2,11 +2,11 @@
 
 User content.
 
-<!-- claude-sop:managed-section:begin v1 -->
-<!-- GENERATED - DO NOT EDIT. claude-sop owns this section. -->
+<!-- auto-sop:managed-section:begin v1 -->
+<!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
 ## Old
 
 - Old directive.
 
-<!-- claude-sop:managed-section:end -->
+<!-- auto-sop:managed-section:end -->

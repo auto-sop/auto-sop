@@ -7,7 +7,7 @@ import { ensureGitignore } from '../../src/installer/gitignore.js';
 
 describe('ensureGitignore', () => {
   let testDir: string;
-  const entry = '.claude-sop/';
+  const entry = '.auto-sop/';
 
   beforeEach(async () => {
     testDir = join(tmpdir(), `gitignore-test-${nanoid(10)}`);
@@ -23,16 +23,16 @@ describe('ensureGitignore', () => {
     const result = await ensureGitignore(p, entry);
     expect(result).toBe('created');
     const text = await fs.readFile(p, 'utf8');
-    expect(text).toBe('.claude-sop/\n');
+    expect(text).toBe('.auto-sop/\n');
   });
 
   it('returns noop when entry already exists', async () => {
     const p = join(testDir, '.gitignore');
-    await fs.writeFile(p, '.claude-sop/\n');
+    await fs.writeFile(p, '.auto-sop/\n');
     const result = await ensureGitignore(p, entry);
     expect(result).toBe('noop');
     const text = await fs.readFile(p, 'utf8');
-    expect(text).toBe('.claude-sop/\n');
+    expect(text).toBe('.auto-sop/\n');
   });
 
   it('appends to file with other entries', async () => {
@@ -41,7 +41,7 @@ describe('ensureGitignore', () => {
     const result = await ensureGitignore(p, entry);
     expect(result).toBe('appended');
     const text = await fs.readFile(p, 'utf8');
-    expect(text).toBe('node_modules\n.claude-sop/\n');
+    expect(text).toBe('node_modules\n.auto-sop/\n');
   });
 
   it('adds separator when file lacks trailing newline', async () => {
@@ -50,17 +50,17 @@ describe('ensureGitignore', () => {
     const result = await ensureGitignore(p, entry);
     expect(result).toBe('appended');
     const text = await fs.readFile(p, 'utf8');
-    expect(text).toBe('node_modules\n.claude-sop/\n');
+    expect(text).toBe('node_modules\n.auto-sop/\n');
   });
 
-  it('.claude-sop/ is distinct from .claude-sop (no trailing slash)', async () => {
+  it('.auto-sop/ is distinct from .auto-sop (no trailing slash)', async () => {
     const p = join(testDir, '.gitignore');
-    await fs.writeFile(p, '.claude-sop\n');
-    // .claude-sop (no slash) is present, but .claude-sop/ is not
+    await fs.writeFile(p, '.auto-sop\n');
+    // .auto-sop (no slash) is present, but .auto-sop/ is not
     const result = await ensureGitignore(p, entry);
     expect(result).toBe('appended');
     const text = await fs.readFile(p, 'utf8');
-    expect(text).toContain('.claude-sop\n');
-    expect(text).toContain('.claude-sop/\n');
+    expect(text).toContain('.auto-sop\n');
+    expect(text).toContain('.auto-sop/\n');
   });
 });

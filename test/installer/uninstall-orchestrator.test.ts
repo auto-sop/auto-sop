@@ -128,7 +128,7 @@ describe('runUninstall', () => {
 
   /** Seed a full install fixture. */
   async function seedInstall(): Promise<void> {
-    // settings.json with claude-sop hooks + a user hook
+    // settings.json with auto-sop hooks + a user hook
     const settingsDir = join(projectRoot, '.claude');
     await fs.mkdir(settingsDir, { recursive: true });
     await fs.writeFile(
@@ -144,26 +144,26 @@ describe('runUninstall', () => {
     );
 
     // tick.sh
-    const binDir = join(homeDir, '.claude-sop', 'bin');
+    const binDir = join(homeDir, '.auto-sop', 'bin');
     await fs.mkdir(binDir, { recursive: true });
     await fs.writeFile(join(binDir, 'tick.sh'), '#!/bin/sh\nexec node');
 
     // secrets.enc
-    await fs.writeFile(join(homeDir, '.claude-sop', 'secrets.enc'), 'enc');
+    await fs.writeFile(join(homeDir, '.auto-sop', 'secrets.enc'), 'enc');
 
     // version.txt
     await fs.writeFile(
-      join(homeDir, '.claude-sop', 'version.txt'),
+      join(homeDir, '.auto-sop', 'version.txt'),
       '1.0.0',
     );
 
     // marketplace bundle
-    const mktDir = join(homeDir, '.claude-sop', 'marketplace', 'claude-sop');
+    const mktDir = join(homeDir, '.auto-sop', 'marketplace', 'auto-sop');
     await fs.mkdir(mktDir, { recursive: true });
     await fs.writeFile(join(mktDir, 'plugin.json'), '{}');
 
     // captures
-    const captDir = join(projectRoot, '.claude-sop', 'captures');
+    const captDir = join(projectRoot, '.auto-sop', 'captures');
     await fs.mkdir(captDir, { recursive: true });
     await fs.writeFile(join(captDir, 'turn-1.json'), '{}');
 
@@ -182,7 +182,7 @@ describe('runUninstall', () => {
     const outcomes = result.steps.map((s) => s.outcome);
     expect(outcomes).toEqual(Array(10).fill('ok'));
 
-    // settings.json no longer has claude-sop entries
+    // settings.json no longer has auto-sop entries
     const settings = JSON.parse(
       await fs.readFile(
         join(projectRoot, '.claude', 'settings.json'),
@@ -192,7 +192,7 @@ describe('runUninstall', () => {
     // User hook still present
     expect(settings.hooks.UserPromptSubmit).toHaveLength(1);
     expect(settings.hooks.UserPromptSubmit[0].hooks[0].id).toBe('my-custom');
-    // claude-sop hooks stripped
+    // auto-sop hooks stripped
     expect(settings.hooks.Stop).toBeUndefined();
 
     // CLAUDE.md has no markers; user content preserved
@@ -207,23 +207,23 @@ describe('runUninstall', () => {
 
     // tick.sh, secrets.enc, version.txt, marketplace bundle gone
     await expect(
-      fs.access(join(homeDir, '.claude-sop', 'bin', 'tick.sh')),
+      fs.access(join(homeDir, '.auto-sop', 'bin', 'tick.sh')),
     ).rejects.toThrow();
     await expect(
-      fs.access(join(homeDir, '.claude-sop', 'secrets.enc')),
+      fs.access(join(homeDir, '.auto-sop', 'secrets.enc')),
     ).rejects.toThrow();
     await expect(
-      fs.access(join(homeDir, '.claude-sop', 'version.txt')),
+      fs.access(join(homeDir, '.auto-sop', 'version.txt')),
     ).rejects.toThrow();
     await expect(
       fs.access(
-        join(homeDir, '.claude-sop', 'marketplace', 'claude-sop', 'plugin.json'),
+        join(homeDir, '.auto-sop', 'marketplace', 'auto-sop', 'plugin.json'),
       ),
     ).rejects.toThrow();
 
     // Captures preserved (not purged)
     const captFile = await fs.readFile(
-      join(projectRoot, '.claude-sop', 'captures', 'turn-1.json'),
+      join(projectRoot, '.auto-sop', 'captures', 'turn-1.json'),
       'utf8',
     );
     expect(captFile).toBe('{}');
@@ -260,7 +260,7 @@ describe('runUninstall', () => {
 
     // Captures wiped
     await expect(
-      fs.access(join(projectRoot, '.claude-sop', 'captures')),
+      fs.access(join(projectRoot, '.auto-sop', 'captures')),
     ).rejects.toThrow();
 
     // Global sop dir wiped (including backup — --purge implies nuke everything)

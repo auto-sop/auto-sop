@@ -29,7 +29,7 @@ describe('directive-integration', () => {
   beforeEach(() => {
     tmpHome = mkdtempSync(join(tmpdir(), 'directive-int-'));
     tmpProject = join(tmpHome, 'fake-project');
-    capturesDir = join(tmpProject, '.claude-sop', 'captures');
+    capturesDir = join(tmpProject, '.auto-sop', 'captures');
     mkdirSync(capturesDir, { recursive: true });
 
     project = {
@@ -179,7 +179,7 @@ describe('directive-integration', () => {
     expect(claudeMd).toContain('5 turns analyzed');
 
     // Verify backup exists
-    const backupPath = join(tmpProject, '.claude-sop', 'state', 'CLAUDE.md.backup');
+    const backupPath = join(tmpProject, '.auto-sop', 'state', 'CLAUDE.md.backup');
     expect(existsSync(backupPath)).toBe(true);
     const backup = readFileSync(backupPath, 'utf8');
     expect(backup).toContain('3 turns analyzed');

@@ -12,7 +12,7 @@ import {
 } from '~/capture/writer/global-mirror.js';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `claude-sop-gm-test-${randomUUID()}`);
+  const dir = join(tmpdir(), `auto-sop-gm-test-${randomUUID()}`);
   mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -21,12 +21,12 @@ function makePaths(tmpBase: string, projectId: string): CapturePaths {
   const globalSopHome = join(tmpBase, '.claude', 'sop');
   const globalProjectDir = join(globalSopHome, projectId);
   return {
-    projectCaptureDir: join(tmpBase, 'project', '.claude-sop', 'captures'),
-    projectStateDir: join(tmpBase, 'project', '.claude-sop', 'state'),
-    projectErrorsLog: join(tmpBase, 'project', '.claude-sop', 'errors.jsonl'),
-    projectPausedFlag: join(tmpBase, 'project', '.claude-sop', 'paused.flag'),
-    projectYarimKalan: join(tmpBase, 'project', '.claude-sop', 'captures', 'yarim-kalan'),
-    tmpPayloadDir: join(tmpBase, '.claude-sop', 'tmp'),
+    projectCaptureDir: join(tmpBase, 'project', '.auto-sop', 'captures'),
+    projectStateDir: join(tmpBase, 'project', '.auto-sop', 'state'),
+    projectErrorsLog: join(tmpBase, 'project', '.auto-sop', 'errors.jsonl'),
+    projectPausedFlag: join(tmpBase, 'project', '.auto-sop', 'paused.flag'),
+    projectYarimKalan: join(tmpBase, 'project', '.auto-sop', 'captures', 'yarim-kalan'),
+    tmpPayloadDir: join(tmpBase, '.auto-sop', 'tmp'),
     globalSopHome,
     globalProjectDir,
     globalIndexJsonl: join(globalProjectDir, 'index.jsonl'),

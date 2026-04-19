@@ -7,7 +7,7 @@ import {
 } from '../../src/installer/hook-entries.js';
 
 describe('buildHookEntries', () => {
-  const shimPath = '/usr/local/lib/node_modules/claude-sop/dist/shim.cjs';
+  const shimPath = '/usr/local/lib/node_modules/auto-sop/dist/shim.cjs';
   const entries = buildHookEntries(shimPath);
 
   it('returns an entry for all 5 hook events', () => {

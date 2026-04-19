@@ -29,9 +29,9 @@ describe('getCapturePaths', () => {
     expect(paths).toHaveProperty('devArmyGlobalDir');
   });
 
-  it('project paths are under projectRoot/.claude-sop', () => {
+  it('project paths are under projectRoot/.auto-sop', () => {
     const paths = getCapturePaths(PROJECT_ROOT, PROJECT_ID);
-    const claudeSopDir = join(PROJECT_ROOT, '.claude-sop');
+    const claudeSopDir = join(PROJECT_ROOT, '.auto-sop');
     expect(paths.projectCaptureDir).toBe(join(claudeSopDir, 'captures'));
     expect(paths.projectStateDir).toBe(join(claudeSopDir, 'state'));
     expect(paths.projectErrorsLog).toBe(join(claudeSopDir, 'errors.jsonl'));
@@ -41,13 +41,13 @@ describe('getCapturePaths', () => {
   it('yarim-kalan is under captures', () => {
     const paths = getCapturePaths(PROJECT_ROOT, PROJECT_ID);
     expect(paths.projectYarimKalan).toBe(
-      join(PROJECT_ROOT, '.claude-sop', 'captures', 'yarim-kalan'),
+      join(PROJECT_ROOT, '.auto-sop', 'captures', 'yarim-kalan'),
     );
   });
 
   it('tmp payload dir uses homedir', () => {
     const paths = getCapturePaths(PROJECT_ROOT, PROJECT_ID);
-    expect(paths.tmpPayloadDir).toBe(join(FAKE_HOME, '.claude-sop', 'tmp'));
+    expect(paths.tmpPayloadDir).toBe(join(FAKE_HOME, '.auto-sop', 'tmp'));
   });
 
   it('global paths use homedir and project id', () => {

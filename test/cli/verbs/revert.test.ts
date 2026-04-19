@@ -1,5 +1,5 @@
 /**
- * Unit tests for `claude-sop revert` (E3 / PLAN-v16 Wave 3).
+ * Unit tests for `auto-sop revert` (E3 / PLAN-v16 Wave 3).
  *
  * Coverage:
  *   - Backup exists        → revert succeeds, bytes match, hash cleared.
@@ -75,7 +75,7 @@ describe('revert verb', () => {
   }
 
   function backupPath(): string {
-    return path.join(tmpDir, '.claude-sop', 'state', 'CLAUDE.md.backup');
+    return path.join(tmpDir, '.auto-sop', 'state', 'CLAUDE.md.backup');
   }
 
   function writeBackup(content: string): void {
@@ -94,7 +94,7 @@ describe('revert verb', () => {
 
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'revert',
         '--project',
         tmpDir,
@@ -113,7 +113,7 @@ describe('revert verb', () => {
       writeLastHash(tmpDir, 'deadbeef'.repeat(8));
       expect(readLastHash(tmpDir)).not.toBeNull();
 
-      await runCli(['node', 'claude-sop', 'revert', '--project', tmpDir]);
+      await runCli(['node', 'auto-sop', 'revert', '--project', tmpDir]);
 
       expect(readLastHash(tmpDir)).toBeNull();
     });
@@ -125,7 +125,7 @@ describe('revert verb', () => {
 
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'revert',
         '--project',
         tmpDir,
@@ -142,7 +142,7 @@ describe('revert verb', () => {
 
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'revert',
         '--project',
@@ -170,7 +170,7 @@ describe('revert verb', () => {
       writeFileSync(claudeMdPath(), originalClaudeMd);
       // No backup created.
 
-      await runCli(['node', 'claude-sop', 'revert', '--project', tmpDir]);
+      await runCli(['node', 'auto-sop', 'revert', '--project', tmpDir]);
 
       expect(process.exitCode).toBe(1);
       expect(stderr()).toContain('\u2717 No backup to revert from');
@@ -183,7 +183,7 @@ describe('revert verb', () => {
       const originalClaudeMd = '# still-here\n';
       writeFileSync(claudeMdPath(), originalClaudeMd);
 
-      await runCli(['node', 'claude-sop', 'revert', '--project', tmpDir]);
+      await runCli(['node', 'auto-sop', 'revert', '--project', tmpDir]);
 
       expect(process.exitCode).toBe(1);
       expect(stderr()).toContain('No backup to revert from');
@@ -193,7 +193,7 @@ describe('revert verb', () => {
     it('--json emits ok:false with reason:no_backup', async () => {
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'revert',
         '--project',
@@ -220,7 +220,7 @@ describe('revert verb', () => {
       const beforeStat = statSync(claudeMdPath()).mtimeMs;
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'revert',
         '--project',
         tmpDir,
@@ -244,7 +244,7 @@ describe('revert verb', () => {
 
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'revert',
         '--project',
         tmpDir,
@@ -262,7 +262,7 @@ describe('revert verb', () => {
 
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'revert',
         '--project',
@@ -293,7 +293,7 @@ describe('revert verb', () => {
         const originalCwd = process.cwd();
         try {
           process.chdir(otherDir);
-          await runCli(['node', 'claude-sop', '--json', 'revert']);
+          await runCli(['node', 'auto-sop', '--json', 'revert']);
         } finally {
           process.chdir(originalCwd);
         }
@@ -313,7 +313,7 @@ describe('revert verb', () => {
       writeBackup('final\n');
       writeFileSync(claudeMdPath(), 'before\n');
 
-      await runCli(['node', 'claude-sop', 'revert', '--project', tmpDir]);
+      await runCli(['node', 'auto-sop', 'revert', '--project', tmpDir]);
 
       const tmpPath = claudeMdPath() + '.revert.tmp';
       expect(existsSync(tmpPath)).toBe(false);
@@ -339,7 +339,7 @@ describe('revert verb', () => {
 
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'revert',
         '--project',
@@ -357,7 +357,7 @@ describe('revert verb', () => {
       const traversalPath = path.join(tmpdir(), 'foo..bar');
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'revert',
         '--project',
         traversalPath,
@@ -371,7 +371,7 @@ describe('revert verb', () => {
       // Nothing to set up — the guard must fire before any fs work.
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'revert',
         '--project',
         traversalPath,

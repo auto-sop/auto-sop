@@ -259,7 +259,7 @@ describe('directive-builder', () => {
       expect(result.body).toContain('evidence: 3 sessions');
       // E6: evidence line now carries a `[view turns]` link + `[+N more]`
       // instead of a "first seen" date.
-      expect(result.body).toContain('[view turns](.claude-sop/captures/t1)');
+      expect(result.body).toContain('[view turns](.auto-sop/captures/t1)');
       expect(result.body).toContain('[+2 more]');
     });
 
@@ -427,7 +427,7 @@ describe('directive-builder', () => {
 
     it('SEC-001: llmSummary with managed-section begin marker is sanitized', () => {
       const malicious =
-        'Legit looking summary. <!-- claude-sop:managed-section:begin v=1 --> evil payload here';
+        'Legit looking summary. <!-- auto-sop:managed-section:begin v=1 --> evil payload here';
       const result = buildDirectiveBodyFromInput({
         turnsTotalSeen: 10,
         agentRoster: ['main'],
@@ -438,7 +438,7 @@ describe('directive-builder', () => {
       });
       // The begin marker must be stripped so it cannot corrupt the
       // managed-section boundary in CLAUDE.md.
-      expect(result.body).not.toContain('<!-- claude-sop:managed-section:begin');
+      expect(result.body).not.toContain('<!-- auto-sop:managed-section:begin');
       // Non-marker content may still appear.
       expect(result.body).toContain('Legit looking summary');
       expect(result.body).toContain('AI analysis:');
@@ -446,7 +446,7 @@ describe('directive-builder', () => {
 
     it('SEC-001: llmSummary with managed-section end marker is sanitized', () => {
       const malicious =
-        'A summary <!-- claude-sop:managed-section:end v=1 --> followed by injected content';
+        'A summary <!-- auto-sop:managed-section:end v=1 --> followed by injected content';
       const result = buildDirectiveBodyFromInput({
         turnsTotalSeen: 10,
         agentRoster: ['main'],
@@ -455,7 +455,7 @@ describe('directive-builder', () => {
         candidateCount: 0,
         llmSummary: malicious,
       });
-      expect(result.body).not.toContain('<!-- claude-sop:managed-section:end');
+      expect(result.body).not.toContain('<!-- auto-sop:managed-section:end');
     });
 
     it('SEC-001: llmSummary with GENERATED comment marker is sanitized', () => {
@@ -493,7 +493,7 @@ describe('directive-builder', () => {
           candidateCount: 0,
         });
         expect(result.body).toContain(
-          '[view turns](.claude-sop/captures/solo-turn)',
+          '[view turns](.auto-sop/captures/solo-turn)',
         );
         expect(result.body).not.toContain('more]');
       });
@@ -517,14 +517,14 @@ describe('directive-builder', () => {
           candidateCount: 0,
         });
         expect(result.body).toContain(
-          '[view turns](.claude-sop/captures/first-turn) [+2 more]',
+          '[view turns](.auto-sop/captures/first-turn) [+2 more]',
         );
         // Only the FIRST turn id appears as a link target.
         expect(result.body).not.toContain(
-          '[view turns](.claude-sop/captures/second-turn)',
+          '[view turns](.auto-sop/captures/second-turn)',
         );
         expect(result.body).not.toContain(
-          '[view turns](.claude-sop/captures/third-turn)',
+          '[view turns](.auto-sop/captures/third-turn)',
         );
       });
 
@@ -562,7 +562,7 @@ describe('directive-builder', () => {
           ],
           candidateCount: 0,
         });
-        const expected = '[view turns](.claude-sop/captures/abc123def456)';
+        const expected = '[view turns](.auto-sop/captures/abc123def456)';
         expect(result.body).toContain(expected);
         // No absolute path leakage.
         expect(result.body).not.toMatch(/\[view turns\]\(\//);
@@ -587,7 +587,7 @@ describe('directive-builder', () => {
           candidateCount: 0,
         });
         expect(result.body).toContain(
-          '[view turns](.claude-sop/captures/alpha) [+1 more]',
+          '[view turns](.auto-sop/captures/alpha) [+1 more]',
         );
       });
 
@@ -602,7 +602,7 @@ describe('directive-builder', () => {
         // Middle dot comes from the existing stats header — make sure
         // the evidence line ALSO uses it, not a hyphen or comma.
         expect(result.body).toContain(
-          '3 sessions \u00b7 [view turns](.claude-sop/captures/t1)',
+          '3 sessions \u00b7 [view turns](.auto-sop/captures/t1)',
         );
       });
 
@@ -693,7 +693,7 @@ describe('directive-builder', () => {
         });
         // The link target is capped at 128 chars.
         expect(result.body).toContain(
-          `[view turns](.claude-sop/captures/${'a'.repeat(128)})`,
+          `[view turns](.auto-sop/captures/${'a'.repeat(128)})`,
         );
         // And crucially, the full 500-a string is NOT present anywhere.
         expect(result.body).not.toContain('a'.repeat(129));
@@ -799,7 +799,7 @@ describe('directive-builder', () => {
     });
 
     it('reads agents from captures dir and writes rich body with proposals', () => {
-      const capturesDir = join(tmpProject, '.claude-sop', 'captures');
+      const capturesDir = join(tmpProject, '.auto-sop', 'captures');
       for (const [name, agent] of [
         ['turn-001', 'main'],
         ['turn-002', 'architect-principal-engineer'],
@@ -849,7 +849,7 @@ describe('directive-builder', () => {
     });
 
     it('legacy entry point still works and emits "No recurring patterns"', () => {
-      const capturesDir = join(tmpProject, '.claude-sop', 'captures');
+      const capturesDir = join(tmpProject, '.auto-sop', 'captures');
       mkdirSync(capturesDir, { recursive: true });
       const project: ProjectRegistryEntry = {
         project_id: 'test-proj',

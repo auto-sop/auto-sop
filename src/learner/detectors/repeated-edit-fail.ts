@@ -7,7 +7,7 @@
  * it first, or that the file changes underneath Claude.
  *
  * Captured-data shape reference (from
- * ~/Developer/wrbeautiful-shopify-theme/.claude-sop/captures/):
+ * ~/Developer/wrbeautiful-shopify-theme/.auto-sop/captures/):
  *
  *   Successful Edit post event:
  *   {"event":"post","tool_use_id":"toolu_…","output":{

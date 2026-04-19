@@ -28,7 +28,7 @@ describe('runCli', () => {
   });
 
   it('--version returns 0 and prints version', async () => {
-    const code = await runCli(['node', 'claude-sop', '--version']);
+    const code = await runCli(['node', 'auto-sop', '--version']);
     expect(code).toBe(0);
     // Version is printed to stdout by commander
     const output = stdoutChunks.join('');
@@ -36,17 +36,17 @@ describe('runCli', () => {
   });
 
   it('--help returns 0', async () => {
-    const code = await runCli(['node', 'claude-sop', '--help']);
+    const code = await runCli(['node', 'auto-sop', '--help']);
     expect(code).toBe(0);
   });
 
   it('unknown verb returns 2 (MISUSE)', async () => {
-    const code = await runCli(['node', 'claude-sop', 'nosuchverb']);
+    const code = await runCli(['node', 'auto-sop', 'nosuchverb']);
     expect(code).toBe(2);
   });
 
   it('--json + unknown verb returns 2 and emits JSON error', async () => {
-    const code = await runCli(['node', 'claude-sop', '--json', 'nosuchverb']);
+    const code = await runCli(['node', 'auto-sop', '--json', 'nosuchverb']);
     expect(code).toBe(2);
     const output = stdoutChunks.join('');
     const parsed = JSON.parse(output.trim());

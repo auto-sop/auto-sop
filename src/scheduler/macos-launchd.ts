@@ -10,10 +10,14 @@ import type {
 
 /** Allow label override for integration tests to avoid colliding with the real install. */
 const LABEL =
-  process.env.CLAUDE_SOP_LABEL &&
-  process.env.CLAUDE_SOP_LABEL.startsWith('com.claude-sop.learner')
-    ? process.env.CLAUDE_SOP_LABEL
-    : 'com.claude-sop.learner';
+  process.env.AUTO_SOP_LABEL?.startsWith('com.auto-sop.learner')
+    ? process.env.AUTO_SOP_LABEL
+    : process.env.CLAUDE_SOP_LABEL?.startsWith('com.claude-sop.learner')
+      ? process.env.CLAUDE_SOP_LABEL
+      : 'com.auto-sop.learner';
+
+/** Legacy label for cleanup during uninstall. */
+const LEGACY_LABEL = 'com.claude-sop.learner';
 
 function getPosixUid(): number {
   if (typeof process.getuid !== 'function') {
@@ -24,6 +28,10 @@ function getPosixUid(): number {
 
 function plistPath(homeDir: string): string {
   return join(homeDir, 'Library', 'LaunchAgents', `${LABEL}.plist`);
+}
+
+function legacyPlistPath(homeDir: string): string {
+  return join(homeDir, 'Library', 'LaunchAgents', `${LEGACY_LABEL}.plist`);
 }
 
 function xmlEscape(s: string): string {
@@ -73,6 +81,8 @@ export function renderPlist(opts: {
   <dict>
     <key>PATH</key>
     <string>/usr/local/bin:/usr/bin:/bin</string>
+    <key>AUTO_SOP_CAPTURE_SUPPRESS</key>
+    <string>1</string>
     <key>CLAUDE_SOP_CAPTURE_SUPPRESS</key>
     <string>1</string>
     <key>CLAUDE_SOP_LEARNER</key>
@@ -94,6 +104,13 @@ export const macosLaunchd: SchedulerBackend = {
     const uid = getPosixUid();
     const domainTarget = `gui/${uid}`;
     const serviceTarget = `${domainTarget}/${LABEL}`;
+
+    // Step 0: Clean up legacy label if different from current
+    if (LABEL !== LEGACY_LABEL) {
+      const legacyTarget = `${domainTarget}/${LEGACY_LABEL}`;
+      await execa('launchctl', ['bootout', legacyTarget], { reject: false });
+      await fs.rm(legacyPlistPath(opts.homeDir), { force: true });
+    }
 
     // Step 1: Bootout any prior version (idempotent — no-op if absent)
     await execa('launchctl', ['bootout', serviceTarget], { reject: false });
@@ -135,6 +152,8 @@ export const macosLaunchd: SchedulerBackend = {
   }): Promise<{ warnings: string[] }> {
     const warnings: string[] = [];
     const uid = getPosixUid();
+
+    // Uninstall current label
     const r = await execa(
       'launchctl',
       ['bootout', `gui/${uid}/${LABEL}`],
@@ -144,6 +163,17 @@ export const macosLaunchd: SchedulerBackend = {
       warnings.push(r.stderr);
     }
     await fs.rm(plistPath(opts.homeDir), { force: true });
+
+    // Also clean up legacy label if different
+    if (LABEL !== LEGACY_LABEL) {
+      await execa(
+        'launchctl',
+        ['bootout', `gui/${uid}/${LEGACY_LABEL}`],
+        { reject: false },
+      );
+      await fs.rm(legacyPlistPath(opts.homeDir), { force: true });
+    }
+
     return { warnings };
   },
 

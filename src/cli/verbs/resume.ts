@@ -12,7 +12,7 @@ export function registerResumeVerb(program: Command): void {
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
       const projectRoot = path.resolve(opts.project);
-      const flagPath = path.join(projectRoot, '.claude-sop', 'paused.flag');
+      const flagPath = path.join(projectRoot, '.auto-sop', 'paused.flag');
       let removed = false;
       try {
         await fs.rm(flagPath, { force: false });

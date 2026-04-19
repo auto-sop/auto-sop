@@ -12,7 +12,7 @@ import { ExitCode } from '../exit-codes.js';
 export function registerUninstallVerb(program: Command): void {
   program
     .command('uninstall')
-    .description('remove claude-sop hooks, scheduler, and managed section')
+    .description('remove auto-sop hooks, scheduler, and managed section')
     .option('--purge', 'also wipe all captures (project + global)', false)
     .option('--project <path>', 'project root', process.cwd())
     .action(async (opts, cmd) => {

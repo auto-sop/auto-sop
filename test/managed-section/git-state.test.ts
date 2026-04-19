@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { isGitBusy } from '../../src/managed-section/git-state.js';
 
 function makeTmpDir(): string {
-  return mkdtempSync(join(tmpdir(), 'claude-sop-git-state-'));
+  return mkdtempSync(join(tmpdir(), 'auto-sop-git-state-'));
 }
 
 describe('isGitBusy', () => {

@@ -9,14 +9,14 @@ export class PathResolver {
 
   async resolve(cwd: string) {
     const identity = await resolveIdentity(cwd, this.git);
-    const projectClaudeSopDir = join(cwd, '.claude-sop');
+    const projectClaudeSopDir = join(cwd, '.auto-sop');
     const stored = await readProjectJson(projectClaudeSopDir);
     const move = detectMove(stored, identity);
     return { identity, projectClaudeSopDir, stored, move };
   }
 
   async writeAnchor(cwd: string, identity: ProjectIdentity) {
-    await writeProjectJsonAtomic(join(cwd, '.claude-sop'), identity);
+    await writeProjectJsonAtomic(join(cwd, '.auto-sop'), identity);
   }
 }
 

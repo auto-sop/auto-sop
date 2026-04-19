@@ -133,7 +133,7 @@ describe('show verb: turn display with fixtures', () => {
 
   beforeEach(() => {
     tmpProject = mkdtempSync(join(tmpdir(), 'show-test-'));
-    mkdirSync(join(tmpProject, '.claude-sop', 'captures'), { recursive: true });
+    mkdirSync(join(tmpProject, '.auto-sop', 'captures'), { recursive: true });
   });
 
   afterEach(() => {
@@ -157,7 +157,7 @@ describe('show verb: turn display with fixtures', () => {
     } = {},
   ): string {
     const dirName = `20260414T190000-${opts.agent ?? 'main'}-abc123-${turnId}`;
-    const turnDir = join(tmpProject, '.claude-sop', 'captures', dirName);
+    const turnDir = join(tmpProject, '.auto-sop', 'captures', dirName);
     mkdirSync(turnDir, { recursive: true });
 
     const finalizedAt = opts.finalizedAt ?? '2026-04-14T19:15:52.147Z';
@@ -543,7 +543,7 @@ describe('show verb: no captures directory', () => {
 
   beforeEach(() => {
     tmpProject = mkdtempSync(join(tmpdir(), 'show-nocap-'));
-    // Create project dir but NOT .claude-sop/captures
+    // Create project dir but NOT .auto-sop/captures
   });
 
   afterEach(() => {

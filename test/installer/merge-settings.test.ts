@@ -48,7 +48,7 @@ describe('mergeProjectHooks', () => {
     expect(parsed.hooks.UserPromptSubmit).toHaveLength(1);
   });
 
-  it('preserves existing user hooks — user first, claude-sop last', async () => {
+  it('preserves existing user hooks — user first, auto-sop last', async () => {
     const fixture = JSON.stringify(
       {
         hooks: {
@@ -77,7 +77,7 @@ describe('mergeProjectHooks', () => {
     expect(arr).toHaveLength(2);
     // User hook at index 0
     expect(arr[0].hooks[0].command).toBe('/usr/local/bin/my-hook');
-    // claude-sop at index 1
+    // auto-sop at index 1
     expect(arr[1].hooks[0].id).toBe(CLAUDE_SOP_HOOK_ID);
   });
 
@@ -97,10 +97,10 @@ describe('mergeProjectHooks', () => {
     expect(text).toContain('// my comment');
   });
 
-  it('strips prior claude-sop entries (no duplicates)', async () => {
+  it('strips prior auto-sop entries (no duplicates)', async () => {
     // First merge
     await mergeProjectHooks(settingsPath, entries);
-    // Manually add a second claude-sop entry to simulate corruption
+    // Manually add a second auto-sop entry to simulate corruption
     const text1 = await fs.readFile(settingsPath, 'utf8');
     const parsed1 = parse(text1);
     // Verify there's exactly 1 entry per event
@@ -157,15 +157,15 @@ describe('mergeGlobalMarketplace', () => {
   });
 
   it('writes extraKnownMarketplaces with absolute path', async () => {
-    const mpDir = '/usr/local/lib/node_modules/claude-sop/marketplace';
+    const mpDir = '/usr/local/lib/node_modules/auto-sop/marketplace';
     await mergeGlobalMarketplace(settingsPath, mpDir);
     const text = await fs.readFile(settingsPath, 'utf8');
     const parsed = parse(text);
-    expect(parsed.extraKnownMarketplaces['claude-sop'].source.path).toBe(
+    expect(parsed.extraKnownMarketplaces['auto-sop'].source.path).toBe(
       mpDir,
     );
     expect(
-      parsed.extraKnownMarketplaces['claude-sop'].source.source,
+      parsed.extraKnownMarketplaces['auto-sop'].source.source,
     ).toBe('directory');
   });
 

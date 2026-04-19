@@ -5,11 +5,11 @@
  * and displays a human-readable table or JSON output.
  *
  * Usage:
- *   claude-sop recent                   — show last 1h of turns
- *   claude-sop recent --since 30m       — show last 30 minutes
- *   claude-sop recent --since 2h        — show last 2 hours
- *   claude-sop recent --project /path   — specify project directory
- *   claude-sop recent --json            — JSON output
+ *   auto-sop recent                   — show last 1h of turns
+ *   auto-sop recent --since 30m       — show last 30 minutes
+ *   auto-sop recent --since 2h        — show last 2 hours
+ *   auto-sop recent --project /path   — specify project directory
+ *   auto-sop recent --json            — JSON output
  *
  * Roadmap: CLI-02.
  */
@@ -139,7 +139,7 @@ export function registerRecentVerb(program: Command): void {
         return;
       }
 
-      const capturesDir = path.join(projectPath, '.claude-sop', 'captures');
+      const capturesDir = path.join(projectPath, '.auto-sop', 'captures');
       if (!existsSync(capturesDir)) {
         if (jsonMode) {
           emit({
@@ -152,7 +152,7 @@ export function registerRecentVerb(program: Command): void {
           });
         } else {
           process.stdout.write(
-            pc.dim('(no captures directory — has claude-sop been installed for this project?)\n'),
+            pc.dim('(no captures directory — has auto-sop been installed for this project?)\n'),
           );
         }
         return;

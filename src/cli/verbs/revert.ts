@@ -3,7 +3,7 @@
  * the ManagedSectionEditor (E3 / PLAN-v16 Wave 3).
  *
  * Backup path contract:
- *   <projectRoot>/.claude-sop/state/CLAUDE.md.backup
+ *   <projectRoot>/.auto-sop/state/CLAUDE.md.backup
  *
  * This is the exact path the editor writes BEFORE mutating CLAUDE.md
  * (editor.ts, step 6). See `writeManagedSection` — the editor creates
@@ -83,7 +83,7 @@ export function registerRevertVerb(program: Command): void {
       const claudeMdPath = path.join(projectRoot, 'CLAUDE.md');
       const backupPath = path.join(
         projectRoot,
-        '.claude-sop',
+        '.auto-sop',
         'state',
         'CLAUDE.md.backup',
       );

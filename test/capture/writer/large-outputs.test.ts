@@ -8,7 +8,7 @@ import { maybeOffloadLarge, LARGE_OUTPUT_THRESHOLD } from '~/capture/writer/larg
 import { createScrubber, Scrubber } from '~/scrubber/index.js';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `claude-sop-test-${randomUUID()}`);
+  const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
   mkdirSync(dir, { recursive: true });
   return dir;
 }

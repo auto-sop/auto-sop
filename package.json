@@ -1,19 +1,38 @@
 {
-  "name": "claude-sop",
-  "version": "0.0.13",
-  "description": "Claude SOP - Standard Operating Procedures for Claude Code",
+  "name": "auto-sop",
+  "version": "0.0.18",
+  "description": "Auto SOP - Standard Operating Procedures for Claude Code",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ugurgokdere/auto-sop.git"
+  },
+  "homepage": "https://github.com/ugurgokdere/auto-sop",
+  "bugs": {
+    "url": "https://github.com/ugurgokdere/auto-sop/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "bin": {
+    "auto-sop": "./dist/cli.js",
     "claude-sop": "./dist/cli.js"
   },
   "files": [
@@ -36,9 +55,14 @@
     "test:golden": "vitest run test/managed-section/golden.test.ts",
     "test:golden:update": "GOLDEN_UPDATE=1 tsx test/managed-section/golden/write-fixtures.ts && GOLDEN_UPDATE=1 tsx test/managed-section/golden/update-goldens.ts",
     "lint": "eslint . && prettier --check .",
+    "lint:pkg": "publint",
+    "lint:types": "attw --pack .",
+    "lint:all": "npm run lint:pkg && npm run lint:types",
     "typecheck": "tsc --noEmit",
     "bench:shim": "node scripts/bench-shim.mjs",
-    "bench:shim:ci": "npm run build && node scripts/bench-shim.mjs"
+    "bench:shim:ci": "npm run build && node scripts/bench-shim.mjs",
+    "version:bump-patch": "npm version patch --no-git-tag-version",
+    "release-check": "bash scripts/release-check.sh"
   },
   "dependencies": {
     "commander": "^14",
@@ -53,6 +77,7 @@
     "zod": "^3"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
     "@eslint/js": "^9",
     "@secretlint/secretlint-rule-preset-recommend": "^9.3.4",
     "@types/node": "^20",
@@ -62,6 +87,7 @@
     "eslint": "^9",
     "memfs": "^4",
     "prettier": "^3",
+    "publint": "^0.3.18",
     "tsup": "^8.5",
     "tsx": "^4",
     "typescript": "^5.6",

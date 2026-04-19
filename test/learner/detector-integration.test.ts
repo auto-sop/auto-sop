@@ -116,7 +116,7 @@ function runDetectorPipeline(
   directivesActive: number;
   candidateCount: number;
 } {
-  const capturesDir = join(project.project_root, '.claude-sop', 'captures');
+  const capturesDir = join(project.project_root, '.auto-sop', 'captures');
   const turnData = loadTurnsForDetection(capturesDir, 500);
 
   const allProposals: DirectiveProposalType[] = [];
@@ -159,9 +159,9 @@ describe('detector-integration', () => {
   beforeEach(() => {
     tmpHome = mkdtempSync(join(tmpdir(), 'detector-int-'));
     tmpProject = join(tmpHome, 'fake-project');
-    capturesDir = join(tmpProject, '.claude-sop', 'captures');
+    capturesDir = join(tmpProject, '.auto-sop', 'captures');
     mkdirSync(capturesDir, { recursive: true });
-    mkdirSync(join(tmpProject, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(tmpProject, '.auto-sop', 'state'), { recursive: true });
     project = {
       project_id: 'int-test-proj',
       slug: 'fake-project',

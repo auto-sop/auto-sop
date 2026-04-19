@@ -27,7 +27,7 @@ registerFinalizeHook((finalizedDir, meta, ctx) => {
 registerPreStartHook((_event, ctx) => {
   try {
     // Read stored project.json synchronously to detect move
-    const projectJsonPath = join(ctx.projectRoot, '.claude-sop', 'project.json');
+    const projectJsonPath = join(ctx.projectRoot, '.auto-sop', 'project.json');
     let stored: { version: number; projectId: string } | null = null;
     try {
       const raw = readFileSync(projectJsonPath, 'utf8');

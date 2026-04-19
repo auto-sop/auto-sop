@@ -38,11 +38,11 @@ describe('errors verb', () => {
   }
 
   function errorsJsonlPath(): string {
-    return path.join(tmpDir, '.claude-sop', 'errors.jsonl');
+    return path.join(tmpDir, '.auto-sop', 'errors.jsonl');
   }
 
   async function writeErrorsJsonl(entries: object[]): Promise<void> {
-    await fs.mkdir(path.join(tmpDir, '.claude-sop'), { recursive: true });
+    await fs.mkdir(path.join(tmpDir, '.auto-sop'), { recursive: true });
     const lines = entries.map((e) => JSON.stringify(e)).join('\n') + '\n';
     await fs.writeFile(errorsJsonlPath(), lines, 'utf8');
   }
@@ -59,7 +59,7 @@ describe('errors verb', () => {
     it('human mode prints (no errors)', async () => {
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'errors',
         '--project',
         tmpDir,
@@ -71,7 +71,7 @@ describe('errors verb', () => {
     it('--json returns empty entries', async () => {
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'errors',
         '--project',
@@ -94,7 +94,7 @@ describe('errors verb', () => {
 
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'errors',
         '--project',
@@ -113,7 +113,7 @@ describe('errors verb', () => {
 
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'errors',
         '--project',
@@ -140,7 +140,7 @@ describe('errors verb', () => {
 
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'errors',
         '--project',
@@ -155,7 +155,7 @@ describe('errors verb', () => {
     });
 
     it('skips malformed JSON lines silently', async () => {
-      await fs.mkdir(path.join(tmpDir, '.claude-sop'), { recursive: true });
+      await fs.mkdir(path.join(tmpDir, '.auto-sop'), { recursive: true });
       const content = [
         JSON.stringify(makeEntry(Date.now(), 'good', 'ok')),
         'this is not json{{{',
@@ -166,7 +166,7 @@ describe('errors verb', () => {
 
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'errors',
         '--project',
@@ -182,7 +182,7 @@ describe('errors verb', () => {
 
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'errors',
         '--project',
         tmpDir,
@@ -197,7 +197,7 @@ describe('errors verb', () => {
     it('exits with error for bogus value', async () => {
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'errors',
         '--project',
         tmpDir,

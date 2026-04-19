@@ -10,7 +10,7 @@ describe('cursor', () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'cursor-test-'));
-    stateDir = join(tmpDir, '.claude-sop', 'state');
+    stateDir = join(tmpDir, '.auto-sop', 'state');
     mkdirSync(stateDir, { recursive: true });
   });
 

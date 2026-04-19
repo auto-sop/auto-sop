@@ -18,7 +18,7 @@ import {
 } from '../../src/managed-section/hash-store.js';
 
 function makeTmpDir(): string {
-  return mkdtempSync(join(tmpdir(), 'claude-sop-hash-store-'));
+  return mkdtempSync(join(tmpdir(), 'auto-sop-hash-store-'));
 }
 
 describe('hash-store', () => {
@@ -33,7 +33,7 @@ describe('hash-store', () => {
   });
 
   const hashPath = () =>
-    join(projectRoot, '.claude-sop', 'state', 'managed-section-hash.json');
+    join(projectRoot, '.auto-sop', 'state', 'managed-section-hash.json');
 
   it('returns null when no hash file exists', () => {
     expect(readLastHash(projectRoot)).toBeNull();
@@ -68,11 +68,11 @@ describe('hash-store', () => {
     expect(stats.mode & 0o077).toBe(0);
   });
 
-  it('APEX SEC-006: creates .claude-sop/state with user-only (0o700) mode', () => {
+  it('APEX SEC-006: creates .auto-sop/state with user-only (0o700) mode', () => {
     // POSIX-only — on Windows, file-mode bits are not meaningful.
     if (process.platform === 'win32') return;
     writeLastHash(projectRoot, sha256('payload'));
-    const dirStat = statSync(join(projectRoot, '.claude-sop', 'state'));
+    const dirStat = statSync(join(projectRoot, '.auto-sop', 'state'));
     expect(dirStat.mode & 0o777).toBe(0o700);
   });
 
@@ -90,19 +90,19 @@ describe('hash-store', () => {
   });
 
   it('readLastHash returns null on malformed JSON', () => {
-    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(projectRoot, '.auto-sop', 'state'), { recursive: true });
     writeFileSync(hashPath(), '{not-json', { mode: 0o600 });
     expect(readLastHash(projectRoot)).toBeNull();
   });
 
   it('readLastHash returns null when JSON is the wrong shape', () => {
-    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(projectRoot, '.auto-sop', 'state'), { recursive: true });
     writeFileSync(hashPath(), JSON.stringify({ wrong: true }), { mode: 0o600 });
     expect(readLastHash(projectRoot)).toBeNull();
   });
 
   it('readLastHash returns null when lastHash is empty string', () => {
-    mkdirSync(join(projectRoot, '.claude-sop', 'state'), { recursive: true });
+    mkdirSync(join(projectRoot, '.auto-sop', 'state'), { recursive: true });
     writeFileSync(
       hashPath(),
       JSON.stringify({ lastHash: '', updatedAt: new Date().toISOString() }),

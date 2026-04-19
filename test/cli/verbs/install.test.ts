@@ -17,7 +17,7 @@ function cannedResult(overrides: Partial<InstallResult> = {}): InstallResult {
     verdict: 'fresh',
     installedVersion: '1.0.0',
     warnings: [],
-    pluginBundleDst: '/home/.claude-sop/marketplace/claude-sop',
+    pluginBundleDst: '/home/.auto-sop/marketplace/auto-sop',
     scheduler: 'launchd',
     gitignore: 'created',
     directivesRestored: 0,
@@ -57,7 +57,7 @@ describe('install verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'install',
       '--project',
       '/tmp/test-project',
@@ -77,7 +77,7 @@ describe('install verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'install',
       '--license',
@@ -99,7 +99,7 @@ describe('install verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'install',
       '--license',
       'abc',
@@ -117,7 +117,7 @@ describe('install verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'install',
       '--license',
       'abc',

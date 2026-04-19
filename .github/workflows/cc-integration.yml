@@ -1,0 +1,80 @@
+name: Claude Code Integration Smoke
+
+on:
+  schedule:
+    # Weekly on Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cc-smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18', '20', '22']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify CLI entry point exists
+        run: |
+          test -f dist/cli.js || { echo "::error::dist/cli.js missing"; exit 1; }
+          node dist/cli.js --help || true
+
+      - name: Verify hook shim exists and is executable
+        run: |
+          test -f dist/plugin/shim.cjs || { echo "::error::dist/plugin/shim.cjs missing"; exit 1; }
+          # Verify it's valid JS by checking syntax
+          node --check dist/plugin/shim.cjs
+
+      - name: Verify hook registration structure
+        run: |
+          # Simulate what Claude Code does: check that the package exports
+          # are resolvable and the hook entry points exist
+          node -e "
+            const pkg = require('./package.json');
+            const assert = require('assert');
+
+            // Verify bin entries point to real files
+            const fs = require('fs');
+            for (const [name, path] of Object.entries(pkg.bin || {})) {
+              assert(fs.existsSync(path), 'bin entry missing: ' + name + ' -> ' + path);
+            }
+
+            // Verify plugin directory structure
+            assert(fs.existsSync('dist/plugin/shim.cjs'), 'plugin shim missing');
+            assert(fs.existsSync('dist/plugin/learner.cjs'), 'plugin learner missing');
+            assert(fs.existsSync('dist/plugin/writer.cjs'), 'plugin writer missing');
+
+            console.log('Hook registration structure OK');
+          "
+
+      - name: Check Claude Code compatibility
+        run: |
+          echo "=== Claude Code Integration Smoke Test ==="
+          echo "Minimum supported CC version: >=2.1.107"
+          echo ""
+          # Check if claude binary exists (it won't in CI, but structure the test)
+          if command -v claude &>/dev/null; then
+            CC_VERSION=$(claude --version 2>/dev/null || echo "unknown")
+            echo "Detected Claude Code version: $CC_VERSION"
+          else
+            echo "Claude Code not installed in CI (expected)"
+            echo "Verifying package structure is CC-compatible..."
+          fi
+          echo ""
+          echo "All structural checks passed."

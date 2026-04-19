@@ -100,8 +100,8 @@ describe('unifiedDiff', () => {
       '',
       'Custom rules here.',
       '',
-      '<!-- claude-sop:managed-section:begin v1 -->',
-      '<!-- GENERATED - DO NOT EDIT. claude-sop owns this section. -->',
+      '<!-- auto-sop:managed-section:begin v1 -->',
+      '<!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->',
       '',
       '_Data as of: 2026-04-14T22:20:00Z · 3 turns analyzed · 2 agents: commander, main_',
       '',
@@ -109,7 +109,7 @@ describe('unifiedDiff', () => {
       '',
       '_No directives generated yet — pattern detection ships in the next version._',
       '',
-      '<!-- claude-sop:managed-section:end -->',
+      '<!-- auto-sop:managed-section:end -->',
       '',
     ].join('\n');
 
@@ -118,9 +118,9 @@ describe('unifiedDiff', () => {
       newLabel: 'project/CLAUDE.md (proposed)',
     });
 
-    expect(diff).toContain('+<!-- claude-sop:managed-section:begin v1 -->');
+    expect(diff).toContain('+<!-- auto-sop:managed-section:begin v1 -->');
     expect(diff).toContain('+_Data as of:');
-    expect(diff).toContain('+<!-- claude-sop:managed-section:end -->');
+    expect(diff).toContain('+<!-- auto-sop:managed-section:end -->');
     // Original content should appear as context (equal lines)
     expect(diff).toContain(' # My Project');
   });

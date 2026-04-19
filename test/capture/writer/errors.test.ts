@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { logError, ERRORS_CAP_BYTES, initErrorWriter } from '~/capture/writer/errors.js';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `claude-sop-test-${randomUUID()}`);
+  const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
   mkdirSync(dir, { recursive: true });
   return dir;
 }

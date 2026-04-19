@@ -5,7 +5,8 @@ import type {
   SchedulerStatus,
 } from './types.js';
 
-const MARKER = '# claude-sop:managed';
+const MARKER = '# auto-sop:managed';
+const LEGACY_MARKER = '# claude-sop:managed';
 
 export const linuxCron: SchedulerBackend = {
   name: 'cron',
@@ -15,7 +16,7 @@ export const linuxCron: SchedulerBackend = {
       (await execa('crontab', ['-l'], { reject: false })).stdout || '';
     const stripped = existing
       .split('\n')
-      .filter((l) => !l.includes(MARKER))
+      .filter((l) => !l.includes(MARKER) && !l.includes(LEGACY_MARKER))
       .join('\n');
     const entry = `0 * * * * ${opts.tickScriptPath} ${MARKER}`;
     const next =
@@ -35,7 +36,7 @@ export const linuxCron: SchedulerBackend = {
     }
     const stripped = (r.stdout || '')
       .split('\n')
-      .filter((l) => !l.includes(MARKER))
+      .filter((l) => !l.includes(MARKER) && !l.includes(LEGACY_MARKER))
       .join('\n');
     const next = stripped.trimEnd() + '\n';
     await execa('crontab', ['-'], { input: next });
@@ -47,7 +48,7 @@ export const linuxCron: SchedulerBackend = {
     user: string;
   }): Promise<SchedulerStatus> {
     const r = await execa('crontab', ['-l'], { reject: false });
-    const installed = (r.stdout || '').includes(MARKER);
+    const installed = (r.stdout || '').includes(MARKER) || (r.stdout || '').includes(LEGACY_MARKER);
     return {
       backend: 'cron',
       installed,

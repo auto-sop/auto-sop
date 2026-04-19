@@ -1,5 +1,5 @@
 /**
- * Recap Log — appends JSON-line recap entries to ~/.claude-sop/logs/recap.log.
+ * Recap Log — appends JSON-line recap entries to ~/.auto-sop/logs/recap.log.
  * 10MB rotation: stat before append, if >10_000_000 bytes rename to recap.log.1 (overwrite).
  * Each line is one JSON object (per-project recap or tick summary).
  */
@@ -121,7 +121,7 @@ export interface TickSummary {
 // ── Paths ──────────────────────────────────────────────────
 
 export function recapLogPath(home?: string): string {
-  return join(home ?? homedir(), '.claude-sop', 'logs', 'recap.log');
+  return join(home ?? homedir(), '.auto-sop', 'logs', 'recap.log');
 }
 
 // ── Rotation ───────────────────────────────────────────────

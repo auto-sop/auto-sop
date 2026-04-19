@@ -1,5 +1,5 @@
 /**
- * Project Registry — tracks installed projects at ~/.claude-sop/projects.json.
+ * Project Registry — tracks installed projects at ~/.auto-sop/projects.json.
  * Reads are unlocked (tolerate ENOENT + parse errors).
  * Writes use proper-lockfile for mutual exclusion.
  * Fail-open: all errors are logged and swallowed.
@@ -28,15 +28,15 @@ export interface ProjectRegistry {
 // ── Paths ──────────────────────────────────────────────────
 
 export function registryPath(home?: string): string {
-  return join(home ?? homedir(), '.claude-sop', 'projects.json');
+  return join(home ?? homedir(), '.auto-sop', 'projects.json');
 }
 
 function lockfilePath(home?: string): string {
-  return join(home ?? homedir(), '.claude-sop', 'projects.json.lock');
+  return join(home ?? homedir(), '.auto-sop', 'projects.json.lock');
 }
 
 function errorsLogPath(home?: string): string {
-  return join(home ?? homedir(), '.claude-sop', 'logs', 'errors.log');
+  return join(home ?? homedir(), '.auto-sop', 'logs', 'errors.log');
 }
 
 // ── Error logger (inline, fail-safe) ───────────────────────

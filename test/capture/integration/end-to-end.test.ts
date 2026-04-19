@@ -55,7 +55,7 @@ beforeAll(() => {
   execSync('npm run build', {
     cwd: resolve(__dirname, '../../..'),
     stdio: 'pipe',
-    timeout: 60000,
+    timeout: 180_000,
   });
   sharedTmpRoot = mkdtempSync(join(tmpdir(), 'e2e-capture-'));
 });
@@ -153,7 +153,7 @@ describe('main-only', () => {
         },
       ],
     });
-  }, 60000);
+  }, 180_000);
 
   it('produces exactly one finalized turn dir', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
@@ -217,7 +217,7 @@ describe('main-with-subagent', () => {
       fixturePath: fixture('main-with-subagent.jsonl'),
       tmpRoot,
     });
-  }, 60000);
+  }, 180_000);
 
   it('produces two finalized turn dirs (main + subagent)', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
@@ -281,7 +281,7 @@ describe('large-output', () => {
       fixturePath: fixture('large-output.jsonl'),
       tmpRoot,
     });
-  }, 60000);
+  }, 180_000);
 
   it('offloads large output to gzipped file in large-outputs/ (CAPT-10)', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
@@ -324,7 +324,7 @@ describe('orphan-recovery', () => {
       tmpRoot,
       midActions: [{ kind: 'age-pending-dirs', minusSeconds: 45 }],
     });
-  }, 60000);
+  }, 180_000);
 
   it('orphan turn is finalized with timeout reason (CAPT-08)', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
@@ -359,7 +359,7 @@ describe('paused-skip', () => {
       tmpRoot,
       preActions: [{ kind: 'create-paused-flag' }],
     });
-  }, 60000);
+  }, 180_000);
 
   it('no turn dirs created when paused (F3)', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
@@ -367,7 +367,7 @@ describe('paused-skip', () => {
   });
 
   it('errors.jsonl has paused_skipped entry', () => {
-    const errorsPath = join(run.projectRoot, '.claude-sop', 'errors.jsonl');
+    const errorsPath = join(run.projectRoot, '.auto-sop', 'errors.jsonl');
     expect(existsSync(errorsPath)).toBe(true);
     const lines = readFileSync(errorsPath, 'utf8')
       .trim()
@@ -391,7 +391,7 @@ describe('secret-scrub', () => {
       fixturePath: fixture('secret-scrub.jsonl'),
       tmpRoot,
     });
-  }, 60000);
+  }, 180_000);
 
   it('no raw secrets appear in any captured file (PRIV-04)', async () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
@@ -443,7 +443,7 @@ describe('concurrent-sessions', () => {
       fixturePath: fixture('concurrent-sessions.jsonl'),
       tmpRoot,
     });
-  }, 60000);
+  }, 180_000);
 
   it('produces two separate turn dirs, one per session', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
@@ -503,7 +503,7 @@ describe('global mirror coverage', () => {
       fixturePath: fixture('main-only.jsonl'),
       tmpRoot,
     });
-  }, 60000);
+  }, 180_000);
 
   it('global index.jsonl exists with correct entry (CAPT-05)', () => {
     // Find the index.jsonl under the global dir
@@ -540,7 +540,7 @@ describe('CLAUDE_SOP_LEARNER kill-switch', () => {
       tmpRoot,
       env: { CLAUDE_SOP_LEARNER: '1' },
     });
-  }, 60000);
+  }, 180_000);
 
   it('no captures directory content when kill-switch active (PRIV-07)', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);

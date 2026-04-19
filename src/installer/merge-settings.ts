@@ -4,6 +4,7 @@ import { writeFileAtomic } from '../atomic/write.js';
 import {
   HOOK_EVENTS,
   CLAUDE_SOP_HOOK_ID,
+  LEGACY_HOOK_ID,
   type HookEvent,
   type HookEntry,
 } from './hook-entries.js';
@@ -35,8 +36,8 @@ function assertJsonObject(text: string): void {
 
 /**
  * Merge project hook entries into a project's .claude/settings.json.
- * User hooks are preserved in order; claude-sop entries are appended LAST.
- * Prior claude-sop entries (detected by id) are stripped before appending.
+ * User hooks are preserved in order; auto-sop entries are appended LAST.
+ * Prior auto-sop entries (detected by id) are stripped before appending.
  * Uses jsonc-parser to preserve comments and formatting.
  */
 export async function mergeProjectHooks(
@@ -54,10 +55,10 @@ export async function mergeProjectHooks(
     const existingArray: HookEntry[] =
       parsed?.hooks?.[event] != null ? (parsed.hooks[event] as HookEntry[]) : [];
 
-    // Filter out prior claude-sop entries
+    // Filter out prior auto-sop / legacy claude-sop entries
     const userEntries = existingArray.filter(
       (entry) =>
-        !entry.hooks?.some?.((h) => h.id === CLAUDE_SOP_HOOK_ID),
+        !entry.hooks?.some?.((h) => h.id === CLAUDE_SOP_HOOK_ID || h.id === LEGACY_HOOK_ID),
     );
 
     // Append our entry LAST
@@ -94,7 +95,7 @@ export async function mergeGlobalMarketplace(
   const value = { source: { source: 'directory', path: marketplaceDirAbs } };
   const edits = modify(
     text,
-    ['extraKnownMarketplaces', 'claude-sop'],
+    ['extraKnownMarketplaces', 'auto-sop'],
     value,
     { formattingOptions: FORMAT_OPTIONS },
   );

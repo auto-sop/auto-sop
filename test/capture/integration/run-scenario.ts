@@ -101,7 +101,7 @@ export async function runScenario(opts: RunScenarioOpts): Promise<ScenarioRun> {
   // Create isolated directories
   const projectRoot = mkdtempSync(join(tmpRoot, 'proj-'));
   const fakeHome = mkdtempSync(join(tmpRoot, 'home-'));
-  mkdirSync(join(projectRoot, '.claude-sop'), { recursive: true, mode: 0o700 });
+  mkdirSync(join(projectRoot, '.auto-sop'), { recursive: true, mode: 0o700 });
 
   const transcriptPath = createStubTranscript(projectRoot);
   initGitRepo(projectRoot);
@@ -118,10 +118,10 @@ export async function runScenario(opts: RunScenarioOpts): Promise<ScenarioRun> {
   );
 
   // Build the ScenarioRun result early (for preActions and midCheckpoints)
-  const claudeSopDir = join(projectRoot, '.claude-sop');
+  const claudeSopDir = join(projectRoot, '.auto-sop');
   const captureDir = join(claudeSopDir, 'captures');
   const globalSopHome = join(fakeHome, '.claude', 'sop');
-  const claudeSopTmpDir = join(fakeHome, '.claude-sop', 'tmp');
+  const claudeSopTmpDir = join(fakeHome, '.auto-sop', 'tmp');
 
   const run: ScenarioRun = {
     projectRoot,
@@ -223,11 +223,12 @@ export async function runScenario(opts: RunScenarioOpts): Promise<ScenarioRun> {
   // Wait for all detached writers to finish.
   // B8: bumped from 10s → 30s → 50s because under load (multiple army
   // sessions, full suite) the subagent scenario can take 30s+. The
-  // surrounding `beforeAll` hook timeouts are 60s to leave headroom.
+  // surrounding `beforeAll` hook timeouts are 180s to leave headroom.
   // B12: bumped from 50s → 120s. Under full suite + dev-army load the
   // large-output scenario (CAPT-09) can exceed 50s, causing cascading
   // skips for dependent assertions.
-  await waitForQuiescence(captureDir, claudeSopTmpDir, 120000);
+  // B13: bumped to 160s to stay within the 180s beforeAll hook timeout.
+  await waitForQuiescence(captureDir, claudeSopTmpDir, 160_000);
 
   return run;
 }

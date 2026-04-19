@@ -2,16 +2,21 @@ import { promises as fs } from 'node:fs';
 import { writeFileAtomic } from '../atomic/write.js';
 
 /**
- * Legacy claude-sop managed-section markers.
+ * Legacy managed-section markers (pre-rename).
  *
  * Retained ONLY for backward-compatible cleanup on uninstall. These markers
  * are no longer written by the installer — v10+ uses ManagedSectionEditor
- * (`src/managed-section/editor.ts`) with `<!-- claude-sop:managed-section:begin v1 -->`
+ * (`src/managed-section/editor.ts`) with `<!-- auto-sop:managed-section:begin v1 -->`
  * markers, which the learner owns exclusively. The installer does not touch
  * CLAUDE.md content anymore.
+ *
+ * Both old (claude-sop) and new (auto-sop) marker variants are checked during
+ * uninstall so upgrades clean up correctly.
  */
-export const MANAGED_BEGIN = '<!-- claude-sop:begin -->';
-export const MANAGED_END = '<!-- claude-sop:end -->';
+export const MANAGED_BEGIN = '<!-- auto-sop:begin -->';
+export const MANAGED_END = '<!-- auto-sop:end -->';
+export const LEGACY_MANAGED_BEGIN = '<!-- claude-sop:begin -->';
+export const LEGACY_MANAGED_END = '<!-- claude-sop:end -->';
 
 /**
  * Strip legacy managed-section markers and content between them from CLAUDE.md.
@@ -30,12 +35,19 @@ export async function stripManagedSection(
     throw e;
   }
 
-  const beginIdx = text.indexOf(MANAGED_BEGIN);
-  const endIdx = text.indexOf(MANAGED_END);
+  // Try new markers first, then legacy
+  let beginIdx = text.indexOf(MANAGED_BEGIN);
+  let endIdx = text.indexOf(MANAGED_END);
+  let activeEnd = MANAGED_END;
+  if (beginIdx === -1 || endIdx === -1 || endIdx < beginIdx) {
+    beginIdx = text.indexOf(LEGACY_MANAGED_BEGIN);
+    endIdx = text.indexOf(LEGACY_MANAGED_END);
+    activeEnd = LEGACY_MANAGED_END;
+  }
   if (beginIdx === -1 || endIdx === -1 || endIdx < beginIdx)
     return { removed: null };
 
-  const afterEnd = endIdx + MANAGED_END.length;
+  const afterEnd = endIdx + activeEnd.length;
   const removed = text.slice(beginIdx + MANAGED_BEGIN.length, endIdx);
 
   // Strip the markers and everything between them, preserving surrounding content.

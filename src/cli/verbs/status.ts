@@ -40,7 +40,7 @@ export function registerStatusVerb(program: Command): void {
       if (jsonMode) {
         emit({ ok: true, verb: 'status', ...report });
       } else {
-        process.stdout.write(pc.bold('claude-sop status') + '\n');
+        process.stdout.write(pc.bold('auto-sop status') + '\n');
         process.stdout.write(
           renderTable([
             ['project root', report.project.root],

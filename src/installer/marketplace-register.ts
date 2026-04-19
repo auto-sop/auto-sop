@@ -6,7 +6,7 @@ export interface MarketplaceRegisterOptions {
 }
 
 /**
- * Register the claude-sop marketplace directory in global settings.
+ * Register the auto-sop marketplace directory in global settings.
  * Thin wrapper around mergeGlobalMarketplace for install-verb readability.
  */
 export async function registerMarketplace(

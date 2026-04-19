@@ -212,7 +212,7 @@ describe('directive-schema', () => {
     it('SEC-001: rejects rule_text containing managed-section begin marker', () => {
       const bad = validProposal({
         rule_text:
-          'Something plausible <!-- claude-sop:managed-section:begin v=1 --> payload',
+          'Something plausible <!-- auto-sop:managed-section:begin v=1 --> payload',
       });
       const result = DirectiveProposal.safeParse(bad);
       expect(result.success).toBe(false);
@@ -221,7 +221,7 @@ describe('directive-schema', () => {
     it('SEC-001: rejects rule_text containing managed-section end marker', () => {
       const bad = validProposal({
         rule_text:
-          'Something plausible <!-- claude-sop:managed-section:end v=1 --> payload',
+          'Something plausible <!-- auto-sop:managed-section:end v=1 --> payload',
       });
       const result = DirectiveProposal.safeParse(bad);
       expect(result.success).toBe(false);

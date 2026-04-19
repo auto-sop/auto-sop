@@ -32,7 +32,7 @@ import {
 } from '../../src/managed-section/directive-history.js';
 
 function makeTmpDir(): string {
-  return mkdtempSync(join(tmpdir(), 'claude-sop-i9-'));
+  return mkdtempSync(join(tmpdir(), 'auto-sop-i9-'));
 }
 
 function makeProposal(
@@ -59,10 +59,10 @@ describe('extractDirectivesFromBody', () => {
       '**Learnings** (3 active directives)',
       '',
       '- **[error]** Always validate user input before database queries',
-      '  _(evidence: 5 sessions · [view turns](.claude-sop/captures/abc123))_',
+      '  _(evidence: 5 sessions · [view turns](.auto-sop/captures/abc123))_',
       '',
       '- **[warning]** Use try-catch blocks around file system operations',
-      '  _(evidence: 3 sessions · [view turns](.claude-sop/captures/def456))_',
+      '  _(evidence: 3 sessions · [view turns](.auto-sop/captures/def456))_',
       '',
       '- **[info]** Prefer const over let for immutable bindings',
       '  _(evidence: 4 sessions)_',
@@ -170,7 +170,7 @@ describe('just_restored flag', () => {
 
   it('setJustRestored creates flag file', () => {
     setJustRestored(root);
-    const flagPath = join(root, '.claude-sop', 'state', 'just-restored.flag');
+    const flagPath = join(root, '.auto-sop', 'state', 'just-restored.flag');
     expect(existsSync(flagPath)).toBe(true);
   });
 
@@ -186,7 +186,7 @@ describe('just_restored flag', () => {
   });
 
   it('consumeJustRestored returns false on non-existent state dir', () => {
-    // root exists but .claude-sop/state does not
+    // root exists but .auto-sop/state does not
     expect(consumeJustRestored(root)).toBe(false);
   });
 });

@@ -17,7 +17,7 @@
  *     the pruned flag is cleared so it can return to the active set.
  *
  * Storage:
- *   <projectRoot>/.claude-sop/state/directive-history.json
+ *   <projectRoot>/.auto-sop/state/directive-history.json
  *   File mode 0600 — never world-readable.
  *   Atomic rename on write (tmp → fsync → rename) so a crash mid-write
  *   leaves either the previous state or nothing — never a torn file.
@@ -48,11 +48,13 @@ export const DEFAULT_TTL_DAYS = 30;
 /** Default maximum number of active directives. */
 export const DEFAULT_MAX_DIRECTIVES = 25;
 
-/** Env var name overriding the TTL. */
-export const ENV_TTL_DAYS = 'CLAUDE_SOP_DIRECTIVE_TTL_DAYS';
+/** Env var name overriding the TTL (new name; legacy CLAUDE_SOP_* also supported). */
+export const ENV_TTL_DAYS = 'AUTO_SOP_DIRECTIVE_TTL_DAYS';
+export const LEGACY_ENV_TTL_DAYS = 'CLAUDE_SOP_DIRECTIVE_TTL_DAYS';
 
-/** Env var name overriding the max count. */
-export const ENV_MAX_DIRECTIVES = 'CLAUDE_SOP_DIRECTIVE_MAX';
+/** Env var name overriding the max count (new name; legacy CLAUDE_SOP_* also supported). */
+export const ENV_MAX_DIRECTIVES = 'AUTO_SOP_DIRECTIVE_MAX';
+export const LEGACY_ENV_MAX_DIRECTIVES = 'CLAUDE_SOP_DIRECTIVE_MAX';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -139,7 +141,7 @@ function assertNoTraversal(projectRoot: string): void {
 }
 
 function historyPath(projectRoot: string): string {
-  return join(projectRoot, '.claude-sop', 'state', 'directive-history.json');
+  return join(projectRoot, '.auto-sop', 'state', 'directive-history.json');
 }
 
 // ─── Config ──────────────────────────────────────────────
@@ -153,12 +155,12 @@ export function getDirectiveConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): DirectiveConfig {
   const ttlDays = parsePositiveInt(
-    env[ENV_TTL_DAYS],
+    env[ENV_TTL_DAYS] ?? env[LEGACY_ENV_TTL_DAYS],
     DEFAULT_TTL_DAYS,
     MAX_TTL_DAYS,
   );
   const maxDirectives = parsePositiveInt(
-    env[ENV_MAX_DIRECTIVES],
+    env[ENV_MAX_DIRECTIVES] ?? env[LEGACY_ENV_MAX_DIRECTIVES],
     DEFAULT_MAX_DIRECTIVES,
     MAX_DIRECTIVES_CAP,
   );
@@ -296,7 +298,7 @@ export function saveHistory(
 ): void {
   assertNoTraversal(projectRoot);
   const path = historyPath(projectRoot);
-  const dir = join(projectRoot, '.claude-sop', 'state');
+  const dir = join(projectRoot, '.auto-sop', 'state');
   // SEC-006: create the state directory user-only (0o700) so neither
   // the history file nor its siblings (hash store, managed-history
   // backups) are ever world-readable, even if umask is permissive.
@@ -556,7 +558,7 @@ export function applyDirectiveHistory(
  * re-discovered) and clears the flag so subsequent ticks resume normally.
  */
 function justRestoredPath(projectRoot: string): string {
-  return join(projectRoot, '.claude-sop', 'state', 'just-restored.flag');
+  return join(projectRoot, '.auto-sop', 'state', 'just-restored.flag');
 }
 
 /**
@@ -565,7 +567,7 @@ function justRestoredPath(projectRoot: string): string {
  */
 export function setJustRestored(projectRoot: string): void {
   assertNoTraversal(projectRoot);
-  const dir = join(projectRoot, '.claude-sop', 'state');
+  const dir = join(projectRoot, '.auto-sop', 'state');
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const flagPath = justRestoredPath(projectRoot);
   writeFileSync(flagPath, new Date().toISOString(), { mode: 0o600 });

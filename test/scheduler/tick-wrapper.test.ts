@@ -11,8 +11,8 @@ import {
 const baseOpts = {
   homeDir: '/Users/alice',
   nodeBin: '/usr/local/bin/node',
-  learnerJs: '/Users/alice/.claude-sop/dist/learner.js',
-  errorsLog: '/Users/alice/.claude-sop/logs/errors.log',
+  learnerJs: '/Users/alice/.auto-sop/dist/learner.js',
+  errorsLog: '/Users/alice/.auto-sop/logs/errors.log',
 };
 
 describe('renderTickScript', () => {

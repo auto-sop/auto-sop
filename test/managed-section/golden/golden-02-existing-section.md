@@ -6,15 +6,15 @@ Custom user rules that absolutely must not move:
 - Always sign commits
 
 ---
-<!-- claude-sop:managed-section:begin v1 -->
-<!-- GENERATED - DO NOT EDIT. claude-sop owns this section. -->
+<!-- auto-sop:managed-section:begin v1 -->
+<!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
 ## Old body
 
 - **Old rule A.**
 - **Old rule B.**
 
-<!-- claude-sop:managed-section:end -->
+<!-- auto-sop:managed-section:end -->
 
 ## Notes
 

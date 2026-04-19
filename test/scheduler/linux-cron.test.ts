@@ -8,9 +8,9 @@ import { linuxCron } from '../../src/scheduler/linux-cron.js';
 const mockExeca = vi.mocked(execa);
 
 const baseOpts = {
-  tickScriptPath: '/home/alice/.claude-sop/bin/tick.sh',
+  tickScriptPath: '/home/alice/.auto-sop/bin/tick.sh',
   intervalSec: 3600,
-  logDir: '/home/alice/.claude-sop/logs',
+  logDir: '/home/alice/.auto-sop/logs',
   homeDir: '/home/alice',
   user: 'alice',
 };
@@ -45,7 +45,7 @@ describe('linuxCron', () => {
       expect(cronWriteCall[0]).toBe('crontab');
       expect(cronWriteCall[1]).toEqual(['-']);
       const input = (cronWriteCall[2] as any).input as string;
-      expect(input).toContain('# claude-sop:managed');
+      expect(input).toContain('# auto-sop:managed');
       expect(input).toContain(baseOpts.tickScriptPath);
       // Terminal newline (Pitfall 8)
       expect(input).toMatch(/\n$/);
@@ -62,7 +62,7 @@ describe('linuxCron', () => {
 
       const input = (mockExeca.mock.calls[1]![2] as any).input as string;
       expect(input).toContain('/usr/local/bin/backup.sh');
-      expect(input).toContain('# claude-sop:managed');
+      expect(input).toContain('# auto-sop:managed');
       expect(input).toMatch(/\n$/);
     });
 
@@ -70,7 +70,7 @@ describe('linuxCron', () => {
       mockExeca.mockResolvedValueOnce({
         exitCode: 0,
         stdout:
-          '*/5 * * * * /usr/local/bin/backup.sh\n0 * * * * /old/tick.sh # claude-sop:managed\n',
+          '*/5 * * * * /usr/local/bin/backup.sh\n0 * * * * /old/tick.sh # auto-sop:managed\n',
       } as any);
       mockExeca.mockResolvedValueOnce({ exitCode: 0 } as any);
 
@@ -80,7 +80,7 @@ describe('linuxCron', () => {
       // Only one managed line
       const managedLines = input
         .split('\n')
-        .filter((l: string) => l.includes('# claude-sop:managed'));
+        .filter((l: string) => l.includes('# auto-sop:managed'));
       expect(managedLines).toHaveLength(1);
       // Old tick.sh replaced
       expect(input).not.toContain('/old/tick.sh');
@@ -109,7 +109,7 @@ describe('linuxCron', () => {
       mockExeca.mockResolvedValueOnce({
         exitCode: 0,
         stdout:
-          '*/5 * * * * /usr/local/bin/backup.sh\n0 * * * * /home/alice/.claude-sop/bin/tick.sh # claude-sop:managed\n',
+          '*/5 * * * * /usr/local/bin/backup.sh\n0 * * * * /home/alice/.auto-sop/bin/tick.sh # auto-sop:managed\n',
       } as any);
       mockExeca.mockResolvedValueOnce({ exitCode: 0 } as any);
 
@@ -119,7 +119,7 @@ describe('linuxCron', () => {
       });
 
       const input = (mockExeca.mock.calls[1]![2] as any).input as string;
-      expect(input).not.toContain('# claude-sop:managed');
+      expect(input).not.toContain('# auto-sop:managed');
       expect(input).toContain('/usr/local/bin/backup.sh');
       expect(result.warnings).toEqual([]);
     });
@@ -146,7 +146,7 @@ describe('linuxCron', () => {
       mockExeca.mockResolvedValueOnce({
         exitCode: 0,
         stdout:
-          '0 * * * * /home/alice/.claude-sop/bin/tick.sh # claude-sop:managed\n',
+          '0 * * * * /home/alice/.auto-sop/bin/tick.sh # auto-sop:managed\n',
       } as any);
 
       const s = await linuxCron.status({

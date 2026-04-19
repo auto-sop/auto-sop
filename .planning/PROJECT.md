@@ -1,77 +1,180 @@
-# claude-sop
+# auto-sop
+
+> _(repo currently named `claude-sop`, renaming to `auto-sop` in v18 — see PLAN-v18)_
 
 ## What This Is
 
-A **commercial SaaS freemium product** for Claude Code developers, distributed via `npx claude-sop install` (pure npm CLI) AND as a Claude Code Marketplace plugin entry. It captures every agent and subagent interaction in a project (user prompts, assistant responses, subagent Task I/O, and all tool calls with their inputs and outputs) and uses an hourly background learner to detect recurring mistakes and automatically append corrective directives to the project's `CLAUDE.md`. 14-day free trial, then subscription-gated via license API key. Built for any Claude Code user who wants their agents to stop repeating the same mistakes.
+An **open-core developer tool** that makes Claude Code self-improving. The CLI is open source (Apache 2.0) and free forever for solo use; the optional cloud platform (`auto-sop-cloud`, separate repo) is a paid subscription that unlocks team features.
+
+It captures every Claude Code agent and subagent interaction in a project (user prompts, assistant responses, subagent Task I/O, all tool calls with inputs and outputs), then uses an hourly background learner to detect recurring mistakes via deterministic detectors AND LLM analysis (free via the user's Claude Max subscription, no API key needed). Real, evidence-backed directives are appended to the project's `CLAUDE.md` inside a managed, hardened, drift-detecting, git-aware, revertible section.
+
+Distribution: `npx auto-sop install` (npm CLI) AND a Claude Code Marketplace plugin entry. Same binary, two install paths.
 
 ## Core Value
 
-Claude Code never makes the same mistake twice — captured history becomes enforced project rules automatically, without the user manually writing CLAUDE.md entries.
+**Claude Code never makes the same mistake twice** — captured turn history becomes enforced project rules automatically, with zero manual CLAUDE.md upkeep.
+
+## Business Model — Open Core (decided 2026-04-19)
+
+| Tier | What you get | Price | Gate |
+|------|--------------|-------|------|
+| **Free** (forever) | 1 project, unlimited directives, full local capture + LLM analysis, hourly scheduler, hardened CLAUDE.md editor, all CLI inspection verbs (recent/show/learn-now/revert) | $0 | 1-project soft cap |
+| **Pro** | Unlimited projects, opt-in encrypted cloud sync, web dashboard with savings metrics, curated directive packs (framework/language), cross-project pattern detection, team sharing | $12/mo or $99/yr | None for these features |
+| **Trial** | Full Pro for 14 days OR until first Pro feature touch (whichever comes first) | $0, **no credit card** | Triggered by attempting 2nd project, browsing packs, enabling cloud sync |
+
+**Soft-gate UX (critical):** When trial ends, the user is NOT locked out and NOTHING is deleted. They simply cannot add NEW projects beyond their first one. Existing learnings keep working forever. This is the **Notion model** (free tier limits creation, never destroys existing value). Avoids the "value retracted" psychological backlash of traditional trial-then-paywall.
+
+**Reference:** RTK AI (`rtk-ai.app`, `github.com/rtk-ai/rtk`) — exact same playbook, MIT/Apache CLI + paid cloud team analytics ($15/dev/mo). Proven model used by GitLab, Sentry, Grafana, Mattermost, Plausible, PostHog.
+
+## Repository Structure
+
+| Repo | License | Purpose |
+|---|---|---|
+| `auto-sop/auto-sop` (this repo, was `ugurgokdere/claude-sop`) | **Apache 2.0** | CLI, capture pipeline, learner, ManagedSectionEditor. Open source — adoption magnet. |
+| `auto-sop/auto-sop-cloud` (v23, NEW, private) | Proprietary | Supabase + Clerk + Stripe + Next.js dashboard. Closed source — monetization layer. |
+
+The two repos version and deploy independently. CLI gains a thin `sync` module in v24 that POSTs encrypted directive blobs to the cloud API. Cloud never sees raw captures.
 
 ## Requirements
 
-### Validated
+### Validated (shipped + dogfood-confirmed)
 
-(None yet — ship to validate)
+- ✅ Captures fire on every Claude Code hook event with <50ms overhead (Phase 1)
+- ✅ Secret scrubber redacts at >95% recall (Phase 0, audited)
+- ✅ Hourly learner via launchd/systemd auto-bootstrapped at install (Phase 2 + v12)
+- ✅ Rule-based detectors with N≥3 evidence threshold + Zod schema + `<capture untrusted>` injection resistance (v13)
+- ✅ LLM-driven directive generation via `claude -p`, default ON, $0 cost via Claude Max (v14)
+- ✅ ManagedSectionEditor: atomic, hash-checked, git-aware, revertible, TTL pruning, evidence pointers, golden-file tested (v16)
+- ✅ Multi-project: project registry, per-project cursor, isolated capture/state/messages (v9)
+- ✅ Inspection CLI: `recent`, `show`, `learn-now`, `revert` (v17)
+- ✅ Directive preservation across uninstall/install (v17 I9)
+- ✅ Real-world dogfood: 92+ turns analyzed, 6 actionable directives in production CLAUDE.md (wrbeautiful-shopify-theme)
 
-### Active
+### Active (in flight or planned)
 
-- [ ] Plugin installs via `npx claude-sop install` and wires Claude Code hooks into the project's `settings.json`
-- [ ] Hooks capture user prompts, assistant responses, subagent Task I/O, and all tool calls (Read/Edit/Write/Bash/etc.) with full inputs and outputs
-- [ ] Each capture is written to `<project>/.claude-sop/captures/{timestamp}-{agent-name}-{file-changed}-{short-hash}/` with structured files
-- [ ] Captures are mirrored/aggregated to `~/.claude/sop/<project-id>/` for cross-project learning
-- [ ] Secret scrubber redacts API keys, tokens, and env var values on capture (regex-based, offline)
-- [ ] `.claude-sop/` and `~/.claude/sop/` are gitignored by default (auto-added on install)
-- [ ] An hourly learner runs automatically via OS scheduler (launchd on macOS, systemd user unit on Linux) and defaults to using the `claude` CLI (no API key required)
-- [ ] Learner is optionally configurable to use a different model via user-supplied API key (model selected at install/config time)
-- [ ] Learner detects mistake patterns: "user corrected X" events in captured history, and flags recurrences across sessions
-- [ ] Learner auto-appends corrective directives to project `CLAUDE.md` inside a managed section (`<!-- claude-sop:begin --> / <!-- claude-sop:end -->`) with timestamps and evidence pointers to source captures
-- [ ] Managed section writes preserve user edits outside the markers and handle edits inside the markers without clobbering
-- [ ] Plugin is uninstallable cleanly via `npx claude-sop uninstall` (removes hooks, stops scheduler, leaves captures)
-- [ ] Plugin ships with a `/sop:status` slash command (or equivalent) so users can see capture count, learner status, and recent directives
+**Publish readiness (v18):**
+- [ ] Rename to `auto-sop` (npm + repo + binary + envs + dirs, with claude-sop backward compat)
+- [ ] Apache 2.0 LICENSE
+- [ ] `.github/workflows/publish.yml` with `npm publish --provenance`
+- [ ] `release-check.sh` 28-item gate
+- [ ] `publint` + `@arethetypeswrong/cli` CI
+- [ ] README rewrite + demo GIF + architecture diagram
+- [ ] Auto-bump version on every commit (fix v14-v17 drift)
+
+**Native Windows (v20-v22):**
+- [ ] Task Scheduler backend (`schtasks.exe`)
+- [ ] `.cmd` shim wrappers
+- [ ] NTFS ACL-based permissions
+- [ ] Windows CI matrix
+- [ ] LLM mode validated on Windows (`claude -p` works)
+
+**SaaS launch (v23-v27):**
+- [ ] `auto-sop-cloud/` repo bootstrap (Supabase + Clerk + Stripe)
+- [ ] CLI `sync` module (encrypted directive push)
+- [ ] Dashboard frontend (Next.js + Vercel)
+- [ ] CLI `login`/`logout`/`account` verbs
+- [ ] Obfuscation + Node SEA binary (cross-platform)
+- [ ] **Freemium gate (F-series):**
+  - [ ] F1 — 1-project enforcement on free tier
+  - [ ] F2 — Trial state machine (started_at, triggered_by, ended_at)
+  - [ ] F3 — Soft-gate UX ("add project blocked", existing keeps working)
+  - [ ] F4 — Curated directive packs (Pro-only, framework/language)
+  - [ ] F5 — Cross-project pattern detection (Pro-only)
+
+**Smart Directive Targeting (v28-v30):**
+- [ ] Scope classification (universal/skill/file)
+- [ ] Skill file generation (`~/.claude/skills/<project>-<skill>.md`)
+- [ ] Migration tool for existing CLAUDE.md directives
+
+**Metrics & Social Proof (v31-v33) — NEW:**
+- [ ] M1 — Directive-fire detection (UserPromptSubmit hook detects directive relevance)
+- [ ] M2 — Token/time savings tracker (`claude -p` JSON output usage diff)
+- [ ] M3 — "Errors prevented this month" counter (directive-prevented Bash failure detection)
+- [ ] M4 — Landing page side-by-side demo (RTK-style: with vs without auto-sop)
+- [ ] M5 — Dashboard widget (Pro): viral monthly savings graph
+- [ ] M6 — `auto-sop stats` CLI verb (local metrics, no cloud needed)
 
 ### Out of Scope
 
-- Sending captures to a hosted cloud service — privacy-first, everything stays local
-- Real-time mistake detection during a running session — hourly batch is sufficient
-- Multi-user team sharing of learned directives — single-developer license scope for v1 (commercial SaaS is per-seat freemium)
-- Automatic fixing of source code — learner only writes to CLAUDE.md; fixes are for the agents to apply on next run
-- Windows-native support in v1 — macOS and Linux only (Windows via WSL)
-- GUI/dashboard — CLI + `/sop:status` slash command only
+- **Auto-fixing source code** — learner only writes to CLAUDE.md; agents apply directives on next run
+- **Real-time mistake detection mid-session** — hourly batch is sufficient; mid-session value is marginal vs complexity
+- **Multi-user team in v1** — Pro tier is per-seat individual; team features (shared dashboards, RBAC) are Phase 8+
+- **Cross-project pattern detection on Free tier** — only ONE project in free, so impossible by definition; this becomes the natural Pro upsell
+- **Sending raw captures to cloud** — Pro cloud sync is directive metadata only, encrypted client-side. Captures stay on the user's machine forever.
+- **Auto-publishing v0.1.0 in v18** — pipeline ready but actual tag/publish waits until v22 (after Native Windows) so first public release is cross-platform from day one
 
 ## Context
 
-- **Ecosystem:** Claude Code CLI with its hooks system (`UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `SubagentStop`, `Stop`) configured in `settings.json`. Plugin packaging is an emerging convention in the Claude Code community.
-- **Distribution target:** npm registry → `npx claude-sop install`. Users run one command and it wires everything up.
-- **Privacy stance:** Zero telemetry, zero remote calls by default. Captures live in the user's filesystem only. Secret scrubbing is a non-negotiable default.
-- **Learner auth model:** Piggyback on the user's existing Claude Code login — do NOT require an Anthropic API key. Optional secondary model for users who want it (e.g., a cheaper/faster model for the learning pass).
+- **Ecosystem:** Claude Code CLI with hooks system (`UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `SubagentStop`, `Stop`) configured in project `.claude/settings.json`. Plugin packaging via Claude Code Marketplace.
+- **Distribution:** npm registry (`auto-sop` package) → `npx auto-sop install`. Same npm tarball powers Claude Code Marketplace listing.
+- **Privacy stance:** Zero telemetry by default. Free tier: zero network egress. Pro tier: opt-in encrypted sync (AES-256, key derived from Clerk user_id × project_id, server stores encrypted blobs only).
+- **Learner auth model:** Free + Pro both default to `claude -p` using user's Claude Max subscription — $0 cost to operator. Optional API key for users who want a different model.
 - **Why this exists:** Claude Code repeats the same mistakes across sessions. A fix made on Monday gets re-broken Wednesday. CLAUDE.md is the fix, but writing it manually has friction. This plugin closes the loop automatically.
-- **Similar tools for inspiration:** Langfuse, Helicone, OpenLLMetry, Braintrust — AI observability tools. None target Claude Code specifically, and none write back corrective rules.
+- **Validation moment (2026-04-17):** First real LLM-generated directives appeared in CLAUDE.md after analyzing 59 dogfood turns. 6 directives, all actionable, evidence-backed, project-specific. Product promise demonstrably delivered.
+- **Similar tools / inspiration:**
+  - **RTK** (`rtk-ai.app`) — closest model match: open CLI + paid cloud, "compress CLI outputs for AI". $15/dev/mo, free for OSS. Side-by-side proof on landing page.
+  - **Langfuse, Helicone, Braintrust** — AI observability, more general, none target Claude Code specifically and none write back corrective rules.
+  - **GitLab, Sentry, Grafana, Mattermost, Plausible, PostHog** — open core monetization model proof points.
 
 ## Constraints
 
-- **Tech stack**: Node.js (plugin is an npm package); must run on macOS and Linux without additional runtimes beyond Node 18+
-- **Auth**: Learner must work with the user's existing Claude Code CLI login — no API key required in the default path
-- **Privacy**: Zero network egress except license validation to the SaaS backend; captures never leave the machine
-- **Licensing**: Requires license API key collected during `install` (test key `123` in dev); 14-day trial → subscription; offline grace period so the tool still feels local-first
-- **Anti-reverse-engineering**: Shipped as obfuscated + Node SEA binary + ed25519-signed server responses (defense layers 1+2+3)
-- **Compatibility**: Must coexist with existing `settings.json` hooks configured by the user or other plugins — merge, don't clobber
-- **Scheduler**: No user-facing cron editing; plugin manages its own launchd/systemd unit transparently
-- **Distribution**: Single `npx claude-sop install` command does full setup; uninstall must be equally clean
-- **Performance**: Capture hooks must not add perceptible latency to the user's Claude Code session (<50ms overhead per hook invocation)
+- **Tech stack:** Node.js ≥18.17 (plugin is an npm package). v22 adds native Windows; v1 is macOS + Linux.
+- **Auth:** Learner default uses user's existing Claude Code CLI login — **no Anthropic API key required**. This is a non-negotiable adoption requirement.
+- **Privacy:** Zero network egress in free tier. In Pro: opt-in only, encrypted client-side, raw captures NEVER sync.
+- **Licensing:** CLI is Apache 2.0 (open). Pro tier uses Clerk JWT + Stripe subscription gate, NOT custom ed25519 (simpler, ecosystem-standard).
+- **Compatibility:** Must coexist with existing `.claude/settings.json` hooks configured by user or other plugins — merge, don't clobber. Validated in Phase 2.
+- **Scheduler:** No user-facing cron editing; plugin manages launchd/systemd/Task Scheduler unit transparently. Bootstrap + warmup kickstart on install (v12).
+- **Distribution:** Single `npx auto-sop install` command does full setup; uninstall is equally clean and preserves directive history (v17 I9).
+- **Performance:** Capture hooks must not add perceptible latency (<50ms hook overhead, audited via `bench-shim` CI).
 
 ## Key Decisions
 
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| Capture via Claude Code hooks (settings.json) | Official, supported, no CLI wrapping required | — Pending |
-| Dual storage (per-project + global aggregate) | Per-project captures travel with the repo (gitignored); global aggregate enables cross-project learning | — Pending |
-| Hourly learner cadence | Batch processing is simpler than real-time; 1h strikes balance between freshness and resource cost | — Pending |
-| Default learner = `claude` CLI, no API key | Users already auth'd via Claude Code — zero friction install | — Pending |
-| Managed section markers in CLAUDE.md | Preserves user edits outside the markers; well-understood convention (e.g., `# BEGIN MANAGED BY X`) | — Pending |
-| Secret scrubbing on by default | Captured tool I/O will contain env var values, tokens — must redact before writing to disk | — Pending |
-| npm package via `npx` | No global install needed; always runs latest | — Pending |
-| macOS + Linux only for v1 | launchd/systemd are first-class; Windows can use WSL | — Pending |
+| Decision | Rationale | Status |
+|----------|-----------|--------|
+| Capture via Claude Code hooks (settings.json) | Official, supported, no CLI wrapping required | ✅ shipped (Phase 1) |
+| Dual storage (per-project + global aggregate) | Per-project travels with repo (gitignored); global enables cross-project learning (v22+) | ✅ shipped (Phase 1) |
+| Hourly learner cadence | Batch is simpler than real-time; 1h balances freshness vs cost | ✅ shipped (Phase 2) |
+| LLM via `claude -p` (Claude Max) by default | Zero API cost for operator; user already authenticated; $0 marginal cost per directive | ✅ shipped (v14) |
+| Managed section markers in CLAUDE.md | Preserves user edits outside markers; hash-checked drift detection inside | ✅ shipped (v10, hardened v16) |
+| Secret scrubbing on by default | Captured tool I/O will contain secrets; non-negotiable redaction | ✅ shipped (Phase 0, >95% recall) |
+| npm package via `npx` | No global install needed; always runs latest | ✅ shipped (Phase 2) |
+| **Open core model: CLI Apache 2.0 + Cloud closed proprietary** | Open CLI drives adoption, closed cloud monetizes. RTK-validated. | 🟨 v18 (license file) + v23 (cloud repo) |
+| **Freemium with 1-project soft cap (Notion-style)** | Avoids "value retracted" trap of trial-then-paywall; respects existing learnings | 🟨 planned v23-v27 |
+| **No credit card on trial** | Friction kills conversion at <$15 ARPU; trial is risk-free | 🟨 planned v23-v27 |
+| **Trial triggered by Pro feature touch, not by install** | Engages users at moment of need; trial countdown means something | 🟨 planned v23-v27 |
+| **Side-by-side proof metrics (RTK-style)** | "47 errors prevented this month" sells better than feature lists | 🟨 planned v31+ |
+| Native Windows BEFORE SaaS launch | Selling subscription to Windows users then refusing CLI is unacceptable | 🟨 planned v20-v22 |
+| macOS + Linux only for v1 dogfood | launchd/systemd ship first; Windows in Phase 6 | ✅ current state |
+| ed25519 license server REMOVED | Replaced by Clerk JWT + Supabase RLS — simpler, ecosystem-standard | ✅ decided 2026-04-17 |
+| 14-day trial REPLACED with feature-touch + 14-day | Better engagement model; user-driven not time-driven | ✅ decided 2026-04-19 |
+| "Recall gate" REMOVED from scope | Claude Code natively reads CLAUDE.md → no UserPromptSubmit injection needed | ✅ discovered v13 dogfood |
+
+## Current State Summary (2026-04-19)
+
+- **7 of 8 planned phases shipped or in flight**
+- **17 versions released** (v1-v17), version 0.0.13 in package.json (v18 catches up to 0.0.18)
+- **Phase 0-4 complete**, Phase 5 50% (v17 inspection done, v18 packaging in flight)
+- **Phase 6 NEW** (Native Windows) — inserted before SaaS for moral/commercial reasons
+- **Phase 9 NEW** (Metrics & Social Proof) — RTK-inspired, lansman öncesi kritik
+- **2 active dogfood projects**: wrbeautiful-shopify-theme (92 turns, 6 LLM directives), sahibinden-scraper (16 turns)
+- **Zero known production bugs** as of v17
+- **730+ unit tests, 46 smoke tests** all green
+- **Real LLM directives in production CLAUDE.md** since 2026-04-17
+
+## Phase Map (current as of 2026-04-19)
+
+```
+Phase 0  Foundations                  ✅ shipped v1
+Phase 1  Capture                      ✅ shipped v2 + v4-v8 hardening
+Phase 2  Installer/Scheduler/CLI      ✅ shipped v3 + v12 launchd reliability
+Phase 3  Learner                      ✅ 100% — v9, v13, v14, v17 (LLM + detectors + hard-kill + learn-now)
+Phase 4  ManagedSectionEditor         ✅ 100% — v10, v11, v16 (hardened)
+Phase 5  Inspection + Packaging       🟨 50% — v17 done (recent/show), v18 publish readiness in flight
+Phase 6  Native Windows (NEW)         ⬜ v20-v22, blocks SaaS
+Phase 7  SaaS Platform                ⬜ v23-v27 (separate repo `auto-sop-cloud`)
+Phase 8  Smart Directive Targeting    ⬜ v28-v30 (İbrahim's insight)
+Phase 9  Metrics & Social Proof (NEW) ⬜ v31-v33 (RTK-style, lansman öncesi)
+```
 
 ---
-*Last updated: 2026-04-13 after initialization*
+*Last updated: 2026-04-19 after open-core + Notion-soft-gate + RTK-metric strategy decisions*

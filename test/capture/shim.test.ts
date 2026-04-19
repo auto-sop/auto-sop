@@ -9,7 +9,7 @@ const SHIM_PATH = join(process.cwd(), 'dist', 'capture', 'shim.cjs');
 const FIXTURE_PAYLOAD = readFileSync(
   join(process.cwd(), 'test', 'fixtures', 'hook-payloads', 'user-prompt-submit.json'),
 );
-const TMP_DIR = join(homedir(), '.claude-sop', 'tmp');
+const TMP_DIR = join(homedir(), '.auto-sop', 'tmp');
 
 function cleanTmpDir(): void {
   try {
@@ -56,7 +56,7 @@ describe('Capture Shim', () => {
   describe('Test B: happy path', () => {
     it('writes tmp payload file with mode 0600 and exits 0', () => {
       // Create a fake writer that just exits
-      const fakeWriterDir = join(tmpdir(), 'claude-sop-test-writer');
+      const fakeWriterDir = join(tmpdir(), 'auto-sop-test-writer');
       mkdirSync(fakeWriterDir, { recursive: true });
       const fakeWriter = join(fakeWriterDir, 'fake-writer.cjs');
       writeFileSync(fakeWriter, 'process.exit(0);');
@@ -96,7 +96,7 @@ describe('Capture Shim', () => {
       // This is a source-level test — we import spawnWriter directly
       // and verify it spawns with the expected arguments.
       // We use a sentinel writer that writes a marker file.
-      const sentinelDir = join(tmpdir(), 'claude-sop-test-sentinel');
+      const sentinelDir = join(tmpdir(), 'auto-sop-test-sentinel');
       mkdirSync(sentinelDir, { recursive: true });
       const sentinelFile = join(sentinelDir, 'spawned.txt');
       const sentinelWriter = join(sentinelDir, 'sentinel-writer.cjs');
@@ -122,7 +122,7 @@ describe('Capture Shim', () => {
 
   describe('Test C: bad stdin', () => {
     it('exits 0 on garbage bytes', () => {
-      const fakeWriterDir = join(tmpdir(), 'claude-sop-test-garbage');
+      const fakeWriterDir = join(tmpdir(), 'auto-sop-test-garbage');
       mkdirSync(fakeWriterDir, { recursive: true });
       const fakeWriter = join(fakeWriterDir, 'fake-writer.cjs');
       writeFileSync(fakeWriter, 'process.exit(0);');

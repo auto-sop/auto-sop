@@ -8,8 +8,10 @@ import type {
   SchedulerStatus,
 } from './types.js';
 
-const SERVICE_NAME = 'claude-sop-learner.service';
-const TIMER_NAME = 'claude-sop-learner.timer';
+const SERVICE_NAME = 'auto-sop-learner.service';
+const TIMER_NAME = 'auto-sop-learner.timer';
+const LEGACY_SERVICE_NAME = 'claude-sop-learner.service';
+const LEGACY_TIMER_NAME = 'claude-sop-learner.timer';
 
 function unitDir(homeDir: string): string {
   return join(homeDir, '.config', 'systemd', 'user');
@@ -21,17 +23,18 @@ export function renderServiceUnit(opts: {
   homeDir: string;
 }): string {
   return `[Unit]
-Description=claude-sop hourly learner
+Description=auto-sop hourly learner
 After=default.target
 
 [Service]
 Type=oneshot
+Environment=AUTO_SOP_CAPTURE_SUPPRESS=1
 Environment=CLAUDE_SOP_CAPTURE_SUPPRESS=1
 Environment=CLAUDE_SOP_LEARNER=1
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStart=${opts.tickScriptPath}
-StandardOutput=append:${join(opts.homeDir, '.claude-sop', 'logs', 'systemd.out.log')}
-StandardError=append:${join(opts.homeDir, '.claude-sop', 'logs', 'systemd.err.log')}
+StandardOutput=append:${join(opts.homeDir, '.auto-sop', 'logs', 'systemd.out.log')}
+StandardError=append:${join(opts.homeDir, '.auto-sop', 'logs', 'systemd.err.log')}
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
@@ -41,7 +44,7 @@ IOSchedulingPriority=6
 export function renderTimerUnit(opts?: { intervalSec?: number }): string {
   const sec = opts?.intervalSec ?? 3600;
   return `[Unit]
-Description=claude-sop hourly learner timer
+Description=auto-sop hourly learner timer
 
 [Timer]
 OnBootSec=5min
@@ -73,11 +76,16 @@ export const linuxSystemd: SchedulerBackend = {
     await writeFileAtomic(join(dir, TIMER_NAME), renderTimerUnit({ intervalSec: opts.intervalSec }));
 
     await execa('systemctl', ['--user', 'daemon-reload']);
+    // Clean up legacy timer if it exists
+    await execa('systemctl', ['--user', 'disable', '--now', LEGACY_TIMER_NAME], { reject: false });
+    await fs.rm(join(dir, LEGACY_TIMER_NAME), { force: true });
+    await fs.rm(join(dir, LEGACY_SERVICE_NAME), { force: true });
+
     await execa('systemctl', [
       '--user',
       'enable',
       '--now',
-      'claude-sop-learner.timer',
+      TIMER_NAME,
     ]);
     // Linger so timer runs when user is logged out; non-fatal
     await execa('loginctl', ['enable-linger', opts.user], { reject: false });
@@ -92,7 +100,13 @@ export const linuxSystemd: SchedulerBackend = {
 
     const r = await execa(
       'systemctl',
-      ['--user', 'disable', '--now', 'claude-sop-learner.timer'],
+      ['--user', 'disable', '--now', TIMER_NAME],
+      { reject: false },
+    );
+    // Also clean up legacy timer
+    await execa(
+      'systemctl',
+      ['--user', 'disable', '--now', LEGACY_TIMER_NAME],
       { reject: false },
     );
     if (r.exitCode !== 0 && r.stderr) {
@@ -101,6 +115,8 @@ export const linuxSystemd: SchedulerBackend = {
 
     await fs.rm(join(dir, TIMER_NAME), { force: true });
     await fs.rm(join(dir, SERVICE_NAME), { force: true });
+    await fs.rm(join(dir, LEGACY_TIMER_NAME), { force: true });
+    await fs.rm(join(dir, LEGACY_SERVICE_NAME), { force: true });
     await execa('systemctl', ['--user', 'daemon-reload'], { reject: false });
 
     return { warnings };
@@ -128,7 +144,7 @@ export const linuxSystemd: SchedulerBackend = {
       [
         '--user',
         'show',
-        'claude-sop-learner.timer',
+        TIMER_NAME,
         '--property=LastTriggerUSec,Result,ActiveState',
       ],
       { reject: false },

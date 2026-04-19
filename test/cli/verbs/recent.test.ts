@@ -103,7 +103,7 @@ describe('recent verb: turn scanning with fixtures', () => {
 
   beforeEach(() => {
     tmpProject = mkdtempSync(join(tmpdir(), 'recent-test-'));
-    mkdirSync(join(tmpProject, '.claude-sop', 'captures'), { recursive: true });
+    mkdirSync(join(tmpProject, '.auto-sop', 'captures'), { recursive: true });
   });
 
   afterEach(() => {
@@ -115,7 +115,7 @@ describe('recent verb: turn scanning with fixtures', () => {
     finalizedAt: string,
     extra: Record<string, unknown> = {},
   ): void {
-    const turnDir = join(tmpProject, '.claude-sop', 'captures', turnId);
+    const turnDir = join(tmpProject, '.auto-sop', 'captures', turnId);
     mkdirSync(turnDir, { recursive: true });
     writeFileSync(
       join(turnDir, 'meta.json'),
@@ -153,7 +153,7 @@ describe('recent verb: turn scanning with fixtures', () => {
     writeTurnFixture('turn-recent-01', thirtyMinAgo);
     writeTurnFixture('turn-old-01', twoHoursAgo);
 
-    const capturesDir = join(tmpProject, '.claude-sop', 'captures');
+    const capturesDir = join(tmpProject, '.auto-sop', 'captures');
     const oneHourCutoff = new Date(now.getTime() - 3_600_000).toISOString();
 
     const result = scanNewTurns(capturesDir, oneHourCutoff, 1000);
@@ -168,7 +168,7 @@ describe('recent verb: turn scanning with fixtures', () => {
       '../../../src/learner/turn-scanner.js'
     );
 
-    const capturesDir = join(tmpProject, '.claude-sop', 'captures');
+    const capturesDir = join(tmpProject, '.auto-sop', 'captures');
     const futureDate = '2099-01-01T00:00:00Z';
 
     const result = scanNewTurns(capturesDir, futureDate, 1000);
@@ -186,7 +186,7 @@ describe('recent verb: turn scanning with fixtures', () => {
     // Create a .pending directory
     const pendingDir = join(
       tmpProject,
-      '.claude-sop',
+      '.auto-sop',
       'captures',
       'turn-pending.pending',
     );
@@ -200,7 +200,7 @@ describe('recent verb: turn scanning with fixtures', () => {
       }),
     );
 
-    const capturesDir = join(tmpProject, '.claude-sop', 'captures');
+    const capturesDir = join(tmpProject, '.auto-sop', 'captures');
     const result = scanNewTurns(capturesDir, '2000-01-01T00:00:00Z', 1000);
 
     expect(result.turns).toHaveLength(1);

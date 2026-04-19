@@ -7,7 +7,7 @@ export async function promptLicense(defaultText = '123'): Promise<string> {
   });
   try {
     const answer = await rl.question(
-      `Enter your claude-sop license key (test key: ${defaultText}): `,
+      `Enter your auto-sop license key (test key: ${defaultText}): `,
     );
     return answer.trim() || defaultText;
   } finally {

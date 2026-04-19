@@ -20,7 +20,7 @@ import { startMeta, writeMeta } from '~/capture/writer/meta.js';
 import type { HookPayloadType } from '~/capture/events.js';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `claude-sop-test-${randomUUID()}`);
+  const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
   mkdirSync(dir, { recursive: true });
   return dir;
 }

@@ -9,9 +9,9 @@
  *           "hooks": [                     // Level 3: each entry has nested "hooks" array
  *             {
  *               "type": "command",
- *               "command": "/path/to/claude-sop/shim.cjs",
+ *               "command": "/path/to/auto-sop/shim.cjs",
  *               "timeout": 10,
- *               "id": "claude-sop"
+ *               "id": "auto-sop"
  *             }
  *           ]
  *         }
@@ -107,12 +107,12 @@ describe('statusline verb', () => {
 
   // === v11 regression: real Claude Code settings.json structure ===
 
-  it('detects claude-sop hooks in real Claude Code settings.json structure (v11 regression)', async () => {
+  it('detects auto-sop hooks in real Claude Code settings.json structure (v11 regression)', async () => {
     setupProjectWithFixture(tmpDir, 'real-settings-installed.json');
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -122,12 +122,12 @@ describe('statusline verb', () => {
     expect(stdoutChunks.join('')).toBe('[sop:on]');
   });
 
-  it('does not match when non-claude-sop hooks present', async () => {
+  it('does not match when non-auto-sop hooks present', async () => {
     setupProjectWithFixture(tmpDir, 'real-settings-not-installed.json');
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -142,7 +142,7 @@ describe('statusline verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -157,7 +157,7 @@ describe('statusline verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -172,7 +172,7 @@ describe('statusline verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -186,7 +186,7 @@ describe('statusline verb', () => {
     // tmpDir exists but no .claude/ at all
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -201,7 +201,7 @@ describe('statusline verb', () => {
     try {
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'statusline',
         '--project',
         emptyDir,
@@ -214,8 +214,8 @@ describe('statusline verb', () => {
     }
   });
 
-  it('substring match — hook command path contains claude-sop somewhere', async () => {
-    // Use real structure with a wrapper script that has 'claude-sop' in its path
+  it('substring match — hook command path contains auto-sop somewhere', async () => {
+    // Use real structure with a wrapper script that has 'auto-sop' in its path
     setupProjectWithRaw(
       tmpDir,
       JSON.stringify({
@@ -225,7 +225,7 @@ describe('statusline verb', () => {
               hooks: [
                 {
                   type: 'command',
-                  command: '/opt/bin/claude-sop-wrapper.sh',
+                  command: '/opt/bin/auto-sop-wrapper.sh',
                   timeout: 10,
                   id: 'custom-wrapper',
                 },
@@ -238,7 +238,7 @@ describe('statusline verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -248,7 +248,7 @@ describe('statusline verb', () => {
     expect(stdoutChunks.join('')).toBe('[sop:on]');
   });
 
-  it('mixed hooks — one claude-sop hook among several non-claude-sop hooks', async () => {
+  it('mixed hooks — one auto-sop hook among several non-auto-sop hooks', async () => {
     setupProjectWithRaw(
       tmpDir,
       JSON.stringify({
@@ -270,9 +270,9 @@ describe('statusline verb', () => {
               hooks: [
                 {
                   type: 'command',
-                  command: '/path/to/claude-sop/shim.cjs',
+                  command: '/path/to/auto-sop/shim.cjs',
                   timeout: 10,
-                  id: 'claude-sop',
+                  id: 'auto-sop',
                 },
               ],
             },
@@ -295,7 +295,7 @@ describe('statusline verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -346,7 +346,7 @@ describe('statusline verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -361,7 +361,7 @@ describe('statusline verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -378,7 +378,7 @@ describe('statusline verb', () => {
 
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'statusline',
       '--project',
@@ -399,7 +399,7 @@ describe('statusline verb', () => {
   it('--json outputs on:false for missing project', async () => {
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       '--json',
       'statusline',
       '--project',
@@ -415,7 +415,7 @@ describe('statusline verb', () => {
   it('no trailing newline in plain output', async () => {
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'statusline',
       '--project',
       tmpDir,
@@ -439,7 +439,7 @@ describe('statusline verb', () => {
       const start = performance.now();
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'statusline',
         '--project',
         tmpDir,
@@ -483,7 +483,7 @@ describe('statusline stdin JSON (B5 regression)', () => {
 
   beforeAll(() => {
     if (fs.existsSync(SRC_CLI)) {
-      cliBinDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-sop-statusline-bin-'));
+      cliBinDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auto-sop-statusline-bin-'));
       CLI = path.join(cliBinDir, 'cli.cjs');
       // Copy content (not symlink) to survive concurrent rebuilds, but
       // spawn with NODE_PATH so require() resolves project deps.
@@ -638,7 +638,7 @@ describe('install verb tip line', () => {
   it('install output contains statusline tip', async () => {
     const code = await runCli([
       'node',
-      'claude-sop',
+      'auto-sop',
       'install',
       '--project',
       '/tmp/fake-proj',
@@ -647,6 +647,6 @@ describe('install verb tip line', () => {
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
     expect(output).toContain('tip: add [sop:on] indicator');
-    expect(output).toContain('claude-sop statusline');
+    expect(output).toContain('auto-sop statusline');
   });
 });

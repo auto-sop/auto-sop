@@ -1,4 +1,6 @@
-export const CLAUDE_SOP_HOOK_ID = 'claude-sop';
+export const CLAUDE_SOP_HOOK_ID = 'auto-sop';
+/** Legacy hook ID for backward-compat detection during uninstall. */
+export const LEGACY_HOOK_ID = 'claude-sop';
 
 export const HOOK_EVENTS = [
   'UserPromptSubmit',

@@ -20,7 +20,7 @@ async function simulatePrompt(input: string, defaultText = '123'): Promise<strin
   const rl = readline.createInterface({ input: stdin, output: stdout });
 
   const questionPromise = rl.question(
-    `Enter your claude-sop license key (test key: ${defaultText}): `,
+    `Enter your auto-sop license key (test key: ${defaultText}): `,
   );
 
   // Push user input then close the stream

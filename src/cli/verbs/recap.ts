@@ -2,12 +2,12 @@
  * recap verb — display and manage learner recap log.
  *
  * Subcommands / flags:
- *   claude-sop recap                  — show last N entries (default 10)
- *   claude-sop recap --limit <n>      — show last N entries
- *   claude-sop recap --tail           — follow log for new entries
- *   claude-sop recap --run            — spawn the learner now (LLM mode ON)
- *   claude-sop recap --run --offline  — spawn the learner with LLM disabled
- *   claude-sop recap --run --dry-run  — learner runs but won't write CLAUDE.md
+ *   auto-sop recap                  — show last N entries (default 10)
+ *   auto-sop recap --limit <n>      — show last N entries
+ *   auto-sop recap --tail           — follow log for new entries
+ *   auto-sop recap --run            — spawn the learner now (LLM mode ON)
+ *   auto-sop recap --run --offline  — spawn the learner with LLM disabled
+ *   auto-sop recap --run --dry-run  — learner runs but won't write CLAUDE.md
  *
  * PLAN-v14 change: LLM mode is now DEFAULT ON (free via Claude Max).
  * The legacy `--llm` flag is removed; use `--offline` to opt out.
@@ -235,7 +235,7 @@ function simulateDirectiveWrite(
   projectRoot: string,
   entry: Record<string, unknown>,
 ): string {
-  const capturesDir = path.join(projectRoot, '.claude-sop', 'captures');
+  const capturesDir = path.join(projectRoot, '.auto-sop', 'captures');
   const agentRoster = collectAgentRoster(capturesDir);
   const turnsTotalSeen = Number(entry.turns_total_seen ?? 0);
   const nowIso = String(entry.t ?? new Date().toISOString());
@@ -281,7 +281,7 @@ export function registerRecapVerb(program: Command): void {
 
       // Validate: --dry-run requires --run
       if (opts.dryRun && !opts.run) {
-        process.stderr.write(pc.red('error: --dry-run requires --run (e.g., claude-sop recap --run --dry-run)\n'));
+        process.stderr.write(pc.red('error: --dry-run requires --run (e.g., auto-sop recap --run --dry-run)\n'));
         process.exitCode = 1;
         return;
       }
@@ -289,17 +289,17 @@ export function registerRecapVerb(program: Command): void {
       if (opts.offline && !opts.run) {
         process.stderr.write(
           pc.red(
-            'error: --offline requires --run (e.g., claude-sop recap --run --offline)\n',
+            'error: --offline requires --run (e.g., auto-sop recap --run --offline)\n',
           ),
         );
         process.exitCode = 1;
         return;
       }
 
-      // --run: spawn learner child process (deprecated — use `claude-sop learn-now`)
+      // --run: spawn learner child process (deprecated — use `auto-sop learn-now`)
       if (opts.run) {
         process.stderr.write(
-          pc.yellow('[deprecated] recap --run is deprecated. Use: claude-sop learn-now\n'),
+          pc.yellow('[deprecated] recap --run is deprecated. Use: auto-sop learn-now\n'),
         );
 
         const result = await runLearner({
@@ -313,7 +313,7 @@ export function registerRecapVerb(program: Command): void {
           } else {
             if (result.error === 'learner.cjs not found') {
               process.stderr.write(
-                pc.red('error: learner.cjs not found. Run `claude-sop install` first.\n'),
+                pc.red('error: learner.cjs not found. Run `auto-sop install` first.\n'),
               );
             } else {
               warn(`learner exited with error: ${result.error}`);
@@ -423,7 +423,7 @@ export function registerRecapVerb(program: Command): void {
           if (jsonMode) {
             emit({ ok: true, verb: 'recap', count: 0, entries: [] });
           } else {
-            process.stdout.write(pc.dim('(no recap log — run `claude-sop recap --run` to generate)\n'));
+            process.stdout.write(pc.dim('(no recap log — run `auto-sop recap --run` to generate)\n'));
           }
         } else {
           throw err;

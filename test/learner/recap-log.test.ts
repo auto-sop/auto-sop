@@ -76,7 +76,7 @@ describe('recap-log', () => {
 
   it('rotates when file exceeds 10MB', () => {
     const logPath = recapLogPath(tmpHome);
-    const logDir = join(tmpHome, '.claude-sop', 'logs');
+    const logDir = join(tmpHome, '.auto-sop', 'logs');
     mkdirSync(logDir, { recursive: true });
 
     // Create file > 10MB

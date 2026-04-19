@@ -1,7 +1,7 @@
 export interface SchedulerInstallOpts {
   tickScriptPath: string; // absolute path to tick.sh
   intervalSec: number; // 3600 default
-  logDir: string; // absolute path to ~/.claude-sop/logs
+  logDir: string; // absolute path to ~/.auto-sop/logs
   homeDir: string; // absolute path to $HOME
   user: string; // process.env.USER
 }

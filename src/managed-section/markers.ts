@@ -1,16 +1,24 @@
 /**
- * Exact marker strings for the claude-sop managed section in CLAUDE.md.
+ * Exact marker strings for the auto-sop managed section in CLAUDE.md.
  * These are literal byte strings — NO regex, NO permissiveness.
- * Changing these breaks idempotency for all existing managed sections.
+ *
+ * Legacy claude-sop markers are also detected for backward compatibility
+ * with existing managed sections written before the rename.
  */
 
 export const BEGIN_MARKER =
-  '<!-- claude-sop:managed-section:begin v1 -->';
+  '<!-- auto-sop:managed-section:begin v1 -->';
 
 export const GENERATED_COMMENT =
-  '<!-- GENERATED - DO NOT EDIT. claude-sop owns this section. -->';
+  '<!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->';
 
-export const END_MARKER = '<!-- claude-sop:managed-section:end -->';
+export const END_MARKER = '<!-- auto-sop:managed-section:end -->';
+
+/** Legacy markers from before the claude-sop → auto-sop rename. */
+export const LEGACY_BEGIN_MARKER =
+  '<!-- claude-sop:managed-section:begin v1 -->';
+export const LEGACY_END_MARKER =
+  '<!-- claude-sop:managed-section:end -->';
 
 export const CLAUDE_MD_HEADER =
   '# CLAUDE.md\n\n_Project-level instructions for Claude Code._\n';
@@ -36,15 +44,29 @@ export interface MarkerLocation {
 
 /**
  * Find the managed section markers in file content by exact string match.
+ * Checks for new (auto-sop) markers first, then falls back to legacy (claude-sop) markers.
  * Returns null if no markers found.
  * Throws AmbiguousMarkersError if duplicated.
  * Throws MalformedMarkersError if begin present but end missing (or vice-versa).
  */
 export function findMarkers(content: string): MarkerLocation | null {
-  const beginIdx = content.indexOf(BEGIN_MARKER);
+  // Try new markers first
+  const result = findMarkersWithPair(content, BEGIN_MARKER, END_MARKER);
+  if (result !== null) return result;
+
+  // Fall back to legacy markers
+  return findMarkersWithPair(content, LEGACY_BEGIN_MARKER, LEGACY_END_MARKER);
+}
+
+function findMarkersWithPair(
+  content: string,
+  beginMarker: string,
+  endMarker: string,
+): MarkerLocation | null {
+  const beginIdx = content.indexOf(beginMarker);
   if (beginIdx === -1) {
     // No begin marker — check for orphaned end marker
-    if (content.indexOf(END_MARKER) !== -1) {
+    if (content.indexOf(endMarker) !== -1) {
       throw new MalformedMarkersError(
         'Found end marker without matching begin marker',
       );
@@ -53,14 +75,14 @@ export function findMarkers(content: string): MarkerLocation | null {
   }
 
   // Check for duplicate begin markers
-  const secondBegin = content.indexOf(BEGIN_MARKER, beginIdx + BEGIN_MARKER.length);
+  const secondBegin = content.indexOf(beginMarker, beginIdx + beginMarker.length);
   if (secondBegin !== -1) {
     throw new AmbiguousMarkersError(
       'Multiple begin markers found in CLAUDE.md',
     );
   }
 
-  const endIdx = content.indexOf(END_MARKER, beginIdx);
+  const endIdx = content.indexOf(endMarker, beginIdx);
   if (endIdx === -1) {
     throw new MalformedMarkersError(
       'Found begin marker without matching end marker',
@@ -68,7 +90,7 @@ export function findMarkers(content: string): MarkerLocation | null {
   }
 
   // Check for duplicate end markers
-  const secondEnd = content.indexOf(END_MARKER, endIdx + END_MARKER.length);
+  const secondEnd = content.indexOf(endMarker, endIdx + endMarker.length);
   if (secondEnd !== -1) {
     throw new AmbiguousMarkersError(
       'Multiple end markers found in CLAUDE.md',
@@ -76,7 +98,7 @@ export function findMarkers(content: string): MarkerLocation | null {
   }
 
   // endAfter includes the end marker itself, plus trailing newline if present
-  let endAfter = endIdx + END_MARKER.length;
+  let endAfter = endIdx + endMarker.length;
   if (content[endAfter] === '\n') {
     endAfter += 1;
   }

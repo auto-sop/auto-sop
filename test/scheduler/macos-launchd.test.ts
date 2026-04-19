@@ -29,9 +29,9 @@ const mockRm = vi.mocked(fs.rm);
 
 const TEST_UID = 501;
 const baseOpts = {
-  tickScriptPath: '/Users/alice/.claude-sop/bin/tick.sh',
+  tickScriptPath: '/Users/alice/.auto-sop/bin/tick.sh',
   intervalSec: 3600,
-  logDir: '/Users/alice/.claude-sop/logs',
+  logDir: '/Users/alice/.auto-sop/logs',
   homeDir: '/Users/alice',
   user: 'alice',
 };
@@ -39,11 +39,11 @@ const baseOpts = {
 describe('renderPlist', () => {
   it('renders valid plist with StartCalendarInterval (hourly at :00)', () => {
     const plist = renderPlist({
-      label: 'com.claude-sop.learner',
-      tickScriptPath: '/Users/alice/.claude-sop/bin/tick.sh',
+      label: 'com.auto-sop.learner',
+      tickScriptPath: '/Users/alice/.auto-sop/bin/tick.sh',
       intervalSec: 3600,
-      stdoutLog: '/Users/alice/.claude-sop/logs/launchd.out.log',
-      stderrLog: '/Users/alice/.claude-sop/logs/launchd.err.log',
+      stdoutLog: '/Users/alice/.auto-sop/logs/launchd.out.log',
+      stderrLog: '/Users/alice/.auto-sop/logs/launchd.err.log',
     });
 
     expect(plist).toContain('<key>StartCalendarInterval</key>');
@@ -53,7 +53,7 @@ describe('renderPlist', () => {
     expect(plist).not.toContain('<key>RunAtLoad</key>');
     expect(plist).toContain('<string>/bin/sh</string>');
     expect(plist).toContain(
-      '<string>/Users/alice/.claude-sop/bin/tick.sh</string>',
+      '<string>/Users/alice/.auto-sop/bin/tick.sh</string>',
     );
     expect(plist).toContain('<string>Background</string>');
     expect(plist).toContain('CLAUDE_SOP_CAPTURE_SUPPRESS');
@@ -62,7 +62,7 @@ describe('renderPlist', () => {
 
   it('XML-escapes ampersand in paths', () => {
     const plist = renderPlist({
-      label: 'com.claude-sop.learner',
+      label: 'com.auto-sop.learner',
       tickScriptPath: '/Users/foo&bar/tick.sh',
       intervalSec: 3600,
       stdoutLog: '/tmp/out.log',
@@ -85,42 +85,50 @@ describe('macosLaunchd', () => {
   });
 
   describe('install', () => {
-    it('executes 5-step sequence: bootout → write → bootstrap → enable → kickstart', async () => {
+    it('executes legacy-cleanup + 5-step sequence: legacy-bootout → bootout → write → bootstrap → enable → kickstart', async () => {
       await macosLaunchd.install(baseOpts);
 
       // writeFileAtomic called with plist path and StartCalendarInterval
       expect(mockWriteFileAtomic).toHaveBeenCalledOnce();
       const [plistPath, content] = mockWriteFileAtomic.mock.calls[0]!;
       expect(plistPath).toBe(
-        '/Users/alice/Library/LaunchAgents/com.claude-sop.learner.plist',
+        '/Users/alice/Library/LaunchAgents/com.auto-sop.learner.plist',
       );
       expect(content).toContain('<key>StartCalendarInterval</key>');
       expect(content).not.toContain('<key>StartInterval</key>');
 
-      // execa calls in order: bootout, bootstrap, enable, kickstart (all with reject:false)
-      expect(mockExeca).toHaveBeenCalledTimes(4);
+      // execa calls in order: legacy-bootout, bootout, bootstrap, enable, kickstart (all with reject:false)
+      expect(mockExeca).toHaveBeenCalledTimes(5);
+      // Step 0: bootout legacy label
       expect(mockExeca).toHaveBeenNthCalledWith(
         1,
         'launchctl',
         ['bootout', `gui/${TEST_UID}/com.claude-sop.learner`],
         { reject: false },
       );
+      // Step 1: bootout current label
       expect(mockExeca).toHaveBeenNthCalledWith(
         2,
         'launchctl',
-        ['bootstrap', `gui/${TEST_UID}`, plistPath],
+        ['bootout', `gui/${TEST_UID}/com.auto-sop.learner`],
         { reject: false },
       );
       expect(mockExeca).toHaveBeenNthCalledWith(
         3,
         'launchctl',
-        ['enable', `gui/${TEST_UID}/com.claude-sop.learner`],
+        ['bootstrap', `gui/${TEST_UID}`, plistPath],
         { reject: false },
       );
       expect(mockExeca).toHaveBeenNthCalledWith(
         4,
         'launchctl',
-        ['kickstart', '-k', `gui/${TEST_UID}/com.claude-sop.learner`],
+        ['enable', `gui/${TEST_UID}/com.auto-sop.learner`],
+        { reject: false },
+      );
+      expect(mockExeca).toHaveBeenNthCalledWith(
+        5,
+        'launchctl',
+        ['kickstart', '-k', `gui/${TEST_UID}/com.auto-sop.learner`],
         { reject: false },
       );
     });
@@ -128,6 +136,7 @@ describe('macosLaunchd', () => {
     it('falls back to load -w when bootstrap fails', async () => {
       // bootstrap returns non-zero on first call
       mockExeca
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // legacy bootout
         .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // bootout
         .mockResolvedValueOnce({ exitCode: 113, stdout: '', stderr: 'bootstrap unsupported' } as any) // bootstrap fails
         .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // load -w fallback
@@ -136,18 +145,19 @@ describe('macosLaunchd', () => {
 
       await macosLaunchd.install(baseOpts);
 
-      expect(mockExeca).toHaveBeenCalledTimes(5);
-      // After bootstrap fails, load -w is called
+      expect(mockExeca).toHaveBeenCalledTimes(6);
+      // After bootstrap fails, load -w is called (4th execa call)
       expect(mockExeca).toHaveBeenNthCalledWith(
-        3,
+        4,
         'launchctl',
-        ['load', '-w', '/Users/alice/Library/LaunchAgents/com.claude-sop.learner.plist'],
+        ['load', '-w', '/Users/alice/Library/LaunchAgents/com.auto-sop.learner.plist'],
         { reject: false },
       );
     });
 
     it('bootout failure does not abort install (idempotent fresh install)', async () => {
       mockExeca
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // legacy bootout
         .mockResolvedValueOnce({ exitCode: 3, stdout: '', stderr: 'not loaded' } as any) // bootout fails
         .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // bootstrap
         .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // enable
@@ -156,7 +166,7 @@ describe('macosLaunchd', () => {
       // Should not throw
       await macosLaunchd.install(baseOpts);
       expect(mockWriteFileAtomic).toHaveBeenCalledOnce();
-      expect(mockExeca).toHaveBeenCalledTimes(4);
+      expect(mockExeca).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -169,11 +179,11 @@ describe('macosLaunchd', () => {
 
       expect(mockExeca).toHaveBeenCalledWith(
         'launchctl',
-        ['bootout', `gui/${TEST_UID}/com.claude-sop.learner`],
+        ['bootout', `gui/${TEST_UID}/com.auto-sop.learner`],
         { reject: false },
       );
       expect(mockRm).toHaveBeenCalledWith(
-        '/Users/alice/Library/LaunchAgents/com.claude-sop.learner.plist',
+        '/Users/alice/Library/LaunchAgents/com.auto-sop.learner.plist',
         { force: true },
       );
       expect(result.warnings).toEqual([]);

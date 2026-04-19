@@ -39,7 +39,7 @@ describe('recap verb: dry-run diff computation', () => {
   beforeEach(() => {
     tmpHome = mkdtempSync(join(tmpdir(), 'recap-dryrun-'));
     tmpProject = join(tmpHome, 'test-project');
-    mkdirSync(join(tmpProject, '.claude-sop', 'captures'), { recursive: true });
+    mkdirSync(join(tmpProject, '.auto-sop', 'captures'), { recursive: true });
   });
 
   afterEach(() => {
@@ -71,7 +71,7 @@ describe('recap verb: dry-run diff computation', () => {
     });
 
     expect(diff).toContain('+# CLAUDE.md');
-    expect(diff).toContain('+<!-- claude-sop:managed-section:begin v1 -->');
+    expect(diff).toContain('+<!-- auto-sop:managed-section:begin v1 -->');
     expect(diff).toContain('5 turns analyzed');
     expect(diff).toContain('2 agents: commander, main');
   });

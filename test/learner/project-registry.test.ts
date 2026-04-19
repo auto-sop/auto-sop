@@ -9,7 +9,7 @@ describe('project-registry', () => {
 
   beforeEach(() => {
     tmpHome = mkdtempSync(join(tmpdir(), 'registry-test-'));
-    mkdirSync(join(tmpHome, '.claude-sop'), { recursive: true });
+    mkdirSync(join(tmpHome, '.auto-sop'), { recursive: true });
   });
 
   afterEach(() => {
@@ -24,7 +24,7 @@ describe('project-registry', () => {
 
   it('readRegistry returns empty on malformed JSON', () => {
     const regPath = registryPath(tmpHome);
-    mkdirSync(join(tmpHome, '.claude-sop'), { recursive: true });
+    mkdirSync(join(tmpHome, '.auto-sop'), { recursive: true });
     writeFileSync(regPath, 'NOT JSON!!!');
     const reg = readRegistry(tmpHome);
     expect(reg.version).toBe(1);

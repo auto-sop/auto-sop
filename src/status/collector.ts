@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { parse } from 'jsonc-parser';
-import { HOOK_EVENTS, CLAUDE_SOP_HOOK_ID } from '../installer/hook-entries.js';
+import { HOOK_EVENTS, CLAUDE_SOP_HOOK_ID, LEGACY_HOOK_ID } from '../installer/hook-entries.js';
 import { readInstalledVersion } from '../installer/version.js';
 import { MANAGED_BEGIN, MANAGED_END } from '../installer/managed-section.js';
 import { readSecrets } from '../license/storage.js';
@@ -40,7 +40,7 @@ export interface CollectOptions {
 export async function collectStatus(
   opts: CollectOptions,
 ): Promise<StatusReport> {
-  const claudeSopHome = path.join(opts.homeDir, '.claude-sop');
+  const claudeSopHome = path.join(opts.homeDir, '.auto-sop');
   const versionTxt = path.join(claudeSopHome, 'version.txt');
   const secretsEnc = path.join(claudeSopHome, 'secrets.enc');
   const projectClaudeSettings = path.join(
@@ -49,13 +49,13 @@ export async function collectStatus(
     'settings.json',
   );
   const claudeMdPath = path.join(opts.projectRoot, 'CLAUDE.md');
-  const capturesDir = path.join(opts.projectRoot, '.claude-sop', 'captures');
+  const capturesDir = path.join(opts.projectRoot, '.auto-sop', 'captures');
   const errorsJsonl = path.join(
     opts.projectRoot,
-    '.claude-sop',
+    '.auto-sop',
     'errors.jsonl',
   );
-  const pausedFlag = path.join(opts.projectRoot, '.claude-sop', 'paused.flag');
+  const pausedFlag = path.join(opts.projectRoot, '.auto-sop', 'paused.flag');
 
   const installedVersion = await readInstalledVersion(versionTxt);
   const hooks = await inspectHooks(projectClaudeSettings);
@@ -120,7 +120,7 @@ async function inspectHooks(
       (e: unknown) =>
         ((e as Record<string, unknown>)?.hooks as unknown[] | undefined)?.some(
           (h: unknown) =>
-            (h as Record<string, unknown>)?.id === CLAUDE_SOP_HOOK_ID,
+            (h as Record<string, unknown>)?.id === CLAUDE_SOP_HOOK_ID || (h as Record<string, unknown>)?.id === LEGACY_HOOK_ID,
         ) ?? false,
     );
     if (hasOurs) eventsCovered.push(ev);

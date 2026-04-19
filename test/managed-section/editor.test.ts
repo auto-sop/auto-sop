@@ -25,7 +25,7 @@ import {
 } from '../../src/managed-section/markers.js';
 
 function makeTmpDir(): string {
-  return mkdtempSync(join(tmpdir(), 'claude-sop-editor-test-'));
+  return mkdtempSync(join(tmpdir(), 'auto-sop-editor-test-'));
 }
 
 describe('ManagedSectionEditor', () => {
@@ -41,7 +41,7 @@ describe('ManagedSectionEditor', () => {
 
   const claudeMd = () => join(projectRoot, 'CLAUDE.md');
   const backupPath = () =>
-    join(projectRoot, '.claude-sop', 'state', 'CLAUDE.md.backup');
+    join(projectRoot, '.auto-sop', 'state', 'CLAUDE.md.backup');
 
   // ─── 1. Create from scratch ─────────────────────────
 
@@ -145,7 +145,7 @@ describe('ManagedSectionEditor', () => {
 
   it('dry-run returns dry_run verdict and touches nothing on disk', () => {
     // Pre-state: no CLAUDE.md, no state dir
-    const stateDir = join(projectRoot, '.claude-sop', 'state');
+    const stateDir = join(projectRoot, '.auto-sop', 'state');
     const tmpFile = claudeMd() + '.tmp';
 
     const result = writeManagedSection({

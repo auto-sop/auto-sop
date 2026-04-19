@@ -68,7 +68,7 @@ export function registerErrorsVerb(program: Command): void {
       } else {
         errorsJsonl = path.join(
           projectRoot,
-          '.claude-sop',
+          '.auto-sop',
           'errors.jsonl',
         );
       }

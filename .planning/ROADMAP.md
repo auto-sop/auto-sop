@@ -1,9 +1,9 @@
 # Roadmap: claude-sop
 
 **Created:** 2026-04-13
-**Last updated:** 2026-04-18
+**Last updated:** 2026-04-19
 **Depth:** standard
-**Phases:** 9 (Phase 6 = Native Windows inserted before SaaS)
+**Phases:** 10 (Phase 9 = Metrics & Social Proof added for launch credibility)
 **Coverage:** 61/61 v1 requirements mapped
 
 ## Phases
@@ -15,8 +15,9 @@
 - [x] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware CLAUDE.md writer, never clobbers user edits, revertible. _(v10-v11 light editor + statusline, v16 hardening DONE → all of MD-01..08 satisfied)_
 - [ ] **Phase 5: Inspection CLI + Packaging Hardening** — `recent`/`show` verbs + npm publish --provenance + publint + attw + CC version matrix + docs + "looks-done" checklist. _(→ v17-v18)_
 - [ ] **Phase 6: Native Windows Support (NEW — inserted 2026-04-18)** — Task Scheduler backend (schtasks), .cmd shim wrappers, NTFS ACL permissions, Windows CI matrix. Unblocks ~20% of the developer market. Must land BEFORE SaaS so cloud paying users aren't immediately shut out. _(→ v20-v22, after MVP publish + dogfood observation)_
-- [ ] **Phase 7: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `claude-sop-cloud/`.** CLI gains thin sync module. _(→ v23-v27)_
+- [ ] **Phase 7: SaaS Platform + Monetization (REVISED 2026-04-19 — Notion-style soft-gate freemium)** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-cloud/`.** CLI gains 1-project soft cap + feature-touch trial + thin encrypted sync module. Free forever for solo (1 project), Pro $12/mo for unlimited + cloud + packs + cross-project. _(→ v23-v27)_
 - [ ] **Phase 8: Smart Directive Targeting** — Scope-aware directive placement: universal rules → CLAUDE.md (steering), context-specific → Claude Code Skills (on-demand). Prevents context bloat at scale. _(→ v28-v30, after 1-2 months of dogfood identifies real pollution patterns)_
+- [ ] **Phase 9: Metrics & Social Proof (NEW — added 2026-04-19, RTK-inspired)** — Directive-fire detection, token/time savings tracker, "errors prevented this month" counter, side-by-side proof copy on landing page (RTK format: "with vs without auto-sop"), viral dashboard widget. Launch-critical — without metrics the landing page can't convert. _(→ v31-v33, AFTER SaaS so dashboard hosts the metrics widget)_
 
 ### Reordering rationale (2026-04-18)
 Phase 6 (Native Windows) moved AHEAD of SaaS. Two reasons:
@@ -139,8 +140,8 @@ A user pays $X/month for cloud dashboard → runs claude-sop install on their Wi
   5. CI green on `ubuntu-latest`, `macos-latest`, AND `windows-latest`. Smoke test includes install→capture→learner tick→managed section write→uninstall end-to-end.
 **Plans:** TBD (v20-v22)
 
-### Phase 7: SaaS Platform + Monetization (REVISED 2026-04-17)
-**Goal:** Turn the plugin into a commercial SaaS freemium product with a web dashboard, encrypted cloud sync, and subscription billing — while keeping all LLM analysis LOCAL (free via Claude Max).
+### Phase 7: SaaS Platform + Monetization (REVISED 2026-04-19 — Notion-style soft-gate freemium)
+**Goal:** Turn the plugin into a commercial open-core product with a web dashboard, encrypted cloud sync, and subscription billing — while keeping the entire local CLI free forever and all LLM analysis local (free via user's Claude Max).
 
 **Stack decision (confirmed):**
 - **Auth:** Clerk (JWT, <10K MAU free tier)
@@ -149,10 +150,37 @@ A user pays $X/month for cloud dashboard → runs claude-sop install on their Wi
 - **Frontend:** Next.js on Vercel (free hobby tier)
 - **Encryption:** Client-side AES-256, key derived from Clerk user_id + project_id (server never sees plaintext)
 
-**Business model (confirmed):**
-- **Free tier (15 days):** Full local + full dashboard access. After 15 days: dashboard read-only (shows stale data, nudges to subscribe), local CLAUDE.md continues working forever.
-- **Paid tier:** Live dashboard sync, cross-project analytics, directive history/trends, team sharing.
-- **Key insight:** LLM analysis stays local ($0 provider cost). Server only stores directives + stats. Revenue = dashboard visibility + management.
+**Business model (REVISED 2026-04-19 — psychologically-honest soft-gate freemium):**
+
+| Tier | What | Price | Gate |
+|---|---|---|---|
+| **Free** (forever) | 1 project, unlimited directives, full local capture + LLM analysis, all CLI verbs (recent/show/learn-now/revert/stats) | $0 | 1-project soft cap |
+| **Pro** | Unlimited projects + opt-in encrypted cloud sync + curated directive packs (framework/language) + cross-project pattern detection + web dashboard with savings widget | **$12/mo** or **$99/yr** | None for these features |
+| **Trial** | Full Pro for 14 days OR until first Pro feature touch (whichever comes first) | $0, **no credit card** | Triggered by attempting 2nd project, browsing packs, enabling cloud sync |
+
+**Critical UX — Soft gate (Notion model):**
+- Trial expiry NEVER deletes existing data
+- Trial expiry NEVER locks existing functionality
+- User just cannot ADD new projects beyond their first one
+- Existing learnings, captures, directives keep working forever
+- This avoids the "value retracted after proof-of-value" psychological backlash that traditional 14-day-then-paywall trials suffer from
+- Reference: Notion's 1000-block limit on Free tier — limits creation, never destroys existing
+
+**Why this model works:**
+- Solo dev with 1 main project: never hits gate, free forever, becomes evangelist (viral channel)
+- Solo dev with 5+ projects: hits gate organically at moment of need, sees value, converts
+- Team dev: definitely needs multiple projects, converts immediately
+- Cross-project pattern detection is impossible without ≥2 projects → natural Pro feature, honest upsell
+- Cloud sync is opt-in → server costs only for paying users
+- No credit card on trial → friction-free, conversion 8-12% (sector avg vs ~3% with CC required)
+
+**Reference:** RTK AI (`rtk-ai.app`, `github.com/rtk-ai/rtk`) — exact same playbook, MIT/Apache CLI + paid cloud team analytics ($15/dev/mo). Plus GitLab CE/EE, Sentry, Grafana, Mattermost, Plausible, PostHog all use open core successfully.
+
+**Cloud data policy (confirmed):**
+- Directives + recap summary sync to cloud (JSON, ~50 KB/project/month)
+- Raw captures NEVER leave the machine (privacy)
+- Client-side encryption: AES-256, key = hash(clerk_user_id + project_id). Server stores encrypted blobs only.
+- Free tier: ZERO network egress. Pro tier: opt-in only.
 
 **Cloud data policy (confirmed):**
 - Directives + recap summary sync to cloud (JSON, ~50 KB/project/month)
@@ -187,14 +215,17 @@ The CLI in this repo gains a thin `sync` module that talks to the cloud repo's p
   - v26: CLI `login`/`logout` verbs (THIS repo) — Clerk browser popup auth, JWT stored in `secrets.enc`.
   - v27: Obfuscation + Node SEA binary (THIS repo) — optional, anti-piracy hardening. Must produce Windows-native binary too (Phase 6 requirement).
 
-**Success Criteria** (revised):
-  1. User runs `claude-sop login` → browser popup → Clerk auth → JWT stored locally in `secrets.enc`.
-  2. Every learner tick: directives + recap stats encrypted client-side (AES-256) and synced to Supabase via Edge Function. Sync failure is non-blocking (offline grace 7 days).
-  3. Dashboard at `app.claude-sop.com` shows: all projects, active directives, directive history timeline, agent stats. Clerk auth required. Stripe subscription gates live data after 15-day trial.
-  4. Trial countdown: 15 days from first `claude-sop login`. Expired trial → dashboard read-only (stale data), local CLAUDE.md continues working, `status` shows "trial expired — subscribe at <url>".
-  5. `claude-sop status` shows subscription state (trial days remaining, active/expired, last sync time, offline grace). Stripe Customer Portal link for self-service billing.
-  6. Encrypted sync: server stores AES-256 encrypted blobs only. Supabase RLS ensures user can only read own data. No PII in server logs.
-**Plans:** TBD (v19-v23)
+**Success Criteria (REVISED 2026-04-19):**
+  1. User runs `auto-sop install` → free tier active immediately, no signup, 1-project quota.
+  2. User runs `auto-sop install` in 2nd project → CLI prompts: "You're at 1/1 projects on Free. Start 14-day Pro trial? [Y/n] (no credit card)". On Y → trial begins, 2nd project installs.
+  3. User runs `auto-sop login` (only when starting trial or upgrading) → browser popup → Clerk auth → JWT in `secrets.enc`.
+  4. Every learner tick on Pro: directives + recap stats encrypted client-side (AES-256) and synced to Supabase via Edge Function. Sync failure non-blocking (offline grace 7 days).
+  5. Dashboard at `app.auto-sop.com` shows all projects, active directives, directive history timeline, agent stats, monthly savings widget (Phase 9 dependency). Clerk auth required.
+  6. Trial countdown: 14 days from first Pro feature touch. Expired trial → user STAYS on Free (1 project), existing data UNTOUCHED, just can't add new project. `status` shows "trial expired — upgrade at <url> to add more projects".
+  7. `auto-sop status` shows tier (free/trial/pro), trial days remaining (if applicable), project count vs cap, last sync time, offline grace remaining. Stripe Customer Portal link for self-service billing.
+  8. Encrypted sync: server stores AES-256 encrypted blobs only. Supabase RLS ensures user can only read own data. No PII in server logs.
+  9. **F1-F5 backlog items** (project gate, trial state machine, soft gate UX, packs, cross-project) all green.
+**Plans:** TBD (v23-v27)
 
 ### Phase 8: Smart Directive Targeting (RENUMBERED from Phase 7)
 **Goal:** Prevent CLAUDE.md context bloat at scale by routing directives to the right surface — universal rules stay in CLAUDE.md (always in system prompt), context-specific rules become Claude Code Skills (on-demand, loaded only when relevant).
@@ -228,6 +259,61 @@ LLM classifier tags each proposal's scope:
 
 _Credit for this design insight: İbrahim Işkın (2026-04-17). Ibrahim pointed out that steering files grow unbounded and that Claude Code's Skills mechanism is the right home for context-specific knowledge._
 
+### Phase 9: Metrics & Social Proof (NEW — added 2026-04-19, RTK-inspired)
+**Goal:** Make auto-sop's value measurable and viral. Without concrete numbers ("47 errors prevented this month", "67% fewer tokens", "2.3 hours saved"), the landing page sells features instead of outcomes — and feature-list landing pages don't convert.
+
+**Inspiration — RTK AI:** Their landing page shows the killer comparison:
+```
+cargo test               → 4,823 tokens
+rtk cargo test           →    11 tokens
+                       -99.8%
+```
+This isn't a feature list. It's a working command output with a number. That's what sells.
+
+**Our equivalent — auto-sop should be able to show:**
+```
+Without auto-sop directives:
+$ claude "implement npm test setup"
+→ ❌ npm test failed: node_modules stale (3rd time this week)
+→ Tokens: 12,847 / Time: 8m
+
+With auto-sop directives in CLAUDE.md:
+$ claude "implement npm test setup"
+→ ✅ Detected stale node_modules, ran npm ci first → all green
+→ Tokens: 4,231 / Time: 2m
+                       -67% tokens, -75% time
+```
+
+To produce these numbers we need (M-series backlog items):
+
+- **M1** Directive-fire detection — UserPromptSubmit hook checks if any active directive in CLAUDE.md is relevant to the current prompt. Heuristic match (keyword overlap) for v31, LLM-based for v33.
+- **M2** Token/time savings tracker — capture token usage from `claude -p --output-format json` responses. Compare sessions WITH directives vs sessions BEFORE directive existed (same project, same user, same task type).
+- **M3** "Errors prevented this month" counter — for each Bash failure pattern that became a directive, count subsequent sessions where the same command DIDN'T fail (because Claude saw the directive and adjusted). This is the headline number.
+- **M4** Landing page side-by-side demo — RTK-format proof copy on landing page. Real terminal recording, not screenshot. Live or scripted. Updated monthly with aggregate user stats (anonymized).
+- **M5** Dashboard widget (Pro tier) — "This month: X errors prevented, Y tokens saved, Z hours of work redo avoided". Viral social-share button: "auto-sop saved me 47 errors this month → claim badge."
+- **M6** `auto-sop stats` CLI verb — local-only metric display, free tier (no cloud needed). Shows per-project savings.
+
+**Why Phase 9 not Phase 7:** SaaS dashboard (Phase 7) has to ship first so the M5 widget has somewhere to live. M3-M6 also benefit from real production user data — chicken-and-egg if launched too early.
+
+**Why Phase 9 not later:** Without these metrics, the landing page launch (post-v22 + post-v27) won't convert. Metric infrastructure is launch-critical, not nice-to-have.
+
+**Planned versions:**
+  - v31: M1 + M6 — directive-fire detection (heuristic) + `auto-sop stats` local CLI verb
+  - v32: M2 + M3 — token/time savings tracker + "errors prevented" counter (requires hook integration with Claude Code)
+  - v33: M4 + M5 — landing page side-by-side proof copy + Pro dashboard widget + viral share
+
+**Depends on:** Phase 7 (SaaS for M5 dashboard widget), accumulated production user data (1+ month of dogfood post-launch).
+
+**Success Criteria:**
+  1. After 2 weeks of use, `auto-sop stats` shows non-zero "directives fired" count.
+  2. Landing page demo command produces real before/after numbers, updated automatically from anonymized aggregate user data.
+  3. Pro dashboard widget shows monthly trend with clear social-share affordance.
+  4. M3 number ("errors prevented") is conservative — only counted when directive demonstrably influenced Claude's behavior (verified by LLM analysis of capture).
+  5. No false-positive metric inflation — would rather under-claim than oversell.
+**Plans:** TBD (v31-v33)
+
+_Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing page is the strongest sales weapon. Cargo test → 4823 tokens / rtk cargo test → 11 tokens. Real working command, not staged screenshot. We need metrics."_
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -235,12 +321,13 @@ _Credit for this design insight: İbrahim Işkın (2026-04-17). Ibrahim pointed 
 | 0. Distribution Decision + Foundations | 1/1 | **COMPLETE** | v1 |
 | 1. Capture Foundation | 1/1 | **COMPLETE** | v2, v4-v8 |
 | 2. Installer + Scheduler + CLI | 2/2 | **COMPLETE** | v3, v4-v8, v12 |
-| 3. Learner | 2/3 | **95% — LLM shipped, hard-kill + learn-now verb remain** | v9, v13, v14 done; I6+I7 → v17 |
+| 3. Learner | 3/3 | **COMPLETE** | v9, v13, v14, v17 |
 | 4. ManagedSectionEditor | 2/2 | **COMPLETE** | v10, v11, v16 |
-| 5. Inspection CLI + Packaging | 0/2 | In progress | v17 (partial), v18 |
-| 6. Native Windows Support (NEW) | 0/3 | Not started — blocks SaaS | v20-v22 |
-| 7. SaaS Platform + Monetization | 0/5 | Not started (separate repo) | v23-v27 |
+| 5. Inspection CLI + Packaging | 1/2 | In progress — v17 inspection done, v18 packaging in flight | v17 (recent/show), v18 (publish readiness) |
+| 6. Native Windows Support | 0/3 | Not started — blocks SaaS | v20-v22 |
+| 7. SaaS Platform + Monetization (Notion-style soft-gate) | 0/5 | Not started (separate repo `auto-sop-cloud`) | v23-v27 |
 | 8. Smart Directive Targeting | 0/3 | Not started | v28-v30 |
+| 9. Metrics & Social Proof (NEW) | 0/3 | Not started — launch-critical | v31-v33 |
 
 ## Execution History
 
@@ -317,18 +404,33 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **WIN5** Verify `claude -p` binary support on Windows (LLM mode must work)
 - **WIN6** Docs: Windows-specific install section in README, troubleshooting guide
 
-### SaaS / monetization (v23-v27) — Phase 7
-- **S1** License API backend (external server, ed25519) → superseded by Supabase + Clerk + Stripe stack
-- **S2** License client (Clerk SDK verify + JWT)
-- **S3** Trial countdown (15 days via Stripe trial period)
-- **S4** Subscription gate (dashboard read-only post-trial)
-- **S5** Offline grace (7 days)
-- **S6** Obfuscation pipeline
+### SaaS / monetization (v23-v27) — Phase 7 (REVISED 2026-04-19 to soft-gate freemium)
+- **S1** ~~License API backend (ed25519)~~ → REMOVED, replaced by Clerk JWT + Supabase RLS (simpler stack)
+- **S2** Clerk integration in `auto-sop-cloud` — Sign in/up flows, JWT verify
+- **S3** Trial state machine — 14 days OR feature-touch-triggered, no credit card, stored in `secrets.enc`
+- **S4** Soft gate UX — at trial expiry, EXISTING data untouched, only NEW project blocked
+- **S5** Offline grace (7 days) for Pro
+- **S6** Obfuscation pipeline (CLI source)
 - **S7** Node SEA binary (macOS + Linux + **Windows** — Phase 6 req)
-- **S8** Pricing page + Stripe Customer Portal
-- **S9** Website / landing page (Next.js + Vercel)
-- **S10** Dashboard app (claude-sop-cloud/ repo, Next.js)
-- **S11** CLI sync module (encrypted directive push to Supabase)
+- **S8** Stripe Checkout + Customer Portal integration
+- **S9** Pricing page on landing site (`auto-sop.com`)
+- **S10** Dashboard app (`auto-sop-cloud/` repo, Next.js + Vercel)
+- **S11** CLI sync module (encrypted directive push to Supabase Edge Functions)
+
+### Freemium gating (v23-v27) — Phase 7 F-series (NEW from 2026-04-19)
+- **F1** Project count enforcement — Free=1, Pro=∞. `auto-sop install` in 2nd project triggers trial prompt
+- **F2** Trial state machine — `secrets.enc` stores: `started_at`, `triggered_by` (e.g. "second_project_install"), `ended_at`. Tamper-resistant via existing secrets.enc encryption
+- **F3** Soft gate UX — clear messaging when at quota: "You're using 1/1 projects on Free. Upgrade to Pro for unlimited (no credit card on trial)." Existing project keeps working untouched
+- **F4** Curated directive packs — `~/.auto-sop/packs/<framework>.json` (e.g. `nextjs.json`, `rails.json`). Pulled from cloud on Pro tier. Free tier: only learns from own captures, no shared packs
+- **F5** Cross-project pattern detection — when Pro user has ≥2 projects, learner runs an additional "shared learnings" pass that finds patterns appearing in 2+ projects, surfaces as candidates for promotion to a directive pack
+
+### Metrics & Social Proof (v31-v33) — Phase 9 M-series (NEW from 2026-04-19, RTK-inspired)
+- **M1** Directive-fire detection — UserPromptSubmit hook checks if active directives are relevant to current prompt. Heuristic match (keyword) for v31, LLM-based for v33
+- **M2** Token/time savings tracker — capture token usage from `claude -p --output-format json` responses. Compare sessions before/after directive existed
+- **M3** "Errors prevented this month" counter — for each Bash failure pattern that became a directive, count subsequent sessions where same command DIDN'T fail. Headline number for landing page
+- **M4** Landing page side-by-side proof copy — RTK format: "$ command → 4823 tokens / $ auto-sop command → 11 tokens". Real terminal recording, updated monthly with anonymized aggregate user data
+- **M5** Pro dashboard widget — monthly trend graph + viral social-share button: "auto-sop saved me 47 errors this month → tweet badge"
+- **M6** `auto-sop stats` CLI verb — local-only metric display, free tier (no cloud needed). Shows per-project savings
 
 ### dev-army improvements (parallel)
 - **D1** Commander default to dispatch-and-wait.sh

@@ -180,7 +180,7 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
 
   const claudeMdPath = join(projectRoot, 'CLAUDE.md');
   const tmpPath = claudeMdPath + '.tmp';
-  const backupDir = join(projectRoot, '.claude-sop', 'state');
+  const backupDir = join(projectRoot, '.auto-sop', 'state');
   const backupPath = join(backupDir, 'CLAUDE.md.backup');
 
   // 0. E2 — Git-busy short-circuit. Honoured even on dry-run: if a rebase
@@ -232,7 +232,7 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
         const ts = new Date().toISOString().replace(/[:.]/g, '-');
         const historyDir = join(
           projectRoot,
-          '.claude-sop',
+          '.auto-sop',
           'state',
           'managed-history',
         );

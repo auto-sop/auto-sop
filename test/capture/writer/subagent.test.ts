@@ -29,7 +29,7 @@ import type { HookPayloadType } from '~/capture/events.js';
 import { createScrubber, type Scrubber } from '~/scrubber/index.js';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `claude-sop-test-${randomUUID()}`);
+  const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
   mkdirSync(dir, { recursive: true });
   return dir;
 }

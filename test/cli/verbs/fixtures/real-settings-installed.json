@@ -5,9 +5,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "command": "/synthetic/home/.auto-sop/marketplace/auto-sop/shim.cjs",
             "timeout": 10,
-            "id": "claude-sop"
+            "id": "auto-sop"
           }
         ]
       }
@@ -17,9 +17,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "command": "/synthetic/home/.auto-sop/marketplace/auto-sop/shim.cjs",
             "timeout": 10,
-            "id": "claude-sop"
+            "id": "auto-sop"
           }
         ]
       }
@@ -29,9 +29,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "command": "/synthetic/home/.auto-sop/marketplace/auto-sop/shim.cjs",
             "timeout": 10,
-            "id": "claude-sop"
+            "id": "auto-sop"
           }
         ]
       }
@@ -41,9 +41,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "command": "/synthetic/home/.auto-sop/marketplace/auto-sop/shim.cjs",
             "timeout": 10,
-            "id": "claude-sop"
+            "id": "auto-sop"
           }
         ]
       }
@@ -53,9 +53,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/synthetic/home/.claude-sop/marketplace/claude-sop/shim.cjs",
+            "command": "/synthetic/home/.auto-sop/marketplace/auto-sop/shim.cjs",
             "timeout": 10,
-            "id": "claude-sop"
+            "id": "auto-sop"
           }
         ]
       }

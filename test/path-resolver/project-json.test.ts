@@ -31,7 +31,7 @@ describe('project-json', () => {
 
   describe('writeProjectJsonAtomic', () => {
     it('creates directory and file', async () => {
-      const dir = join(testDir, '.claude-sop');
+      const dir = join(testDir, '.auto-sop');
       await writeProjectJsonAtomic(dir, sampleIdentity);
 
       const raw = await fs.readFile(join(dir, 'project.json'), 'utf8');
@@ -45,7 +45,7 @@ describe('project-json', () => {
     });
 
     it('writes file with mode 0600', async () => {
-      const dir = join(testDir, '.claude-sop');
+      const dir = join(testDir, '.auto-sop');
       await writeProjectJsonAtomic(dir, sampleIdentity);
 
       const stat = await fs.stat(join(dir, 'project.json'));
@@ -55,7 +55,7 @@ describe('project-json', () => {
     });
 
     it('does not leave a .tmp file behind on success', async () => {
-      const dir = join(testDir, '.claude-sop');
+      const dir = join(testDir, '.auto-sop');
       await writeProjectJsonAtomic(dir, sampleIdentity);
 
       const files = await fs.readdir(dir);
@@ -71,7 +71,7 @@ describe('project-json', () => {
     });
 
     it('returns parsed v1 object', async () => {
-      const dir = join(testDir, '.claude-sop');
+      const dir = join(testDir, '.auto-sop');
       await writeProjectJsonAtomic(dir, sampleIdentity);
 
       const result = await readProjectJson(dir);
@@ -81,7 +81,7 @@ describe('project-json', () => {
     });
 
     it('returns null when version != 1 (forward-compat)', async () => {
-      const dir = join(testDir, '.claude-sop');
+      const dir = join(testDir, '.auto-sop');
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(join(dir, 'project.json'), JSON.stringify({ version: 2, projectId: 'x' }));
 

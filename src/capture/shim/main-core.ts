@@ -31,7 +31,7 @@ export default function main(
 
   process.stdin.on('end', () => {
     const payload = Buffer.concat(chunks);
-    const tmpRoot = join(homedir(), '.claude-sop', 'tmp');
+    const tmpRoot = join(homedir(), '.auto-sop', 'tmp');
     mkdirSync(tmpRoot, { recursive: true, mode: 0o700 });
 
     const tmpName = nanoid(16) + '.json';

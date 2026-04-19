@@ -92,7 +92,7 @@ describe('runInstall orchestrator', () => {
   });
 
   function baseOpts(overrides: Partial<InstallOptions> = {}): InstallOptions {
-    const marketplaceDir = join(homeDir, '.claude-sop', 'marketplace', 'claude-sop');
+    const marketplaceDir = join(homeDir, '.auto-sop', 'marketplace', 'auto-sop');
     return {
       projectRoot,
       homeDir,
@@ -120,12 +120,12 @@ describe('runInstall orchestrator', () => {
 
     // Plugin bundle copied
     const shimContent = await fs.readFile(
-      join(homeDir, '.claude-sop', 'marketplace', 'claude-sop', 'shim.cjs'),
+      join(homeDir, '.auto-sop', 'marketplace', 'auto-sop', 'shim.cjs'),
       'utf8',
     );
     expect(shimContent).toBe('// shim');
     const helperContent = await fs.readFile(
-      join(homeDir, '.claude-sop', 'marketplace', 'claude-sop', 'sub', 'helper.js'),
+      join(homeDir, '.auto-sop', 'marketplace', 'auto-sop', 'sub', 'helper.js'),
       'utf8',
     );
     expect(helperContent).toBe('// helper');
@@ -138,8 +138,8 @@ describe('runInstall orchestrator', () => {
       ),
     );
     expect(
-      globalSettings.extraKnownMarketplaces['claude-sop'].source.path,
-    ).toBe(join(homeDir, '.claude-sop', 'marketplace', 'claude-sop'));
+      globalSettings.extraKnownMarketplaces['auto-sop'].source.path,
+    ).toBe(join(homeDir, '.auto-sop', 'marketplace', 'auto-sop'));
 
     // Project hooks
     const projectSettings = parse(
@@ -157,7 +157,7 @@ describe('runInstall orchestrator', () => {
     }
 
     // tick.sh exists and is executable
-    const tickPath = join(homeDir, '.claude-sop', 'bin', 'tick.sh');
+    const tickPath = join(homeDir, '.auto-sop', 'bin', 'tick.sh');
     const tickStat = await fs.stat(tickPath);
     // eslint-disable-next-line no-bitwise
     expect(tickStat.mode & 0o755).toBe(0o755);
@@ -171,22 +171,22 @@ describe('runInstall orchestrator', () => {
 
     // Installer MUST NOT touch CLAUDE.md — ManagedSectionEditor (learner) owns it.
     // With no pre-existing CLAUDE.md in this test, the installer must not create one,
-    // and must not emit legacy `<!-- claude-sop:begin -->` markers.
+    // and must not emit legacy `<!-- auto-sop:begin -->` markers.
     await expect(
       fs.stat(join(projectRoot, 'CLAUDE.md')),
     ).rejects.toMatchObject({ code: 'ENOENT' });
 
-    // .gitignore with .claude-sop/
+    // .gitignore with .auto-sop/
     const gitignore = await fs.readFile(
       join(projectRoot, '.gitignore'),
       'utf8',
     );
-    expect(gitignore).toContain('.claude-sop/');
+    expect(gitignore).toContain('.auto-sop/');
     expect(result.gitignore).toBe('created');
 
     // secrets.enc created
     const secrets = await readSecrets(
-      join(homeDir, '.claude-sop', 'secrets.enc'),
+      join(homeDir, '.auto-sop', 'secrets.enc'),
     );
     expect(secrets).not.toBeNull();
     expect(secrets!.license.key).toBe('123');
@@ -194,7 +194,7 @@ describe('runInstall orchestrator', () => {
 
     // version.txt written LAST
     const version = await fs.readFile(
-      join(homeDir, '.claude-sop', 'version.txt'),
+      join(homeDir, '.auto-sop', 'version.txt'),
       'utf8',
     );
     expect(version.trim()).toBe(packageVersion);
@@ -209,7 +209,7 @@ describe('runInstall orchestrator', () => {
     expect(first.verdict).toBe('fresh');
 
     const secretsAfterFirst = await readSecrets(
-      join(homeDir, '.claude-sop', 'secrets.enc'),
+      join(homeDir, '.auto-sop', 'secrets.enc'),
     );
     const trialStartedAt = secretsAfterFirst!.trial.started_at;
 
@@ -219,21 +219,21 @@ describe('runInstall orchestrator', () => {
 
     // version.txt unchanged
     const version = await fs.readFile(
-      join(homeDir, '.claude-sop', 'version.txt'),
+      join(homeDir, '.auto-sop', 'version.txt'),
       'utf8',
     );
     expect(version.trim()).toBe(packageVersion);
 
     // trial.started_at preserved
     const secretsAfterSecond = await readSecrets(
-      join(homeDir, '.claude-sop', 'secrets.enc'),
+      join(homeDir, '.auto-sop', 'secrets.enc'),
     );
     expect(secretsAfterSecond!.trial.started_at).toBe(trialStartedAt);
 
     // Plugin bundle still present
     const shimExists = await fs
       .access(
-        join(homeDir, '.claude-sop', 'marketplace', 'claude-sop', 'shim.cjs'),
+        join(homeDir, '.auto-sop', 'marketplace', 'auto-sop', 'shim.cjs'),
       )
       .then(() => true)
       .catch(() => false);
@@ -254,7 +254,7 @@ describe('runInstall orchestrator', () => {
 
   it('upgrade — version.txt updated, trial preserved', async () => {
     // Seed version.txt as 0.0.1
-    const claudeSopHome = join(homeDir, '.claude-sop');
+    const claudeSopHome = join(homeDir, '.auto-sop');
     await fs.mkdir(claudeSopHome, { recursive: true });
     await fs.writeFile(join(claudeSopHome, 'version.txt'), '0.0.1\n');
 
@@ -285,7 +285,7 @@ describe('runInstall orchestrator', () => {
 
   it('downgrade refused — throws PreconditionError', async () => {
     // Seed version.txt as 9.9.9
-    const claudeSopHome = join(homeDir, '.claude-sop');
+    const claudeSopHome = join(homeDir, '.auto-sop');
     await fs.mkdir(claudeSopHome, { recursive: true });
     await fs.writeFile(join(claudeSopHome, 'version.txt'), '9.9.9\n');
 
@@ -298,7 +298,7 @@ describe('runInstall orchestrator', () => {
   });
 
   it('lock contention — throws PreconditionError', async () => {
-    const claudeSopHome = join(homeDir, '.claude-sop');
+    const claudeSopHome = join(homeDir, '.auto-sop');
     await fs.mkdir(claudeSopHome, { recursive: true });
     const installLockPath = join(claudeSopHome, 'install.lock');
 
@@ -323,7 +323,7 @@ describe('runInstall orchestrator', () => {
     await runInstall(baseOpts());
 
     // Simulate partial: delete version.txt
-    const versionTxtPath = join(homeDir, '.claude-sop', 'version.txt');
+    const versionTxtPath = join(homeDir, '.auto-sop', 'version.txt');
     await fs.rm(versionTxtPath);
 
     // Re-install — should re-run all steps, stamp version.txt
@@ -345,7 +345,7 @@ describe('runInstall orchestrator', () => {
 
     expect(promptMock).not.toHaveBeenCalled();
     const secrets = await readSecrets(
-      join(homeDir, '.claude-sop', 'secrets.enc'),
+      join(homeDir, '.auto-sop', 'secrets.enc'),
     );
     expect(secrets!.license.key).toBe('real-key');
     expect(secrets!.license.kind).toBe('user');
@@ -363,7 +363,7 @@ describe('runInstall orchestrator', () => {
 
     expect(promptMock).toHaveBeenCalledTimes(1);
     const secrets = await readSecrets(
-      join(homeDir, '.claude-sop', 'secrets.enc'),
+      join(homeDir, '.auto-sop', 'secrets.enc'),
     );
     expect(secrets!.license.key).toBe('prompted-key');
     expect(secrets!.license.kind).toBe('user');

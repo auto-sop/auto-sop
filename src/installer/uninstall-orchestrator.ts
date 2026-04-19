@@ -7,7 +7,7 @@ import {
   MANAGED_BEGIN,
   MANAGED_END,
 } from './managed-section.js';
-import { HOOK_EVENTS, CLAUDE_SOP_HOOK_ID } from './hook-entries.js';
+import { HOOK_EVENTS, CLAUDE_SOP_HOOK_ID, LEGACY_HOOK_ID } from './hook-entries.js';
 import type { SchedulerBackend } from '../scheduler/types.js';
 import { removeProject } from '../learner/project-registry.js';
 import { readManagedSection } from '../managed-section/editor.js';
@@ -45,11 +45,11 @@ export async function runUninstall(
   let backupPath: string | null = null;
   const now = opts.now ?? Date.now();
 
-  const claudeSopHome = path.join(opts.homeDir, '.claude-sop');
+  const claudeSopHome = path.join(opts.homeDir, '.auto-sop');
   const tickScriptPath = path.join(claudeSopHome, 'bin', 'tick.sh');
   const secretsEncPath = path.join(claudeSopHome, 'secrets.enc');
   const versionTxtPath = path.join(claudeSopHome, 'version.txt');
-  const marketplaceDir = path.join(claudeSopHome, 'marketplace', 'claude-sop');
+  const marketplaceDir = path.join(claudeSopHome, 'marketplace', 'auto-sop');
   const projectClaudeSettings = path.join(
     opts.projectRoot,
     '.claude',
@@ -65,7 +65,7 @@ export async function runUninstall(
   const managedHistoryDir = path.join(globalSopDir, 'managed-history');
   const projectCapturesDir = path.join(
     opts.projectRoot,
-    '.claude-sop',
+    '.auto-sop',
     'captures',
   );
 
@@ -136,7 +136,7 @@ export async function runUninstall(
     return removed == null ? 'no markers found' : 'markers removed';
   });
 
-  // Step 3: Strip claude-sop hooks from project settings.json
+  // Step 3: Strip auto-sop hooks from project settings.json
   await step('strip-project-hooks', async () => {
     let text: string;
     try {
@@ -159,7 +159,7 @@ export async function runUninstall(
         (entry: unknown) =>
           !(
             (entry as { hooks?: Array<{ id?: string }> })?.hooks ?? []
-          ).some((h) => h?.id === CLAUDE_SOP_HOOK_ID),
+          ).some((h) => h?.id === CLAUDE_SOP_HOOK_ID || h?.id === LEGACY_HOOK_ID),
       );
       updated = applyEdits(
         updated,

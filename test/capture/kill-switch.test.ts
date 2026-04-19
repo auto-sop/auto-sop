@@ -10,8 +10,41 @@ describe('isCaptureDisabled', () => {
     expect(isCaptureDisabled({})).toBe(false);
   });
 
-  // ── new canonical var: CLAUDE_SOP_CAPTURE_SUPPRESS ─────────
-  describe('CLAUDE_SOP_CAPTURE_SUPPRESS (canonical)', () => {
+  // ── new canonical var: AUTO_SOP_CAPTURE_SUPPRESS ─────────
+  describe('AUTO_SOP_CAPTURE_SUPPRESS (canonical)', () => {
+    it('returns true when set to "1"', () => {
+      expect(
+        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: '1' }),
+      ).toBe(true);
+    });
+
+    it('returns false when set to "0"', () => {
+      expect(
+        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: '0' }),
+      ).toBe(false);
+    });
+
+    it('returns false when empty string', () => {
+      expect(
+        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: '' }),
+      ).toBe(false);
+    });
+
+    it('returns false when "true" (only literal "1" counts)', () => {
+      expect(
+        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: 'true' }),
+      ).toBe(false);
+    });
+
+    it('returns false when undefined', () => {
+      expect(
+        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: undefined }),
+      ).toBe(false);
+    });
+  });
+
+  // ── deprecated var: CLAUDE_SOP_CAPTURE_SUPPRESS (backward compat) ─────────
+  describe('CLAUDE_SOP_CAPTURE_SUPPRESS (deprecated, backward compat)', () => {
     it('returns true when set to "1"', () => {
       expect(
         isCaptureDisabled({ CLAUDE_SOP_CAPTURE_SUPPRESS: '1' }),
@@ -21,24 +54,6 @@ describe('isCaptureDisabled', () => {
     it('returns false when set to "0"', () => {
       expect(
         isCaptureDisabled({ CLAUDE_SOP_CAPTURE_SUPPRESS: '0' }),
-      ).toBe(false);
-    });
-
-    it('returns false when empty string', () => {
-      expect(
-        isCaptureDisabled({ CLAUDE_SOP_CAPTURE_SUPPRESS: '' }),
-      ).toBe(false);
-    });
-
-    it('returns false when "true" (only literal "1" counts)', () => {
-      expect(
-        isCaptureDisabled({ CLAUDE_SOP_CAPTURE_SUPPRESS: 'true' }),
-      ).toBe(false);
-    });
-
-    it('returns false when undefined', () => {
-      expect(
-        isCaptureDisabled({ CLAUDE_SOP_CAPTURE_SUPPRESS: undefined }),
       ).toBe(false);
     });
   });
@@ -66,7 +81,7 @@ describe('isCaptureDisabled', () => {
       isCaptureDisabled({ CLAUDE_SOP_LEARNER: '1' });
       const written = stderrSpy.mock.calls.map((c) => String(c[0])).join('');
       expect(written).toContain('CLAUDE_SOP_LEARNER is deprecated');
-      expect(written).toContain('CLAUDE_SOP_CAPTURE_SUPPRESS');
+      expect(written).toContain('AUTO_SOP_CAPTURE_SUPPRESS');
     });
 
     it('emits the deprecation notice at most once per process', () => {
@@ -116,7 +131,7 @@ describe('isCaptureDisabled', () => {
     it('returns true when both vars are set to "1"', () => {
       expect(
         isCaptureDisabled({
-          CLAUDE_SOP_CAPTURE_SUPPRESS: '1',
+          AUTO_SOP_CAPTURE_SUPPRESS: '1',
           CLAUDE_SOP_LEARNER: '1',
         }),
       ).toBe(true);
@@ -124,7 +139,7 @@ describe('isCaptureDisabled', () => {
 
     it('does NOT warn when new var short-circuits the check', () => {
       isCaptureDisabled({
-        CLAUDE_SOP_CAPTURE_SUPPRESS: '1',
+        AUTO_SOP_CAPTURE_SUPPRESS: '1',
         CLAUDE_SOP_LEARNER: '1',
       });
       expect(stderrSpy).not.toHaveBeenCalled();

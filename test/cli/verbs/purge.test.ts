@@ -75,7 +75,7 @@ describe('purge verb', () => {
 
   function makeProgram(): Command {
     const program = new Command()
-      .name('claude-sop')
+      .name('auto-sop')
       .option('--json', 'emit JSON', false)
       .exitOverride();
     registerPurgeVerb(program);
@@ -83,7 +83,7 @@ describe('purge verb', () => {
   }
 
   async function seedCaptures(): Promise<void> {
-    const captDir = join(projectRoot, '.claude-sop', 'captures');
+    const captDir = join(projectRoot, '.auto-sop', 'captures');
     await fs.mkdir(captDir, { recursive: true });
     await fs.writeFile(join(captDir, 'data.json'), '{}');
 
@@ -97,14 +97,14 @@ describe('purge verb', () => {
 
     const program = makeProgram();
     await program.parseAsync([
-      'node', 'claude-sop', 'purge', '--yes', '--project', projectRoot,
+      'node', 'auto-sop', 'purge', '--yes', '--project', projectRoot,
     ]);
 
     const output = stdoutChunks.join('');
     expect(output).toContain('captures purged');
 
     await expect(
-      fs.access(join(projectRoot, '.claude-sop', 'captures')),
+      fs.access(join(projectRoot, '.auto-sop', 'captures')),
     ).rejects.toThrow();
     await expect(
       fs.access(join(homeDir, '.claude', 'sop', 'abc123def456')),
@@ -116,7 +116,7 @@ describe('purge verb', () => {
 
     const program = makeProgram();
     await program.parseAsync([
-      'node', 'claude-sop', '--json', 'purge', '--project', projectRoot,
+      'node', 'auto-sop', '--json', 'purge', '--project', projectRoot,
     ]);
 
     const output = stdoutChunks.join('');
@@ -129,7 +129,7 @@ describe('purge verb', () => {
   it('handles already-absent dirs gracefully with --yes', async () => {
     const program = makeProgram();
     await program.parseAsync([
-      'node', 'claude-sop', 'purge', '--yes', '--project', projectRoot,
+      'node', 'auto-sop', 'purge', '--yes', '--project', projectRoot,
     ]);
 
     const output = stdoutChunks.join('');

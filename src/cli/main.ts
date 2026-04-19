@@ -52,7 +52,7 @@ function readPkgVersion(): string {
 
 export async function runCli(argv: string[]): Promise<number> {
   const program = new Command()
-    .name('claude-sop')
+    .name('auto-sop')
     .version(readPkgVersion())
     .option('--json', 'emit stable JSON output', false)
     .exitOverride();

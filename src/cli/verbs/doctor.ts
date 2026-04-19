@@ -104,7 +104,7 @@ export function registerDoctorVerb(program: Command): void {
       if (jsonMode) {
         emit({ ok: failed.length === 0, verb: 'doctor', checks });
       } else {
-        process.stdout.write(pc.bold('claude-sop doctor') + '\n');
+        process.stdout.write(pc.bold('auto-sop doctor') + '\n');
         process.stdout.write(
           renderTable(
             checks.map((c) => [
@@ -133,10 +133,11 @@ async function schedulerEffectiveCheck(homeDir: string): Promise<Check> {
   }
 
   const label =
-    process.env.CLAUDE_SOP_LABEL &&
-    process.env.CLAUDE_SOP_LABEL.startsWith('com.claude-sop.learner')
-      ? process.env.CLAUDE_SOP_LABEL
-      : 'com.claude-sop.learner';
+    process.env.AUTO_SOP_LABEL?.startsWith('com.auto-sop.learner')
+      ? process.env.AUTO_SOP_LABEL
+      : process.env.CLAUDE_SOP_LABEL?.startsWith('com.claude-sop.learner')
+        ? process.env.CLAUDE_SOP_LABEL
+        : 'com.auto-sop.learner';
 
   const uid = process.getuid?.() ?? 501;
   const serviceTarget = `gui/${uid}/${label}`;
@@ -170,7 +171,7 @@ async function schedulerEffectiveCheck(homeDir: string): Promise<Check> {
   const lastExit = lastExitMatch[1]!.trim();
 
   // 3. Read install age from version.txt mtime
-  const versionFile = path.join(homeDir, '.claude-sop', 'version.txt');
+  const versionFile = path.join(homeDir, '.auto-sop', 'version.txt');
   let installAgeMin = Infinity;
   try {
     const stat = await fs.stat(versionFile);

@@ -3,6 +3,6 @@
     "allow": ["Bash(npm test)", "Read(*)"]
   },
   "statusLine": {
-    "command": "claude-sop statusline"
+    "command": "auto-sop statusline"
   }
 }

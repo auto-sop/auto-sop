@@ -120,8 +120,8 @@ const MAX_LLM_SUMMARY_CHARS = 500;
  * see that an injection attempt was made (minus its payload).
  */
 const MARKER_PATTERNS = [
-  '<!-- claude-sop:managed-section:begin',
-  '<!-- claude-sop:managed-section:end',
+  '<!-- auto-sop:managed-section:begin',
+  '<!-- auto-sop:managed-section:end',
   '<!-- GENERATED',
 ];
 
@@ -178,12 +178,12 @@ function sortProposals(proposals: DirectiveProposalType[]): DirectiveProposalTyp
  * field (see src/capture/writer/turn-dir.ts). The actual on-disk
  * directory name is `<ts>-<agent>-<filehash>-<turnId>`, but we emit
  * the bare turn_id here so the link is deterministic without a
- * filesystem lookup — users can `ls .claude-sop/captures/*<id>*` to
+ * filesystem lookup — users can `ls .auto-sop/captures/*<id>*` to
  * find the exact directory. This keeps the builder pure (no I/O) and
  * the rendered body byte-stable under E7 golden-file tests.
  */
 function turnPathForLink(turnId: string): string {
-  return `.claude-sop/captures/${turnId}`;
+  return `.auto-sop/captures/${turnId}`;
 }
 
 /**
@@ -326,7 +326,7 @@ export function buildDirectiveBody(
   llmSummary?: string,
   newestTurnFinalizedAt?: string | null,
 ): ManagedSectionContent {
-  const capturesDir = join(project.project_root, '.claude-sop', 'captures');
+  const capturesDir = join(project.project_root, '.auto-sop', 'captures');
   const agentRoster = collectAgentRoster(capturesDir);
   return buildDirectiveBodyFromInput({
     turnsTotalSeen,

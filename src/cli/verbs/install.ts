@@ -12,7 +12,7 @@ import pc from 'picocolors';
 export function registerInstallVerb(program: Command): void {
   program
     .command('install')
-    .description('install claude-sop into the current project')
+    .description('install auto-sop into the current project')
     .option('--license <key>', 'license key (non-interactive; skips prompt)')
     .option('--project <path>', 'project root', process.cwd())
     .option('--no-restore', 'skip restoring directives from previous install (clean slate)')
@@ -28,9 +28,9 @@ export function registerInstallVerb(program: Command): void {
       const homeDir = os.homedir();
       const marketplaceDir = path.join(
         homeDir,
-        '.claude-sop',
+        '.auto-sop',
         'marketplace',
-        'claude-sop',
+        'auto-sop',
       );
       const result = await runInstall({
         projectRoot: path.resolve(opts.project as string),
@@ -47,7 +47,7 @@ export function registerInstallVerb(program: Command): void {
         emit({ ok: true, verb: 'install', ...result });
       } else {
         process.stdout.write(
-          pc.green(`\u2713 claude-sop ${result.verdict} install complete\n`),
+          pc.green(`\u2713 auto-sop ${result.verdict} install complete\n`),
         );
         const tableRows: Array<[string, string]> = [
           ['version', result.installedVersion],
@@ -66,7 +66,7 @@ export function registerInstallVerb(program: Command): void {
           '\n' +
             pc.dim(
               'tip: add [sop:on] indicator to Claude Code statusline:\n' +
-                '     echo \'{"statusLine":{"type":"command","command":"claude-sop statusline"}}\' > ~/.claude/settings.json\n' +
+                '     echo \'{"statusLine":{"type":"command","command":"auto-sop statusline"}}\' > ~/.claude/settings.json\n' +
                 '     (merge with existing settings — do NOT overwrite)\n',
             ),
         );
@@ -85,5 +85,5 @@ function findPackageRoot(startDir: string): { root: string; pkg: Record<string, 
       dir = path.dirname(dir);
     }
   }
-  throw new PreconditionError('could not locate claude-sop package root');
+  throw new PreconditionError('could not locate auto-sop package root');
 }

@@ -31,9 +31,9 @@ export function findLearnerCjs(): string | null {
   // Check installed location first
   const installed = path.join(
     os.homedir(),
-    '.claude-sop',
+    '.auto-sop',
     'marketplace',
-    'claude-sop',
+    'auto-sop',
     'learner.cjs',
   );
   if (existsSync(installed)) return installed;
@@ -48,7 +48,7 @@ export function findLearnerCjs(): string | null {
 // ── Recap log path ─────────────────────────────────────────
 
 export function recapLogPath(home?: string): string {
-  return path.join(home ?? os.homedir(), '.claude-sop', 'logs', 'recap.log');
+  return path.join(home ?? os.homedir(), '.auto-sop', 'logs', 'recap.log');
 }
 
 // ── Main spawn function ────────────────────────────────────
@@ -88,13 +88,16 @@ export async function runLearner(opts: LearnerOptions): Promise<LearnerResult> {
     PATH: process.env.PATH ?? '',
   };
   if (opts.offline) {
-    env.CLAUDE_SOP_LEARNER_MODE = 'offline';
+    env.AUTO_SOP_LEARNER_MODE = 'offline';
+    env.CLAUDE_SOP_LEARNER_MODE = 'offline'; // backward compat
   }
   if (opts.dryRun) {
-    env.CLAUDE_SOP_LEARNER_DRY_RUN = '1';
+    env.AUTO_SOP_LEARNER_DRY_RUN = '1';
+    env.CLAUDE_SOP_LEARNER_DRY_RUN = '1'; // backward compat
   }
   if (opts.forceLlm) {
-    env.CLAUDE_SOP_FORCE_LLM = '1';
+    env.AUTO_SOP_FORCE_LLM = '1';
+    env.CLAUDE_SOP_FORCE_LLM = '1'; // backward compat
   }
 
   // Spawn

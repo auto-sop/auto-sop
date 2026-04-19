@@ -34,9 +34,9 @@ const mockRm = vi.mocked(fs.rm);
 const mockMkdir = vi.mocked(fs.mkdir);
 
 const baseOpts = {
-  tickScriptPath: '/home/alice/.claude-sop/bin/tick.sh',
+  tickScriptPath: '/home/alice/.auto-sop/bin/tick.sh',
   intervalSec: 3600,
-  logDir: '/home/alice/.claude-sop/logs',
+  logDir: '/home/alice/.auto-sop/logs',
   homeDir: '/home/alice',
   user: 'alice',
 };
@@ -44,18 +44,18 @@ const baseOpts = {
 describe('renderServiceUnit', () => {
   it('contains ExecStart with tick.sh path', () => {
     const unit = renderServiceUnit({
-      tickScriptPath: '/home/alice/.claude-sop/bin/tick.sh',
+      tickScriptPath: '/home/alice/.auto-sop/bin/tick.sh',
       user: 'alice',
       homeDir: '/home/alice',
     });
     expect(unit).toContain(
-      'ExecStart=/home/alice/.claude-sop/bin/tick.sh',
+      'ExecStart=/home/alice/.auto-sop/bin/tick.sh',
     );
   });
 
   it('contains Environment=CLAUDE_SOP_CAPTURE_SUPPRESS=1 (canonical)', () => {
     const unit = renderServiceUnit({
-      tickScriptPath: '/home/alice/.claude-sop/bin/tick.sh',
+      tickScriptPath: '/home/alice/.auto-sop/bin/tick.sh',
       user: 'alice',
       homeDir: '/home/alice',
     });
@@ -64,7 +64,7 @@ describe('renderServiceUnit', () => {
 
   it('contains Environment=CLAUDE_SOP_LEARNER=1 (legacy backward compat)', () => {
     const unit = renderServiceUnit({
-      tickScriptPath: '/home/alice/.claude-sop/bin/tick.sh',
+      tickScriptPath: '/home/alice/.auto-sop/bin/tick.sh',
       user: 'alice',
       homeDir: '/home/alice',
     });
@@ -73,15 +73,15 @@ describe('renderServiceUnit', () => {
 
   it('contains StandardOutput and StandardError log paths', () => {
     const unit = renderServiceUnit({
-      tickScriptPath: '/home/alice/.claude-sop/bin/tick.sh',
+      tickScriptPath: '/home/alice/.auto-sop/bin/tick.sh',
       user: 'alice',
       homeDir: '/home/alice',
     });
     expect(unit).toContain(
-      'StandardOutput=append:/home/alice/.claude-sop/logs/systemd.out.log',
+      'StandardOutput=append:/home/alice/.auto-sop/logs/systemd.out.log',
     );
     expect(unit).toContain(
-      'StandardError=append:/home/alice/.claude-sop/logs/systemd.err.log',
+      'StandardError=append:/home/alice/.auto-sop/logs/systemd.err.log',
     );
   });
 });
@@ -105,7 +105,7 @@ describe('renderTimerUnit', () => {
 
   it('targets the service unit', () => {
     expect(renderTimerUnit()).toContain(
-      'Unit=claude-sop-learner.service',
+      'Unit=auto-sop-learner.service',
     );
   });
 });
@@ -135,26 +135,33 @@ describe('linuxSystemd', () => {
       const [servicePath] = mockWriteFileAtomic.mock.calls[0]!;
       const [timerPath] = mockWriteFileAtomic.mock.calls[1]!;
       expect(servicePath).toBe(
-        '/home/alice/.config/systemd/user/claude-sop-learner.service',
+        '/home/alice/.config/systemd/user/auto-sop-learner.service',
       );
       expect(timerPath).toBe(
-        '/home/alice/.config/systemd/user/claude-sop-learner.timer',
+        '/home/alice/.config/systemd/user/auto-sop-learner.timer',
       );
 
-      // execa calls: daemon-reload, enable --now, loginctl enable-linger
-      expect(mockExeca).toHaveBeenCalledTimes(3);
+      // execa calls: daemon-reload, disable legacy, enable --now, loginctl enable-linger
+      expect(mockExeca).toHaveBeenCalledTimes(4);
       expect(mockExeca).toHaveBeenNthCalledWith(1, 'systemctl', [
         '--user',
         'daemon-reload',
       ]);
+      // Step: disable legacy timer (cleanup)
       expect(mockExeca).toHaveBeenNthCalledWith(2, 'systemctl', [
+        '--user',
+        'disable',
+        '--now',
+        'claude-sop-learner.timer',
+      ], { reject: false });
+      expect(mockExeca).toHaveBeenNthCalledWith(3, 'systemctl', [
         '--user',
         'enable',
         '--now',
-        'claude-sop-learner.timer',
+        'auto-sop-learner.timer',
       ]);
       expect(mockExeca).toHaveBeenNthCalledWith(
-        3,
+        4,
         'loginctl',
         ['enable-linger', 'alice'],
         { reject: false },
@@ -172,15 +179,15 @@ describe('linuxSystemd', () => {
       expect(mockExeca).toHaveBeenNthCalledWith(
         1,
         'systemctl',
-        ['--user', 'disable', '--now', 'claude-sop-learner.timer'],
+        ['--user', 'disable', '--now', 'auto-sop-learner.timer'],
         { reject: false },
       );
       expect(mockRm).toHaveBeenCalledWith(
-        '/home/alice/.config/systemd/user/claude-sop-learner.timer',
+        '/home/alice/.config/systemd/user/auto-sop-learner.timer',
         { force: true },
       );
       expect(mockRm).toHaveBeenCalledWith(
-        '/home/alice/.config/systemd/user/claude-sop-learner.service',
+        '/home/alice/.config/systemd/user/auto-sop-learner.service',
         { force: true },
       );
       expect(mockExeca).toHaveBeenLastCalledWith(

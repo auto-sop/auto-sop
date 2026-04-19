@@ -16,7 +16,7 @@ import type { UserPromptSubmitPayload, StopPayload } from '~/capture/events.js';
 import { getCapturePaths } from '~/capture/paths.js';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `claude-sop-test-${randomUUID()}`);
+  const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
   mkdirSync(dir, { recursive: true });
   return dir;
 }

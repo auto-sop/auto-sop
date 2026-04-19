@@ -60,7 +60,7 @@ describe('uninstall verb', () => {
 
   function makeProgram(): Command {
     const program = new Command()
-      .name('claude-sop')
+      .name('auto-sop')
       .option('--json', 'emit JSON', false)
       .exitOverride();
     registerUninstallVerb(program);
@@ -78,7 +78,7 @@ describe('uninstall verb', () => {
     });
 
     const program = makeProgram();
-    await program.parseAsync(['node', 'claude-sop', 'uninstall']);
+    await program.parseAsync(['node', 'auto-sop', 'uninstall']);
 
     const output = stdoutChunks.join('');
     expect(output).toContain('uninstall complete');
@@ -95,7 +95,7 @@ describe('uninstall verb', () => {
     });
 
     const program = makeProgram();
-    await program.parseAsync(['node', 'claude-sop', 'uninstall']);
+    await program.parseAsync(['node', 'auto-sop', 'uninstall']);
 
     expect(process.exitCode).toBe(1);
     const stderr = stderrChunks.join('');
@@ -110,7 +110,7 @@ describe('uninstall verb', () => {
     });
 
     const program = makeProgram();
-    await program.parseAsync(['node', 'claude-sop', 'uninstall', '--purge']);
+    await program.parseAsync(['node', 'auto-sop', 'uninstall', '--purge']);
 
     expect(mockRunUninstall).toHaveBeenCalledWith(
       expect.objectContaining({ purge: true }),
@@ -125,7 +125,7 @@ describe('uninstall verb', () => {
     });
 
     const program = makeProgram();
-    await program.parseAsync(['node', 'claude-sop', '--json', 'uninstall']);
+    await program.parseAsync(['node', 'auto-sop', '--json', 'uninstall']);
 
     const output = stdoutChunks.join('');
     const parsed = JSON.parse(output.trim());
@@ -141,7 +141,7 @@ describe('uninstall verb', () => {
     });
 
     const program = makeProgram();
-    await program.parseAsync(['node', 'claude-sop', '--json', 'uninstall']);
+    await program.parseAsync(['node', 'auto-sop', '--json', 'uninstall']);
 
     const output = stdoutChunks.join('');
     const parsed = JSON.parse(output.trim());
@@ -156,7 +156,7 @@ describe('uninstall verb', () => {
     });
 
     const program = makeProgram();
-    await program.parseAsync(['node', 'claude-sop', 'uninstall']);
+    await program.parseAsync(['node', 'auto-sop', 'uninstall']);
 
     const output = stdoutChunks.join('');
     expect(output).toContain('managed-section backed up to');

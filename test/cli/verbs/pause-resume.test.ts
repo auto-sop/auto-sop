@@ -29,14 +29,14 @@ describe('pause / resume verbs', () => {
   }
 
   function flagPath(): string {
-    return path.join(tmpDir, '.claude-sop', 'paused.flag');
+    return path.join(tmpDir, '.auto-sop', 'paused.flag');
   }
 
   describe('pause', () => {
     it('creates paused.flag with paused_at timestamp', async () => {
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'pause',
         '--project',
         tmpDir,
@@ -48,17 +48,17 @@ describe('pause / resume verbs', () => {
       expect(parsed.paused_at).toBeGreaterThan(0);
     });
 
-    it('creates .claude-sop dir if missing', async () => {
-      await runCli(['node', 'claude-sop', 'pause', '--project', tmpDir]);
-      const stat = await fs.stat(path.join(tmpDir, '.claude-sop'));
+    it('creates .auto-sop dir if missing', async () => {
+      await runCli(['node', 'auto-sop', 'pause', '--project', tmpDir]);
+      const stat = await fs.stat(path.join(tmpDir, '.auto-sop'));
       expect(stat.isDirectory()).toBe(true);
     });
 
     it('is idempotent — re-running overwrites flag without error', async () => {
-      await runCli(['node', 'claude-sop', 'pause', '--project', tmpDir]);
+      await runCli(['node', 'auto-sop', 'pause', '--project', tmpDir]);
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'pause',
         '--project',
         tmpDir,
@@ -71,7 +71,7 @@ describe('pause / resume verbs', () => {
     it('--json emits correct shape', async () => {
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'pause',
         '--project',
@@ -84,7 +84,7 @@ describe('pause / resume verbs', () => {
     });
 
     it('human mode prints confirmation', async () => {
-      await runCli(['node', 'claude-sop', 'pause', '--project', tmpDir]);
+      await runCli(['node', 'auto-sop', 'pause', '--project', tmpDir]);
       expect(stdout()).toContain('paused');
     });
   });
@@ -92,7 +92,7 @@ describe('pause / resume verbs', () => {
   describe('resume', () => {
     it('removes paused.flag when paused', async () => {
       // Pause first
-      await runCli(['node', 'claude-sop', 'pause', '--project', tmpDir]);
+      await runCli(['node', 'auto-sop', 'pause', '--project', tmpDir]);
       expect(
         await fs
           .access(flagPath())
@@ -103,7 +103,7 @@ describe('pause / resume verbs', () => {
       // Resume
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'resume',
         '--project',
         tmpDir,
@@ -120,7 +120,7 @@ describe('pause / resume verbs', () => {
     it('is no-op if already resumed (no flag)', async () => {
       const code = await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         'resume',
         '--project',
         tmpDir,
@@ -130,11 +130,11 @@ describe('pause / resume verbs', () => {
     });
 
     it('--json shows removed: true when flag existed', async () => {
-      await runCli(['node', 'claude-sop', 'pause', '--project', tmpDir]);
+      await runCli(['node', 'auto-sop', 'pause', '--project', tmpDir]);
       stdoutChunks = [];
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'resume',
         '--project',
@@ -149,7 +149,7 @@ describe('pause / resume verbs', () => {
     it('--json shows removed: false when no flag', async () => {
       await runCli([
         'node',
-        'claude-sop',
+        'auto-sop',
         '--json',
         'resume',
         '--project',

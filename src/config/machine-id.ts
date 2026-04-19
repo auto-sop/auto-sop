@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { hostname, userInfo } from 'node:os';
 
-const FALLBACK_SALT = 'claude-sop-machine-id-fallback-v1';
+const FALLBACK_SALT = 'claude-sop-machine-id-fallback-v1'; // kept for stability (changing would alter machine IDs)
 
 export async function getMachineId(): Promise<string> {
   try {

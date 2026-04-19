@@ -30,7 +30,7 @@ import {
 } from '../../src/managed-section/hash-store.js';
 
 function makeTmpDir(): string {
-  return mkdtempSync(join(tmpdir(), 'claude-sop-editor-drift-'));
+  return mkdtempSync(join(tmpdir(), 'auto-sop-editor-drift-'));
 }
 
 describe('ManagedSectionEditor — E1 drift detection', () => {
@@ -50,7 +50,7 @@ describe('ManagedSectionEditor — E1 drift detection', () => {
 
   const claudeMd = () => join(projectRoot, 'CLAUDE.md');
   const historyDir = () =>
-    join(projectRoot, '.claude-sop', 'state', 'managed-history');
+    join(projectRoot, '.auto-sop', 'state', 'managed-history');
 
   it('first run (no stored hash) writes successfully and records post-write hash', () => {
     expect(readLastHash(projectRoot)).toBeNull();
@@ -401,7 +401,7 @@ describe('ManagedSectionEditor — E2 git-aware skip', () => {
     expect(result.verdict).toBe('git_busy');
     // No conflict snapshot was created — git-busy short-circuits FIRST
     expect(
-      existsSync(join(projectRoot, '.claude-sop', 'state', 'managed-history')),
+      existsSync(join(projectRoot, '.auto-sop', 'state', 'managed-history')),
     ).toBe(false);
     // CLAUDE.md still has the tampered content
     expect(readFileSync(claudeMd(), 'utf-8')).toContain('tampered');

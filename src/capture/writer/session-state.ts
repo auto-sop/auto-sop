@@ -1,6 +1,6 @@
 /**
  * Thin semantic wrapper around turn-dir session state helpers.
- * Session state marker files live under `<project>/.claude-sop/state/`,
+ * Session state marker files live under `<project>/.auto-sop/state/`,
  * not inside the captures directory.
  */
 export { resolveCurrentTurn, setCurrentTurn, clearCurrentTurn } from './turn-dir.js';

@@ -2,13 +2,13 @@
  * show verb — display full turn or session details.
  *
  * Usage:
- *   claude-sop show <turn-id>           — full turn content
- *   claude-sop show <session-id>        — all turns in session (compact)
- *   claude-sop show <turn-id> --raw     — no formatting, raw file dump
- *   claude-sop show <turn-id> --files   — just list files changed
- *   claude-sop show <turn-id> --tools   — just tool-calls summary
- *   claude-sop show <turn-id> --json    — machine-readable
- *   claude-sop show <id> --project /p   — specify project directory
+ *   auto-sop show <turn-id>           — full turn content
+ *   auto-sop show <session-id>        — all turns in session (compact)
+ *   auto-sop show <turn-id> --raw     — no formatting, raw file dump
+ *   auto-sop show <turn-id> --files   — just list files changed
+ *   auto-sop show <turn-id> --tools   — just tool-calls summary
+ *   auto-sop show <turn-id> --json    — machine-readable
+ *   auto-sop show <id> --project /p   — specify project directory
  *
  * Auto-detection:
  *   turn_id:    nanoid-like, /^[A-Za-z0-9_-]{1,128}$/
@@ -469,17 +469,17 @@ export function registerShowVerb(program: Command): void {
         return;
       }
 
-      const capturesDir = path.join(projectPath, '.claude-sop', 'captures');
+      const capturesDir = path.join(projectPath, '.auto-sop', 'captures');
       if (!existsSync(capturesDir)) {
         if (jsonMode) {
           emit({
             ok: false,
             code: 1,
-            message: 'no captures directory — has claude-sop been installed for this project?',
+            message: 'no captures directory — has auto-sop been installed for this project?',
           });
         } else {
           process.stdout.write(
-            pc.dim('(no captures directory — has claude-sop been installed for this project?)\n'),
+            pc.dim('(no captures directory — has auto-sop been installed for this project?)\n'),
           );
         }
         return;

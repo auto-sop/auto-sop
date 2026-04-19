@@ -23,7 +23,7 @@ export interface CapturePaths {
  */
 export function getCapturePaths(projectRoot: string, projectId: string): CapturePaths {
   const home = homedir();
-  const claudeSopDir = join(projectRoot, '.claude-sop');
+  const claudeSopDir = join(projectRoot, '.auto-sop');
   const captureDir = join(claudeSopDir, 'captures');
   const globalSopHome = join(home, '.claude', 'sop');
   const globalProjectDir = join(globalSopHome, projectId);
@@ -34,7 +34,7 @@ export function getCapturePaths(projectRoot: string, projectId: string): Capture
     projectErrorsLog: join(claudeSopDir, 'errors.jsonl'),
     projectPausedFlag: join(claudeSopDir, 'paused.flag'),
     projectYarimKalan: join(captureDir, 'yarim-kalan'),
-    tmpPayloadDir: join(home, '.claude-sop', 'tmp'),
+    tmpPayloadDir: join(home, '.auto-sop', 'tmp'),
     globalSopHome,
     globalProjectDir,
     globalIndexJsonl: join(globalProjectDir, 'index.jsonl'),

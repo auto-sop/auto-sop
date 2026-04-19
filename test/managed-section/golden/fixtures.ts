@@ -42,10 +42,10 @@ export const GOLDEN_BODY = [
   '## Project rules',
   '',
   '- **Do not commit to main.**',
-  '  _(evidence: 3 sessions · [view turns](./.claude-sop/captures/s1/turns/t1.json))_',
+  '  _(evidence: 3 sessions · [view turns](./.auto-sop/captures/s1/turns/t1.json))_',
   '',
   '- **Run tests before push.**',
-  '  _(evidence: 2 sessions · [view turns](./.claude-sop/captures/s2/turns/t1.json))_',
+  '  _(evidence: 2 sessions · [view turns](./.auto-sop/captures/s2/turns/t1.json))_',
 ].join('\n');
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -192,9 +192,9 @@ export const GOLDEN_FIXTURES: GoldenFixture[] = [
         'Here is what the markers look like:',
         '',
         '```html',
-        '<!-- claude-sop:managed-section:begin v2 -->',
+        '<!-- auto-sop:managed-section:begin v2 -->',
         '  your directives here',
-        '<!-- claude-sop:managed-section:end-legacy -->',
+        '<!-- auto-sop:managed-section:end-legacy -->',
         '```',
         '',
         'The editor should leave the code block alone.',
