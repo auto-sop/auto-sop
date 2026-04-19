@@ -1,4 +1,6 @@
+[![CI](https://github.com/auto-sop/auto-sop/actions/workflows/ci.yml/badge.svg)](https://github.com/auto-sop/auto-sop/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/auto-sop)](https://www.npmjs.com/package/auto-sop)
+[![npm downloads](https://img.shields.io/npm/dm/auto-sop)](https://www.npmjs.com/package/auto-sop)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.17-brightgreen)](https://nodejs.org)
 
@@ -19,6 +21,12 @@ npx auto-sop install
 ```
 
 One command. Hooks, scheduler, and managed `CLAUDE.md` section are configured automatically.
+
+Or via Homebrew (macOS/Linux):
+
+```bash
+brew install auto-sop/tap/auto-sop
+```
 
 ## Quick Start
 
@@ -96,7 +104,15 @@ Pro cloud sync is opt-in and encrypted client-side (AES-256) before upload. The 
 | Claude Code | >= 2.1.107 |
 | Node.js | >= 18.17 |
 | OS | macOS, Linux |
-| Windows | Phase 6 (v22) |
+| Windows | Phase 6 (planned) |
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=auto-sop/auto-sop&type=Date)](https://star-history.com/#auto-sop/auto-sop&Date)
+
+## Contributors
+
+[![Contributors](https://contrib.rocks/image?repo=auto-sop/auto-sop)](https://github.com/auto-sop/auto-sop/graphs/contributors)
 
 ## License
 

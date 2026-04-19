@@ -16,14 +16,17 @@ on:
           - 'false'
 
 permissions:
-  contents: read
+  contents: write
+
+# To enable full OIDC trustedPublisher, configure on npmjs.com:
+# Package Settings → Publishing access → Add trusted publisher (GitHub Actions)
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,3 +76,9 @@ jobs:
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

@@ -1,7 +1,21 @@
 {
   "name": "auto-sop",
-  "version": "0.0.22",
-  "description": "Auto SOP - Standard Operating Procedures for Claude Code",
+  "version": "0.0.23",
+  "description": "Make Claude Code self-improving — auto-detect recurring mistakes and write enforced CLAUDE.md directives",
+  "author": "Ugur Gokdere <ugokdere@gmail.com>",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "claude-md",
+    "ai-agent",
+    "self-improving",
+    "directives",
+    "sop",
+    "standard-operating-procedures",
+    "developer-tools",
+    "code-quality",
+    "automation"
+  ],
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
