@@ -99,6 +99,49 @@ export function shouldSkipLlmForIdleTick(
   return turnsNew === 0 && env.AUTO_SOP_FORCE_LLM !== '1' && env.CLAUDE_SOP_FORCE_LLM !== '1';
 }
 
+/**
+ * (V20) Build the final list of DirectiveProposalType objects for
+ * rendering into CLAUDE.md. When directive history is available,
+ * activeEntries drives the ordering; each entry is matched against
+ * mergedProposals (which carry full evidence). When no matching
+ * proposal exists (e.g. zero-turn tick after restore), we synthesize
+ * a DirectiveProposalType from the history entry so the directive
+ * is not silently dropped.
+ *
+ * Extracted from main() for testability.
+ */
+export function buildRenderProposals(
+  activeEntries: DirectiveHistoryEntry[] | null,
+  mergedProposals: DirectiveProposalType[],
+): DirectiveProposalType[] {
+  if (activeEntries === null) return mergedProposals;
+
+  return activeEntries.map((e) => {
+    const fromProposal = mergedProposals.find((p) => p.id === e.id);
+    if (fromProposal) return fromProposal;
+
+    // Synthesize a DirectiveProposalType from the history entry so
+    // restored/previously-seen directives survive zero-turn ticks.
+    return {
+      id: e.id,
+      rule_text: e.rule_text,
+      severity: e.severity,
+      detector: 'history',
+      evidence: {
+        session_ids: Array.from(
+          { length: Math.max(3, Math.min(e.occurrence_count, 25)) },
+          (_, i) => `history-session-${i + 1}`,
+        ),
+        turn_ids: [],
+        pattern: 'restored-from-history',
+        occurrence_count: e.occurrence_count,
+        first_seen: e.first_seen,
+      },
+      created_at: e.last_reinforced,
+    } satisfies DirectiveProposalType;
+  });
+}
+
 // ── Error logger (inline, fail-safe) ───────────────────────
 
 function logError(kind: string, err: unknown, home?: string): void {
@@ -526,12 +569,10 @@ export async function runLearnerTick(
       // Translate history entries back into DirectiveProposalType shape
       // expected by buildDirectiveBody. When history is unavailable
       // (git-busy or error path) we pass mergedProposals directly.
+      // V20: uses buildRenderProposals which synthesizes from history
+      // when no matching mergedProposal exists (fixes zero-turn restore bug).
       const renderProposals: DirectiveProposalType[] =
-        activeEntries !== null
-          ? activeEntries
-              .map((e) => mergedProposals.find((p) => p.id === e.id))
-              .filter((p): p is DirectiveProposalType => p !== undefined)
-          : mergedProposals;
+        buildRenderProposals(activeEntries, mergedProposals);
 
       try {
         const directiveContent = buildDirectiveBody(

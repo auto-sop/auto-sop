@@ -28,7 +28,10 @@ import {
   LLM_SPAWN_TIMEOUT_MS,
   buildHardTimeoutSummary,
   shouldSkipLlmForIdleTick,
+  buildRenderProposals,
 } from '../../src/learner/main.js';
+import type { DirectiveHistoryEntry } from '../../src/managed-section/directive-history.js';
+import type { DirectiveProposalType } from '../../src/learner/directive-schema.js';
 import { appendRecap, recapLogPath } from '../../src/learner/recap-log.js';
 
 // ── I6: Constants ──────────────────────────────────────────
@@ -229,5 +232,119 @@ describe('shouldSkipLlmForIdleTick', () => {
         process.env.CLAUDE_SOP_FORCE_LLM = original;
       }
     }
+  });
+});
+
+// ── V20: buildRenderProposals (directive restore render bug) ──
+
+describe('buildRenderProposals', () => {
+  const now = '2026-04-19T12:00:00.000Z';
+
+  function makeHistoryEntry(overrides: Partial<DirectiveHistoryEntry> & { id: string }): DirectiveHistoryEntry {
+    return {
+      rule_text: `Always use proper error handling for ${overrides.id}`,
+      severity: 'warning',
+      first_seen: '2026-04-10T00:00:00.000Z',
+      last_reinforced: now,
+      occurrence_count: 5,
+      pruned: false,
+      ...overrides,
+    };
+  }
+
+  function makeProposal(overrides: Partial<DirectiveProposalType> & { id: string }): DirectiveProposalType {
+    return {
+      rule_text: `Always use proper error handling for ${overrides.id}`,
+      severity: 'warning',
+      detector: 'repeated-bash-failure',
+      evidence: {
+        session_ids: ['s1', 's2', 's3'],
+        turn_ids: ['t1'],
+        pattern: 'test-pattern',
+        occurrence_count: 5,
+        first_seen: '2026-04-10T00:00:00.000Z',
+      },
+      created_at: now,
+      ...overrides,
+    };
+  }
+
+  it('restored directives survive a zero-turn tick (mergedProposals empty)', () => {
+    // 3 history entries, 0 new proposals — simulates a zero-turn tick
+    // after a restore. Before V20 fix, all 3 would be filtered out.
+    const activeEntries: DirectiveHistoryEntry[] = [
+      makeHistoryEntry({ id: 'dir-a' }),
+      makeHistoryEntry({ id: 'dir-b' }),
+      makeHistoryEntry({ id: 'dir-c' }),
+    ];
+    const mergedProposals: DirectiveProposalType[] = [];
+
+    const result = buildRenderProposals(activeEntries, mergedProposals);
+
+    expect(result).toHaveLength(3);
+    expect(result.map((r) => r.id)).toEqual(['dir-a', 'dir-b', 'dir-c']);
+    // Each synthesized proposal preserves rule_text from history
+    for (const p of result) {
+      expect(p.rule_text).toContain(p.id);
+      expect(p.severity).toBe('warning');
+      expect(p.detector).toBe('history');
+      expect(p.created_at).toBe(now);
+      // V20 YODA fixes: turn_ids must be empty (no broken link)
+      expect(p.evidence.turn_ids).toEqual([]);
+      // session_ids length reflects occurrence_count (default 5 in helper)
+      expect(p.evidence.session_ids).toHaveLength(5);
+    }
+  });
+
+  it('restored directives survive multiple consecutive zero-turn ticks', () => {
+    const activeEntries: DirectiveHistoryEntry[] = [
+      makeHistoryEntry({ id: 'dir-x' }),
+      makeHistoryEntry({ id: 'dir-y' }),
+    ];
+    const emptyProposals: DirectiveProposalType[] = [];
+
+    // Simulate 3 consecutive zero-turn ticks — each should produce
+    // the same result since history entries don't change.
+    for (let tick = 0; tick < 3; tick++) {
+      const result = buildRenderProposals(activeEntries, emptyProposals);
+      expect(result).toHaveLength(2);
+      expect(result[0]!.id).toBe('dir-x');
+      expect(result[1]!.id).toBe('dir-y');
+      expect(result[0]!.rule_text).toContain('dir-x');
+      expect(result[1]!.rule_text).toContain('dir-y');
+    }
+  });
+
+  it('restored directives are replaced when re-proposed with fresher text', () => {
+    const activeEntries: DirectiveHistoryEntry[] = [
+      makeHistoryEntry({ id: 'dir-refresh', rule_text: 'old text from history' }),
+      makeHistoryEntry({ id: 'dir-keep' }),
+    ];
+    const mergedProposals: DirectiveProposalType[] = [
+      makeProposal({ id: 'dir-refresh', rule_text: 'improved text from new detection' }),
+    ];
+
+    const result = buildRenderProposals(activeEntries, mergedProposals);
+
+    expect(result).toHaveLength(2);
+
+    // dir-refresh should use the fresher proposal text, not the history text
+    const refreshed = result.find((r) => r.id === 'dir-refresh')!;
+    expect(refreshed.rule_text).toBe('improved text from new detection');
+    expect(refreshed.detector).toBe('repeated-bash-failure'); // from proposal, not 'history'
+
+    // dir-keep should be synthesized from history (no matching proposal)
+    const kept = result.find((r) => r.id === 'dir-keep')!;
+    expect(kept.rule_text).toContain('dir-keep');
+    expect(kept.detector).toBe('history');
+    // V20 YODA fixes: turn_ids empty, session_ids derived from occurrence_count
+    expect(kept.evidence.turn_ids).toEqual([]);
+    expect(kept.evidence.session_ids).toHaveLength(5);
+  });
+
+  it('returns mergedProposals directly when activeEntries is null', () => {
+    const proposals = [makeProposal({ id: 'p1' }), makeProposal({ id: 'p2' })];
+    const result = buildRenderProposals(null, proposals);
+    expect(result).toBe(proposals); // same reference, no transformation
   });
 });
