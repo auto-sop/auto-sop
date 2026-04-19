@@ -5,7 +5,7 @@ Thank you for your interest in contributing to auto-sop!
 ## Development Setup
 
 ```bash
-git clone https://github.com/ugurgokdere/auto-sop.git
+git clone https://github.com/auto-sop/auto-sop.git
 cd auto-sop
 npm install
 npm run build

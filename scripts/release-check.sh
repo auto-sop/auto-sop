@@ -50,13 +50,13 @@ fi
 if node -e "const p=require('./package.json'); if(!p.homepage) process.exit(1)" 2>/dev/null; then
   pass "package.json has 'homepage' field"
 else
-  fail "package.json missing 'homepage'" "Add \"homepage\": \"https://github.com/ugurgokdere/auto-sop\" to package.json"
+  fail "package.json missing 'homepage'" "Add \"homepage\": \"https://github.com/auto-sop/auto-sop\" to package.json"
 fi
 
 if node -e "const p=require('./package.json'); if(!p.bugs) process.exit(1)" 2>/dev/null; then
   pass "package.json has 'bugs' field"
 else
-  fail "package.json missing 'bugs'" "Add \"bugs\": { \"url\": \"https://github.com/ugurgokdere/auto-sop/issues\" } to package.json"
+  fail "package.json missing 'bugs'" "Add \"bugs\": { \"url\": \"https://github.com/auto-sop/auto-sop/issues\" } to package.json"
 fi
 
 # ── 2. License ───────────────────────────────────

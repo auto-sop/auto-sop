@@ -1,15 +1,15 @@
 {
   "name": "auto-sop",
-  "version": "0.0.18",
+  "version": "0.0.20",
   "description": "Auto SOP - Standard Operating Procedures for Claude Code",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ugurgokdere/auto-sop.git"
+    "url": "git+https://github.com/auto-sop/auto-sop.git"
   },
-  "homepage": "https://github.com/ugurgokdere/auto-sop",
+  "homepage": "https://github.com/auto-sop/auto-sop#readme",
   "bugs": {
-    "url": "https://github.com/ugurgokdere/auto-sop/issues"
+    "url": "https://github.com/auto-sop/auto-sop/issues"
   },
   "publishConfig": {
     "access": "public",
@@ -62,6 +62,7 @@
     "bench:shim": "node scripts/bench-shim.mjs",
     "bench:shim:ci": "npm run build && node scripts/bench-shim.mjs",
     "version:bump-patch": "npm version patch --no-git-tag-version",
+    "version:auto-bump": "bash scripts/bump-version.sh",
     "release-check": "bash scripts/release-check.sh"
   },
   "dependencies": {
