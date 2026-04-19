@@ -53,13 +53,13 @@ The two repos version and deploy independently. CLI gains a thin `sync` module i
 ### Active (in flight or planned)
 
 **Publish readiness (v18):**
-- [ ] Rename to `auto-sop` (npm + repo + binary + envs + dirs, with claude-sop backward compat)
-- [ ] Apache 2.0 LICENSE
-- [ ] `.github/workflows/publish.yml` with `npm publish --provenance`
-- [ ] `release-check.sh` 28-item gate
-- [ ] `publint` + `@arethetypeswrong/cli` CI
+- [x] Rename to `auto-sop` (npm + repo + binary + envs + dirs, with claude-sop backward compat)
+- [x] Apache 2.0 LICENSE
+- [x] `.github/workflows/publish.yml` with `npm publish --provenance`
+- [x] `release-check.sh` 28-item gate
+- [x] `publint` + `@arethetypeswrong/cli` CI
 - [ ] README rewrite + demo GIF + architecture diagram
-- [ ] Auto-bump version on every commit (fix v14-v17 drift)
+- [x] Auto-bump version on every commit (fix v14-v17 drift)
 
 **Native Windows (v20-v22):**
 - [ ] Task Scheduler backend (`schtasks.exe`)
@@ -67,6 +67,13 @@ The two repos version and deploy independently. CLI gains a thin `sync` module i
 - [ ] NTFS ACL-based permissions
 - [ ] Windows CI matrix
 - [ ] LLM mode validated on Windows (`claude -p` works)
+
+**Distribution & Packaging (v22-v23):**
+- [ ] Node SEA single-executable binary (macOS arm64/x64, Linux x64)
+- [ ] GitHub Release artifacts (attach binaries to `v*` tags)
+- [ ] Homebrew tap (`auto-sop/homebrew-tap`) with formula pointing to GitHub Release binaries
+- [ ] Homebrew-core PR (after tap is stable, requires review)
+- [ ] launchd notification branding: `sh` → `auto-sop` (via SEA binary)
 
 **SaaS launch (v23-v27):**
 - [ ] `auto-sop-cloud/` repo bootstrap (Supabase + Clerk + Stripe)
@@ -152,13 +159,13 @@ The two repos version and deploy independently. CLI gains a thin `sync` module i
 ## Current State Summary (2026-04-19)
 
 - **7 of 8 planned phases shipped or in flight**
-- **17 versions released** (v1-v17), version 0.0.13 in package.json (v18 catches up to 0.0.18)
-- **Phase 0-4 complete**, Phase 5 50% (v17 inspection done, v18 packaging in flight)
+- **21 versions released** (v1-v21), version 0.0.21 in package.json
+- **Phase 0-4 complete**, Phase 5 95% — v17 (CLI), v18 (publish), v19 (org migration), v20 (directive fix), v21 (templates + CI)
 - **Phase 6 NEW** (Native Windows) — inserted before SaaS for moral/commercial reasons
 - **Phase 9 NEW** (Metrics & Social Proof) — RTK-inspired, lansman öncesi kritik
 - **2 active dogfood projects**: wrbeautiful-shopify-theme (92 turns, 6 LLM directives), sahibinden-scraper (16 turns)
-- **Zero known production bugs** as of v17
-- **730+ unit tests, 46 smoke tests** all green
+- **Zero known production bugs** as of v20
+- **1012+ unit tests** all green
 - **Real LLM directives in production CLAUDE.md** since 2026-04-17
 
 ## Phase Map (current as of 2026-04-19)
@@ -169,7 +176,7 @@ Phase 1  Capture                      ✅ shipped v2 + v4-v8 hardening
 Phase 2  Installer/Scheduler/CLI      ✅ shipped v3 + v12 launchd reliability
 Phase 3  Learner                      ✅ 100% — v9, v13, v14, v17 (LLM + detectors + hard-kill + learn-now)
 Phase 4  ManagedSectionEditor         ✅ 100% — v10, v11, v16 (hardened)
-Phase 5  Inspection + Packaging       🟨 50% — v17 done (recent/show), v18 publish readiness in flight
+Phase 5  Inspection + Packaging       🟨 95% — v17 (CLI), v18 (publish), v19 (org), v20 (directive fix), v21 (templates + CI)
 Phase 6  Native Windows (NEW)         ⬜ v20-v22, blocks SaaS
 Phase 7  SaaS Platform                ⬜ v23-v27 (separate repo `auto-sop-cloud`)
 Phase 8  Smart Directive Targeting    ⬜ v28-v30 (İbrahim's insight)
@@ -177,4 +184,12 @@ Phase 9  Metrics & Social Proof (NEW) ⬜ v31-v33 (RTK-style, lansman öncesi)
 ```
 
 ---
-*Last updated: 2026-04-19 after open-core + Notion-soft-gate + RTK-metric strategy decisions*
+### Go Public Prep
+
+- [x] GitHub community files (ISSUE_TEMPLATE, PR template, SECURITY.md, FUNDING.yml, CODEOWNERS)
+- [x] CI stability (TypeScript strict mode fixes, flaky test retries, cross-platform test guards)
+- [ ] README demo GIF + architecture diagram
+- [ ] First npm publish (blocked on Windows support decision)
+
+---
+*Last updated: 2026-04-19 after v21 GitHub templates + CI fixes + PROJECT.md update*

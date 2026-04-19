@@ -91,7 +91,7 @@ export interface DirectiveInput {
    * the builder emits a static "no turns yet" placeholder in that case,
    * which is still deterministic.
    */
-  newestTurnFinalizedAt?: string | null;
+  newestTurnFinalizedAt?: string | null | undefined;
   /** Validated directive proposals that passed schema. */
   proposals: DirectiveProposalType[];
   /** Number of below-threshold candidate patterns (for "monitoring" text). */
@@ -105,7 +105,7 @@ export interface DirectiveInput {
    * The builder deliberately strips any embedded newlines and caps the
    * length so a runaway model cannot bloat the managed section.
    */
-  llmSummary?: string;
+  llmSummary?: string | undefined;
 }
 
 /** Max characters we will render from an llmSummary. Guards against

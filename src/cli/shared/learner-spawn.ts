@@ -22,7 +22,7 @@ export interface LearnerOptions {
 export interface LearnerResult {
   exitCode: number;
   recapLines: unknown[];
-  error?: string;
+  error?: string | undefined;
 }
 
 // ── Learner discovery ──────────────────────────────────────

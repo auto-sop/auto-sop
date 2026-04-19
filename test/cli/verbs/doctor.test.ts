@@ -341,7 +341,9 @@ describe('doctor verb', () => {
   });
 });
 
-describe('scheduler effective check — verdict branches', () => {
+// These tests exercise launchctl parsing — only meaningful on macOS
+const isMacOS = process.platform === 'darwin';
+describe.skipIf(!isMacOS)('scheduler effective check — verdict branches', () => {
   let stdoutChunks: string[];
   let stderrChunks: string[];
   let originalStdoutWrite: typeof process.stdout.write;

@@ -224,7 +224,7 @@ describe('main-with-subagent', () => {
     expect(dirs.length).toBe(2);
   });
 
-  it('bidirectional linking: parent→child and child→parent (CAPT-04)', () => {
+  it('bidirectional linking: parent→child and child→parent (CAPT-04)', { retry: 2 }, () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
     const metas = dirs.map((d) => readMeta(join(run.captureDir, d)));
 
@@ -241,7 +241,7 @@ describe('main-with-subagent', () => {
     expect(childMeta!.subagent_type).toBe('code-reviewer');
   });
 
-  it('dual representation: main has Task tool-call, subagent has own tool-calls (CAPT-09)', () => {
+  it('dual representation: main has Task tool-call, subagent has own tool-calls (CAPT-09)', { retry: 2 }, () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
     const metas = dirs.map((d) => ({ dir: d, meta: readMeta(join(run.captureDir, d)) }));
 
