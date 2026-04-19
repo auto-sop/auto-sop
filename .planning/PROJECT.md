@@ -1,6 +1,6 @@
 # auto-sop
 
-> _(repo currently named `claude-sop`, renaming to `auto-sop` in v18 — see PLAN-v18)_
+> GitHub: `auto-sop/auto-sop` · npm: `auto-sop` · Apache 2.0
 
 ## What This Is
 
@@ -31,9 +31,9 @@ Distribution: `npx auto-sop install` (npm CLI) AND a Claude Code Marketplace plu
 | Repo | License | Purpose |
 |---|---|---|
 | `auto-sop/auto-sop` (this repo, was `ugurgokdere/claude-sop`) | **Apache 2.0** | CLI, capture pipeline, learner, ManagedSectionEditor. Open source — adoption magnet. |
-| `auto-sop/auto-sop-cloud` (v23, NEW, private) | Proprietary | Supabase + Clerk + Stripe + Next.js dashboard. Closed source — monetization layer. |
+| `auto-sop/auto-sop-cloud` (v26+, private) | Proprietary | Supabase + Clerk + Stripe + Next.js dashboard. Closed source — monetization layer. |
 
-The two repos version and deploy independently. CLI gains a thin `sync` module in v24 that POSTs encrypted directive blobs to the cloud API. Cloud never sees raw captures.
+The two repos version and deploy independently. CLI gains a thin `sync` module that POSTs encrypted directive blobs to the cloud API. Cloud never sees raw captures.
 
 ## Requirements
 
@@ -52,35 +52,36 @@ The two repos version and deploy independently. CLI gains a thin `sync` module i
 
 ### Active (in flight or planned)
 
-**Publish readiness (v18):**
+**Publish readiness (v18, done):**
 - [x] Rename to `auto-sop` (npm + repo + binary + envs + dirs, with claude-sop backward compat)
 - [x] Apache 2.0 LICENSE
 - [x] `.github/workflows/publish.yml` with `npm publish --provenance`
 - [x] `release-check.sh` 28-item gate
 - [x] `publint` + `@arethetypeswrong/cli` CI
-- [ ] README rewrite + demo GIF + architecture diagram
 - [x] Auto-bump version on every commit (fix v14-v17 drift)
 
-**Native Windows (v20-v22):**
-- [ ] Task Scheduler backend (`schtasks.exe`)
-- [ ] `.cmd` shim wrappers
-- [ ] NTFS ACL-based permissions
-- [ ] Windows CI matrix
-- [ ] LLM mode validated on Windows (`claude -p` works)
+**README + npm prep (v22, done):**
+- [x] README badges (CI, npm, downloads, license, node)
+- [x] Star History chart + Contributors section
+- [x] npm metadata polish (keywords, description, author, engines)
+- [x] Publish workflow hardening (test + release-check gates, GitHub Release)
+- [x] Homebrew tap staging (formula + update script)
 
-**Distribution & Packaging (v22-v23):**
-- [ ] Node SEA single-executable binary (macOS arm64/x64, Linux x64)
-- [ ] GitHub Release artifacts (attach binaries to `v*` tags)
-- [ ] Homebrew tap (`auto-sop/homebrew-tap`) with formula pointing to GitHub Release binaries
-- [ ] Homebrew-core PR (after tap is stable, requires review)
-- [ ] launchd notification branding: `sh` → `auto-sop` (via SEA binary)
+**Native Windows (v23-v25):**
+- [x] Platform abstraction layer (`PlatformAdapter` interface) — v23
+- [x] Task Scheduler backend (`schtasks.exe`) — v23
+- [x] Cross-platform tick script generation (`.sh` / `.cmd`) — v23
+- [x] Build script cross-platform fixes (`chmod`, `postbuild`) — v23
+- [ ] `.cmd` shim hardening + NTFS ACL-based permissions — v24
+- [ ] Windows CI matrix (GitHub Actions `windows-latest`) — v25
+- [ ] LLM mode validated on Windows (`claude -p` works) — v25
 
-**SaaS launch (v23-v27):**
+**SaaS Platform (v26-v30):**
 - [ ] `auto-sop-cloud/` repo bootstrap (Supabase + Clerk + Stripe)
 - [ ] CLI `sync` module (encrypted directive push)
 - [ ] Dashboard frontend (Next.js + Vercel)
 - [ ] CLI `login`/`logout`/`account` verbs
-- [ ] Obfuscation + Node SEA binary (cross-platform)
+- [ ] F6 — Server-side project count validation (Clerk JWT + Supabase RLS, tamper-proof)
 - [ ] **Freemium gate (F-series):**
   - [ ] F1 — 1-project enforcement on free tier
   - [ ] F2 — Trial state machine (started_at, triggered_by, ended_at)
@@ -88,12 +89,7 @@ The two repos version and deploy independently. CLI gains a thin `sync` module i
   - [ ] F4 — Curated directive packs (Pro-only, framework/language)
   - [ ] F5 — Cross-project pattern detection (Pro-only)
 
-**Smart Directive Targeting (v28-v30):**
-- [ ] Scope classification (universal/skill/file)
-- [ ] Skill file generation (`~/.claude/skills/<project>-<skill>.md`)
-- [ ] Migration tool for existing CLAUDE.md directives
-
-**Metrics & Social Proof (v31-v33) — NEW:**
+**Metrics & Social Proof (v31-v33):**
 - [ ] M1 — Directive-fire detection (UserPromptSubmit hook detects directive relevance)
 - [ ] M2 — Token/time savings tracker (`claude -p` JSON output usage diff)
 - [ ] M3 — "Errors prevented this month" counter (directive-prevented Bash failure detection)
@@ -101,14 +97,29 @@ The two repos version and deploy independently. CLI gains a thin `sync` module i
 - [ ] M5 — Dashboard widget (Pro): viral monthly savings graph
 - [ ] M6 — `auto-sop stats` CLI verb (local metrics, no cloud needed)
 
+**First Public Launch (v34):**
+- [ ] Version bump to `0.1.0`
+- [ ] First `npm publish` with provenance
+- [ ] GitHub repo goes public
+- [ ] Node SEA single-executable binary (macOS arm64/x64, Linux x64, Windows x64)
+- [ ] GitHub Release artifacts (attach binaries to `v*` tags)
+- [ ] Homebrew tap live (`auto-sop/homebrew-tap`)
+- [ ] README demo GIF + architecture diagram
+- [ ] Landing page with RTK-style side-by-side proof
+
+**Smart Directive Targeting (v35-v37, post-launch):**
+- [ ] Scope classification (universal/skill/file)
+- [ ] Skill file generation (`~/.claude/skills/<project>-<skill>.md`)
+- [ ] Migration tool for existing CLAUDE.md directives
+
 ### Out of Scope
 
 - **Auto-fixing source code** — learner only writes to CLAUDE.md; agents apply directives on next run
 - **Real-time mistake detection mid-session** — hourly batch is sufficient; mid-session value is marginal vs complexity
-- **Multi-user team in v1** — Pro tier is per-seat individual; team features (shared dashboards, RBAC) are Phase 8+
+- **Multi-user team in v1** — Pro tier is per-seat individual; team features (shared dashboards, RBAC) are post-launch
 - **Cross-project pattern detection on Free tier** — only ONE project in free, so impossible by definition; this becomes the natural Pro upsell
 - **Sending raw captures to cloud** — Pro cloud sync is directive metadata only, encrypted client-side. Captures stay on the user's machine forever.
-- **Auto-publishing v0.1.0 in v18** — pipeline ready but actual tag/publish waits until v22 (after Native Windows) so first public release is cross-platform from day one
+- **Publishing before SaaS is ready** — first public release (v34) comes after Windows + SaaS + Metrics so day-one users have full Pro upgrade path and proof stats
 
 ## Context
 
@@ -125,7 +136,7 @@ The two repos version and deploy independently. CLI gains a thin `sync` module i
 
 ## Constraints
 
-- **Tech stack:** Node.js ≥18.17 (plugin is an npm package). v22 adds native Windows; v1 is macOS + Linux.
+- **Tech stack:** Node.js ≥18.17 (plugin is an npm package). v23-v25 adds native Windows; pre-launch is macOS + Linux.
 - **Auth:** Learner default uses user's existing Claude Code CLI login — **no Anthropic API key required**. This is a non-negotiable adoption requirement.
 - **Privacy:** Zero network egress in free tier. In Pro: opt-in only, encrypted client-side, raw captures NEVER sync.
 - **Licensing:** CLI is Apache 2.0 (open). Pro tier uses Clerk JWT + Stripe subscription gate, NOT custom ed25519 (simpler, ecosystem-standard).
@@ -145,51 +156,59 @@ The two repos version and deploy independently. CLI gains a thin `sync` module i
 | Managed section markers in CLAUDE.md | Preserves user edits outside markers; hash-checked drift detection inside | ✅ shipped (v10, hardened v16) |
 | Secret scrubbing on by default | Captured tool I/O will contain secrets; non-negotiable redaction | ✅ shipped (Phase 0, >95% recall) |
 | npm package via `npx` | No global install needed; always runs latest | ✅ shipped (Phase 2) |
-| **Open core model: CLI Apache 2.0 + Cloud closed proprietary** | Open CLI drives adoption, closed cloud monetizes. RTK-validated. | 🟨 v18 (license file) + v23 (cloud repo) |
-| **Freemium with 1-project soft cap (Notion-style)** | Avoids "value retracted" trap of trial-then-paywall; respects existing learnings | 🟨 planned v23-v27 |
-| **No credit card on trial** | Friction kills conversion at <$15 ARPU; trial is risk-free | 🟨 planned v23-v27 |
-| **Trial triggered by Pro feature touch, not by install** | Engages users at moment of need; trial countdown means something | 🟨 planned v23-v27 |
-| **Side-by-side proof metrics (RTK-style)** | "47 errors prevented this month" sells better than feature lists | 🟨 planned v31+ |
-| Native Windows BEFORE SaaS launch | Selling subscription to Windows users then refusing CLI is unacceptable | 🟨 planned v20-v22 |
-| macOS + Linux only for v1 dogfood | launchd/systemd ship first; Windows in Phase 6 | ✅ current state |
+| **Open core model: CLI Apache 2.0 + Cloud closed proprietary** | Open CLI drives adoption, closed cloud monetizes. RTK-validated. | ✅ v18 (license file), cloud v26+ |
+| **Freemium with 1-project soft cap (Notion-style)** | Avoids "value retracted" trap of trial-then-paywall; respects existing learnings | 🟨 planned v26-v30 |
+| **No credit card on trial** | Friction kills conversion at <$15 ARPU; trial is risk-free | 🟨 planned v26-v30 |
+| **Trial triggered by Pro feature touch, not by install** | Engages users at moment of need; trial countdown means something | 🟨 planned v26-v30 |
+| **Side-by-side proof metrics (RTK-style)** | "47 errors prevented this month" sells better than feature lists | 🟨 planned v31-v33 |
+| **Publish AFTER SaaS + Metrics** | Day-one users need Pro upgrade path + proof stats for conversion | ✅ decided 2026-04-19 |
+| Native Windows BEFORE SaaS launch | First public release must be cross-platform | 🟨 v23-v25 (v23 done) |
+| macOS + Linux only for pre-launch | launchd/systemd ship first; Windows in Phase 6 | ✅ current state |
 | ed25519 license server REMOVED | Replaced by Clerk JWT + Supabase RLS — simpler, ecosystem-standard | ✅ decided 2026-04-17 |
 | 14-day trial REPLACED with feature-touch + 14-day | Better engagement model; user-driven not time-driven | ✅ decided 2026-04-19 |
 | "Recall gate" REMOVED from scope | Claude Code natively reads CLAUDE.md → no UserPromptSubmit injection needed | ✅ discovered v13 dogfood |
 
 ## Current State Summary (2026-04-19)
 
-- **7 of 8 planned phases shipped or in flight**
-- **21 versions released** (v1-v21), version 0.0.21 in package.json
-- **Phase 0-4 complete**, Phase 5 95% — v17 (CLI), v18 (publish), v19 (org migration), v20 (directive fix), v21 (templates + CI)
-- **Phase 6 NEW** (Native Windows) — inserted before SaaS for moral/commercial reasons
-- **Phase 9 NEW** (Metrics & Social Proof) — RTK-inspired, lansman öncesi kritik
+- **5 of 10 phases complete, Phase 6 in progress**
+- **23 versions released** (v1-v23), version 0.0.24 in package.json
+- **Phase 0-5 complete** — core product shipped, dogfood-validated, publish pipeline ready
+- **Phase 6** (Native Windows) — v23 foundation done, v24-v25 remaining
 - **2 active dogfood projects**: wrbeautiful-shopify-theme (92 turns, 6 LLM directives), sahibinden-scraper (16 turns)
-- **Zero known production bugs** as of v20
+- **Zero known production bugs** as of v23
 - **1012+ unit tests** all green
 - **Real LLM directives in production CLAUDE.md** since 2026-04-17
 
 ## Phase Map (current as of 2026-04-19)
 
 ```
-Phase 0  Foundations                  ✅ shipped v1
-Phase 1  Capture                      ✅ shipped v2 + v4-v8 hardening
-Phase 2  Installer/Scheduler/CLI      ✅ shipped v3 + v12 launchd reliability
-Phase 3  Learner                      ✅ 100% — v9, v13, v14, v17 (LLM + detectors + hard-kill + learn-now)
-Phase 4  ManagedSectionEditor         ✅ 100% — v10, v11, v16 (hardened)
-Phase 5  Inspection + Packaging       🟨 95% — v17 (CLI), v18 (publish), v19 (org), v20 (directive fix), v21 (templates + CI)
-Phase 6  Native Windows (NEW)         ⬜ v20-v22, blocks SaaS
-Phase 7  SaaS Platform                ⬜ v23-v27 (separate repo `auto-sop-cloud`)
-Phase 8  Smart Directive Targeting    ⬜ v28-v30 (İbrahim's insight)
-Phase 9  Metrics & Social Proof (NEW) ⬜ v31-v33 (RTK-style, lansman öncesi)
+Phase 0   Foundations                  ✅ shipped v1
+Phase 1   Capture                      ✅ shipped v2 + v4-v8 hardening
+Phase 2   Installer/Scheduler/CLI      ✅ shipped v3 + v12 launchd reliability
+Phase 3   Learner                      ✅ 100% — v9, v13, v14, v17 (LLM + detectors + hard-kill + learn-now)
+Phase 4   ManagedSectionEditor         ✅ 100% — v10, v11, v16 (hardened)
+Phase 5   Inspection + Packaging       ✅ 100% — v17-v22 (CLI, publish pipeline, org, badges, Homebrew prep)
+Phase 6   Native Windows              🔄 v23-v25 (v23 foundation done, v24 hardening, v25 CI)
+Phase 7   SaaS Platform               ⬜ v26-v30 (auto-sop-cloud, dashboard, Stripe, freemium)
+Phase 8   Metrics & Social Proof       ⬜ v31-v33 (RTK-style proof stats, landing page)
+Phase 9   First Public Launch          ⬜ v34 (npm 0.1.0 + Homebrew + repo public + landing page)
+Phase 10  Smart Directive Targeting    ⬜ v35-v37 (skill files, scope classification, post-launch)
 ```
 
 ---
-### Go Public Prep
+### Go Public Prep (all for v34)
 
 - [x] GitHub community files (ISSUE_TEMPLATE, PR template, SECURITY.md, FUNDING.yml, CODEOWNERS)
 - [x] CI stability (TypeScript strict mode fixes, flaky test retries, cross-platform test guards)
+- [x] README badges, Star History, Contributors, dual install options
+- [x] npm metadata polish (keywords, description, engines)
+- [x] Publish workflow (test + release-check gates, GitHub Release on tag)
+- [x] Homebrew tap staging (formula + update script)
 - [ ] README demo GIF + architecture diagram
-- [ ] First npm publish (blocked on Windows support decision)
+- [ ] Node SEA binary (macOS, Linux, Windows)
+- [ ] Homebrew tap live on GitHub
+- [ ] Landing page with side-by-side proof metrics
+- [ ] First `npm publish` v0.1.0
 
 ---
-*Last updated: 2026-04-19 after v21 GitHub templates + CI fixes + PROJECT.md update*
+*Last updated: 2026-04-19 — roadmap restructured: publish after SaaS + Metrics (v34), v23 Windows foundation done*

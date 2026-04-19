@@ -118,6 +118,4 @@ Pro cloud sync is opt-in and encrypted client-side (AES-256) before upload. The 
 
 [Apache License 2.0](./LICENSE)
 
-## Credits
 
-- **İbrahim Işkın** — Phase 8 smart-directive-targeting insight (2026-04-17)

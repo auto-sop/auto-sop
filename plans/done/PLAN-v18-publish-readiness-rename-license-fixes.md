@@ -297,7 +297,7 @@ This ensures every plan auto-bumps. The `--no-git-tag-version` flag prevents `np
       7. **Privacy** — Captures NEVER leave your machine on Free tier. Pro cloud sync is opt-in, encrypted client-side (AES-256), server stores encrypted blobs only. Raw captures stay local forever.
       8. **Compatibility** — Claude Code >=2.1.107, Node >=18.17, macOS + Linux. Windows: Phase 6 (v22).
       9. **License** — Apache 2.0 badge + link to LICENSE
-      10. **Credits** — İbrahim Işkın (Phase 8 smart-directive-targeting insight, 2026-04-17)
+      10. **Credits** — (removed)
     - Generate demo GIF via `vhs` if available (declarative tape file → GIF). If not, leave a recorded asciinema cast file or step-by-step instructions for user to run.
     - Generate architecture diagram (ASCII art is fine if image generation impractical — see PROJECT.md "Phase Map" for inspiration)
     - Verify install command actually works on a fresh box (spawn `npx auto-sop@latest install` in a tmpdir Node project)
