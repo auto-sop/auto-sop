@@ -1,6 +1,6 @@
 {
   "name": "auto-sop",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "description": "Make Claude Code self-improving — auto-detect recurring mistakes and write enforced CLAUDE.md directives",
   "author": "Ugur Gokdere <ugokdere@gmail.com>",
   "keywords": [
@@ -61,7 +61,7 @@
   "scripts": {
     "extract-rules": "tsx scripts/extract-secretlint-rules.ts",
     "build": "npm run extract-rules && tsup",
-    "postbuild": "mkdir -p dist/plugin && cp -R plugin/. dist/plugin/ && cp dist/capture/writer.cjs dist/plugin/writer.cjs && chmod +x dist/plugin/shim.cjs dist/plugin/learner.cjs dist/capture/shim.cjs",
+    "postbuild": "node scripts/postbuild.js",
     "test": "vitest run",
     "test:smoke": "npm run build && vitest run --config vitest.smoke.config.ts",
     "test:all": "npm run test && npm run test:smoke",
@@ -76,7 +76,7 @@
     "bench:shim": "node scripts/bench-shim.mjs",
     "bench:shim:ci": "npm run build && node scripts/bench-shim.mjs",
     "version:bump-patch": "npm version patch --no-git-tag-version",
-    "version:auto-bump": "bash scripts/bump-version.sh",
+    "version:auto-bump": "node -e \"if(process.platform!=='win32')require('child_process').execSync('bash scripts/bump-version.sh',{stdio:'inherit'})\"",
     "release-check": "bash scripts/release-check.sh"
   },
   "dependencies": {

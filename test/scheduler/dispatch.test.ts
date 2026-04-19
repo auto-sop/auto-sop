@@ -46,9 +46,15 @@ describe('pickBackend', () => {
     expect(result.fallbackWarning).toContain('cron entry as a fallback');
   });
 
+  it('returns windowsTaskScheduler for win32', async () => {
+    const result = await pickBackend('win32');
+    expect(result.backend.name).toBe('task-scheduler');
+    expect(result.fallbackWarning).toBeUndefined();
+  });
+
   it('throws for unsupported platform', async () => {
-    await expect(pickBackend('win32')).rejects.toThrow(
-      'unsupported platform: win32',
+    await expect(pickBackend('freebsd' as NodeJS.Platform)).rejects.toThrow(
+      'unsupported platform: freebsd',
     );
   });
 });

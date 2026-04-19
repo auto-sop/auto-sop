@@ -182,7 +182,7 @@ export async function runUninstall(
       (await (await import('../scheduler/index.js')).pickBackend()).backend;
     const r = await backend.uninstall({
       homeDir: opts.homeDir,
-      user: process.env.USER ?? '',
+      user: process.env.USER ?? process.env.USERNAME ?? '',
     });
     for (const w of r.warnings) warnings.push(`scheduler: ${w}`);
     return `backend=${backend.name}`;

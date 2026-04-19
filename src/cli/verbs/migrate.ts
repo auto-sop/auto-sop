@@ -37,6 +37,17 @@ export function registerMigrateVerb(program: Command): void {
       const projectRoot = path.resolve(opts.project as string);
       const steps: MigrateStep[] = [];
 
+      // Windows: no migration needed — always fresh install, no legacy claude-sop support.
+      if (process.platform === 'win32') {
+        const msg = 'Windows does not need migration — fresh install only.';
+        if (jsonMode) {
+          emit({ ok: true, verb: 'migrate', dryRun, steps: [{ step: 'skip', outcome: 'skipped', detail: msg }] });
+        } else {
+          process.stdout.write(pc.dim(msg) + '\n');
+        }
+        return;
+      }
+
       // Step 1: Move ~/.claude-sop/ → ~/.auto-sop/
       const oldHome = path.join(homeDir, '.claude-sop');
       const newHome = path.join(homeDir, '.auto-sop');

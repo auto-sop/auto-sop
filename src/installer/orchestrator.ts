@@ -50,7 +50,7 @@ export interface InstallResult {
   installedVersion: string;
   warnings: string[];
   pluginBundleDst: string;
-  scheduler: 'launchd' | 'systemd' | 'cron';
+  scheduler: 'launchd' | 'systemd' | 'cron' | 'task-scheduler';
   gitignore: 'created' | 'appended' | 'noop';
   /** Number of directives restored from a previous install, or 0. */
   directivesRestored: number;
@@ -177,7 +177,7 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
       intervalSec: 3600,
       logDir,
       homeDir: opts.homeDir,
-      user: process.env.USER ?? '',
+      user: process.env.USER ?? process.env.USERNAME ?? '',
     });
     if (fallbackWarning) warnings.push(fallbackWarning);
 

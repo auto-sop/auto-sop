@@ -7,6 +7,7 @@ import { execa } from 'execa';
 import { collectStatus } from '../../status/collector.js';
 import { PathResolver } from '../../path-resolver/index.js';
 import { pickBackend } from '../../scheduler/index.js';
+import { TASK_NAME } from '../../scheduler/windows-task-scheduler.js';
 import { emit } from '../output/json.js';
 import { renderTable } from '../output/human.js';
 import { PreconditionError } from '../errors.js';
@@ -123,8 +124,11 @@ export function registerDoctorVerb(program: Command): void {
 }
 
 async function schedulerEffectiveCheck(homeDir: string): Promise<Check> {
+  if (process.platform === 'win32') {
+    return schedulerEffectiveCheckWindows();
+  }
   if (process.platform !== 'darwin') {
-    // Non-macOS: fall back to simple installed check
+    // Linux: fall back to simple installed check
     return {
       name: 'scheduler effective',
       ok: true,
@@ -213,6 +217,20 @@ async function schedulerEffectiveCheck(homeDir: string): Promise<Check> {
     name: 'scheduler effective',
     ok: true,
     detail: `runs=${runs}, last exit ${lastExit}`,
+  };
+}
+
+async function schedulerEffectiveCheckWindows(): Promise<Check> {
+  const r = await execa('schtasks', [
+    '/Query',
+    '/TN', TASK_NAME,
+  ], { reject: false });
+  return {
+    name: 'scheduler effective',
+    ok: r.exitCode === 0,
+    detail: r.exitCode === 0
+      ? 'Task Scheduler task registered'
+      : 'Task Scheduler task not found',
   };
 }
 

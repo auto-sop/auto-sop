@@ -62,7 +62,7 @@ export async function collectStatus(
   const scheduler: SchedulerStatus = opts.schedulerBackend
     ? await opts.schedulerBackend.status({
         homeDir: opts.homeDir,
-        user: process.env.USER ?? '',
+        user: process.env.USER ?? process.env.USERNAME ?? '',
       })
     : {
         backend: 'none',

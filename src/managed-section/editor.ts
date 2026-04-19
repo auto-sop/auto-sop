@@ -352,8 +352,12 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
     throw err;
   }
 
-  // Ensure final permissions
-  chmodSync(claudeMdPath, 0o644);
+  // Ensure final permissions (no-op on Windows — NTFS ignores POSIX modes)
+  try {
+    chmodSync(claudeMdPath, 0o644);
+  } catch (err) {
+    if (process.platform !== 'win32') throw err;
+  }
 
   // 8. Record the post-write hash so the next run can detect drift.
   //    Computed against the same byte range we'd extract on read, so
