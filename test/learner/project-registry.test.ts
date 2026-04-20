@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { readRegistry, upsertProject, removeProject, registryPath, validateProjectRoot } from '../../src/learner/project-registry.js';
+import {
+  readRegistry,
+  upsertProject,
+  removeProject,
+  registryPath,
+  validateProjectRoot,
+} from '../../src/learner/project-registry.js';
 
 describe('project-registry', () => {
   let tmpHome: string;
@@ -91,7 +97,9 @@ describe('project-registry', () => {
 
   describe('upsertProject with invalid root', () => {
     it('throws on path traversal', () => {
-      expect(() => upsertProject('id1', 'slug', '/tmp/../etc', tmpHome)).toThrow('traversal segments');
+      expect(() => upsertProject('id1', 'slug', '/tmp/../etc', tmpHome)).toThrow(
+        'traversal segments',
+      );
     });
 
     it('throws on non-absolute path', () => {
@@ -99,7 +107,11 @@ describe('project-registry', () => {
     });
 
     it('does not write entry to registry on invalid root', () => {
-      try { upsertProject('id1', 'slug', '/tmp/../etc', tmpHome); } catch { /* expected */ }
+      try {
+        upsertProject('id1', 'slug', '/tmp/../etc', tmpHome);
+      } catch {
+        /* expected */
+      }
       const reg = readRegistry(tmpHome);
       expect(reg.projects).toHaveLength(0);
     });

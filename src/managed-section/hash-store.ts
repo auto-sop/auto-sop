@@ -23,9 +23,9 @@ import {
   openSync,
   fsyncSync,
   closeSync,
-  chmodSync,
 } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
+import { getPlatform } from '../platform/index.js';
 import { createHash } from 'node:crypto';
 
 // ─── Public types ────────────────────────────────────────
@@ -160,7 +160,7 @@ export function writeLastHash(projectRoot: string, hash: string): void {
 
   // Re-assert mode after rename (umask can soften it)
   try {
-    chmodSync(path, 0o600);
+    getPlatform().chmodSync(path, 0o600);
   } catch {
     // best-effort
   }

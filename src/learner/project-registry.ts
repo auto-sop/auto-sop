@@ -45,11 +45,12 @@ function logRegistryError(kind: string, err: unknown, home?: string): void {
   try {
     const logPath = errorsLogPath(home);
     mkdirSync(dirname(logPath), { recursive: true });
-    const line = JSON.stringify({
-      t: new Date().toISOString(),
-      kind,
-      err: err instanceof Error ? err.message : String(err),
-    }) + '\n';
+    const line =
+      JSON.stringify({
+        t: new Date().toISOString(),
+        kind,
+        err: err instanceof Error ? err.message : String(err),
+      }) + '\n';
     appendFileSync(logPath, line, { mode: 0o600 });
   } catch {
     // Error logging must never itself throw
@@ -107,7 +108,6 @@ function writeRegistry(registry: ProjectRegistry, home?: string): void {
     writeFileSync(regPath, '{}', { mode: 0o600 });
   }
 
-  let released = false;
   try {
     lockSync(regPath, {
       lockfilePath: lockPath,
@@ -128,7 +128,7 @@ function writeRegistry(registry: ProjectRegistry, home?: string): void {
   } finally {
     try {
       unlockSync(regPath, { lockfilePath: lockPath });
-      released = true;
+      // released
     } catch {
       // best-effort release
     }

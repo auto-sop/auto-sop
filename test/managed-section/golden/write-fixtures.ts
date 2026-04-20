@@ -24,10 +24,7 @@ const here = fileURLToPath(new URL('.', import.meta.url));
 
 function main(): void {
   if (process.env['GOLDEN_UPDATE'] !== '1') {
-    // eslint-disable-next-line no-console
-    console.error(
-      'Refusing to regenerate golden inputs without GOLDEN_UPDATE=1.',
-    );
+    console.error('Refusing to regenerate golden inputs without GOLDEN_UPDATE=1.');
     process.exit(1);
   }
 
@@ -40,15 +37,11 @@ function main(): void {
       // and its presence is explicit in the repo. The golden test detects
       // this sentinel and feeds `null` to the renderer.
       writeFileSync(`${target}.null`, '');
-      // eslint-disable-next-line no-console
       console.log(`wrote ${fx.name}.md.null (null-input sentinel)`);
       continue;
     }
     writeFileSync(target, input);
-    // eslint-disable-next-line no-console
-    console.log(
-      `wrote ${fx.name}.md (${input.length} bytes) — ${fx.describe}`,
-    );
+    console.log(`wrote ${fx.name}.md (${input.length} bytes) — ${fx.describe}`);
   }
 }
 

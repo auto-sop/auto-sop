@@ -6,6 +6,7 @@ Custom user rules that absolutely must not move:
 - Always sign commits
 
 ---
+
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 

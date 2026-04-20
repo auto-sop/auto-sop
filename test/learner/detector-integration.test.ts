@@ -8,14 +8,7 @@
  * Mirrors the main.ts wiring in a testable form (no launchd, no CLI spawn).
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  mkdtempSync,
-  rmSync,
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  existsSync,
-} from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { writeManagedSection } from '../../src/managed-section/editor.js';
@@ -229,11 +222,7 @@ describe('detector-integration', () => {
   it('writes 2 directive bullets for the seeded scenario', () => {
     seedScenario();
 
-    const { verdict, directivesActive } = runDetectorPipeline(
-      project,
-      '2026-04-14T22:20:00Z',
-      8,
-    );
+    const { verdict, directivesActive } = runDetectorPipeline(project, '2026-04-14T22:20:00Z', 8);
 
     expect(verdict).toBe('created');
     expect(directivesActive).toBe(2);

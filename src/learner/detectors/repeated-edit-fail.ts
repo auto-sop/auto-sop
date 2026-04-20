@@ -107,10 +107,11 @@ export const repeatedEditFailDetector: Detector = {
 
       const sessionIds = [...distinctSessions].sort();
       const turnIds = [...new Set(failures.map((f) => f.turn_id))].sort();
-      const firstSeen = failures
-        .map((f) => f.t)
-        .filter((t) => t.length > 0)
-        .sort()[0] ?? nowIso;
+      const firstSeen =
+        failures
+          .map((f) => f.t)
+          .filter((t) => t.length > 0)
+          .sort()[0] ?? nowIso;
 
       const rule_text = buildRuleText(fingerprint, distinctSessions.size);
       const id = generateProposalId(DETECTOR_NAME, fingerprint);

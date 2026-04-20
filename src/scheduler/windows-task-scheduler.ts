@@ -1,9 +1,5 @@
 import { execa } from 'execa';
-import type {
-  SchedulerBackend,
-  SchedulerInstallOpts,
-  SchedulerStatus,
-} from './types.js';
+import type { SchedulerBackend, SchedulerInstallOpts, SchedulerStatus } from './types.js';
 
 export const TASK_NAME = 'auto-sop-learner';
 
@@ -15,39 +11,23 @@ export const windowsTaskScheduler: SchedulerBackend = {
     // /SC HOURLY runs every hour. /TR is the command to execute.
     // Task Scheduler handles .cmd natively; no need for node.exe or cmd.exe wrapper.
     const tr = `"${opts.tickScriptPath}"`;
-    await execa('schtasks', [
-      '/Create',
-      '/TN', TASK_NAME,
-      '/SC', 'HOURLY',
-      '/TR', tr,
-      '/F',
-    ]);
+    await execa('schtasks', ['/Create', '/TN', TASK_NAME, '/SC', 'HOURLY', '/TR', tr, '/F']);
   },
 
   async uninstall(): Promise<{ warnings: string[] }> {
     const warnings: string[] = [];
-    const r = await execa('schtasks', [
-      '/Delete',
-      '/TN', TASK_NAME,
-      '/F',
-    ], { reject: false });
+    const r = await execa('schtasks', ['/Delete', '/TN', TASK_NAME, '/F'], { reject: false });
     if (r.exitCode !== 0 && r.stderr) {
       warnings.push(r.stderr);
     }
     return { warnings };
   },
 
-  async status(opts: {
-    homeDir: string;
-    user: string;
-  }): Promise<SchedulerStatus> {
+  async status(_opts: { homeDir: string; user: string }): Promise<SchedulerStatus> {
     // Query in CSV verbose format for parsing
-    const r = await execa('schtasks', [
-      '/Query',
-      '/TN', TASK_NAME,
-      '/FO', 'CSV',
-      '/V',
-    ], { reject: false });
+    const r = await execa('schtasks', ['/Query', '/TN', TASK_NAME, '/FO', 'CSV', '/V'], {
+      reject: false,
+    });
 
     if (r.exitCode !== 0) {
       return {

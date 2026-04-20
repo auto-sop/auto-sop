@@ -87,9 +87,7 @@ describe('directive-builder', () => {
       // turn, not wall-clock `Last updated:`.
       expect(result.body).toContain('_Data as of: 2026-04-14T22:20:00Z');
       expect(result.body).toContain('47 turns analyzed');
-      expect(result.body).toContain(
-        '3 agents: architect-principal-engineer, commander, main_',
-      );
+      expect(result.body).toContain('3 agents: architect-principal-engineer, commander, main_');
       expect(result.body).toContain('**Learnings**');
     });
 
@@ -241,9 +239,7 @@ describe('directive-builder', () => {
         proposals: [later, earlier],
         candidateCount: 0,
       });
-      expect(result.body.indexOf('EARLIER RULE')).toBeLessThan(
-        result.body.indexOf('LATER RULE'),
-      );
+      expect(result.body.indexOf('EARLIER RULE')).toBeLessThan(result.body.indexOf('LATER RULE'));
     });
 
     it('bullet includes severity tag, rule_text, and evidence line', () => {
@@ -373,8 +369,7 @@ describe('directive-builder', () => {
         nowIso: '2026-04-14T22:20:00Z',
         proposals: [],
         candidateCount: 0,
-        llmSummary:
-          'Detected repeated test-install failures across 5 sessions.',
+        llmSummary: 'Detected repeated test-install failures across 5 sessions.',
       });
       expect(result.body).toContain(
         '_AI analysis: Detected repeated test-install failures across 5 sessions._',
@@ -418,9 +413,7 @@ describe('directive-builder', () => {
         llmSummary: 'line one\n\n_injected header_\n\n- injected bullet',
       });
       // AI analysis line appears on exactly one physical line.
-      const aiLines = result.body
-        .split('\n')
-        .filter((l) => l.includes('AI analysis:'));
+      const aiLines = result.body.split('\n').filter((l) => l.includes('AI analysis:'));
       expect(aiLines).toHaveLength(1);
       expect(aiLines[0]).toContain('line one _injected header_ - injected bullet');
     });
@@ -492,9 +485,7 @@ describe('directive-builder', () => {
           ],
           candidateCount: 0,
         });
-        expect(result.body).toContain(
-          '[view turns](.auto-sop/captures/solo-turn)',
-        );
+        expect(result.body).toContain('[view turns](.auto-sop/captures/solo-turn)');
         expect(result.body).not.toContain('more]');
       });
 
@@ -516,16 +507,10 @@ describe('directive-builder', () => {
           ],
           candidateCount: 0,
         });
-        expect(result.body).toContain(
-          '[view turns](.auto-sop/captures/first-turn) [+2 more]',
-        );
+        expect(result.body).toContain('[view turns](.auto-sop/captures/first-turn) [+2 more]');
         // Only the FIRST turn id appears as a link target.
-        expect(result.body).not.toContain(
-          '[view turns](.auto-sop/captures/second-turn)',
-        );
-        expect(result.body).not.toContain(
-          '[view turns](.auto-sop/captures/third-turn)',
-        );
+        expect(result.body).not.toContain('[view turns](.auto-sop/captures/second-turn)');
+        expect(result.body).not.toContain('[view turns](.auto-sop/captures/third-turn)');
       });
 
       it('empty turn_ids falls back to bare session count (no link)', () => {
@@ -586,9 +571,7 @@ describe('directive-builder', () => {
           ],
           candidateCount: 0,
         });
-        expect(result.body).toContain(
-          '[view turns](.auto-sop/captures/alpha) [+1 more]',
-        );
+        expect(result.body).toContain('[view turns](.auto-sop/captures/alpha) [+1 more]');
       });
 
       it('uses · (middle dot) separator between session count and link', () => {
@@ -601,9 +584,7 @@ describe('directive-builder', () => {
         });
         // Middle dot comes from the existing stats header — make sure
         // the evidence line ALSO uses it, not a hyphen or comma.
-        expect(result.body).toContain(
-          '3 sessions \u00b7 [view turns](.auto-sop/captures/t1)',
-        );
+        expect(result.body).toContain('3 sessions \u00b7 [view turns](.auto-sop/captures/t1)');
       });
 
       // ── APEX SEC-001 — defense-in-depth turn_id sanitization ──
@@ -640,9 +621,7 @@ describe('directive-builder', () => {
       it('APEX SEC-001: turn_id that sanitizes to empty → no link at all', () => {
         const p = makeProposal();
         // Only non-alphabet chars → sanitizer returns ''.
-        (p.evidence as unknown as { turn_ids: string[] }).turn_ids = [
-          '!@#$%^&*()',
-        ];
+        (p.evidence as unknown as { turn_ids: string[] }).turn_ids = ['!@#$%^&*()'];
         const result = buildDirectiveBodyFromInput({
           turnsTotalSeen: 3,
           agentRoster: ['main'],
@@ -658,9 +637,7 @@ describe('directive-builder', () => {
 
       it('APEX SEC-001: markdown output never has unbalanced brackets from turn_id', () => {
         const p = makeProposal();
-        (p.evidence as unknown as { turn_ids: string[] }).turn_ids = [
-          'aaa)bbb]ccc(ddd',
-        ];
+        (p.evidence as unknown as { turn_ids: string[] }).turn_ids = ['aaa)bbb]ccc(ddd'];
         const result = buildDirectiveBodyFromInput({
           turnsTotalSeen: 3,
           agentRoster: ['main'],
@@ -669,9 +646,7 @@ describe('directive-builder', () => {
           candidateCount: 0,
         });
         // Split off the evidence line for focused inspection.
-        const evidenceLine = result.body
-          .split('\n')
-          .find((l) => l.includes('evidence:'))!;
+        const evidenceLine = result.body.split('\n').find((l) => l.includes('evidence:'))!;
         const opens = (evidenceLine.match(/\(/g) ?? []).length;
         const closes = (evidenceLine.match(/\)/g) ?? []).length;
         const opensBracket = (evidenceLine.match(/\[/g) ?? []).length;
@@ -692,9 +667,7 @@ describe('directive-builder', () => {
           candidateCount: 0,
         });
         // The link target is capped at 128 chars.
-        expect(result.body).toContain(
-          `[view turns](.auto-sop/captures/${'a'.repeat(128)})`,
-        );
+        expect(result.body).toContain(`[view turns](.auto-sop/captures/${'a'.repeat(128)})`);
         // And crucially, the full 500-a string is NOT present anywhere.
         expect(result.body).not.toContain('a'.repeat(129));
       });
@@ -710,14 +683,10 @@ describe('directive-builder', () => {
         candidateCount: 0,
         llmSummary: long,
       });
-      const aiLine = result.body
-        .split('\n')
-        .find((l) => l.includes('AI analysis:'));
+      const aiLine = result.body.split('\n').find((l) => l.includes('AI analysis:'));
       expect(aiLine).toBeDefined();
       // Prefix "_AI analysis: " + truncated body (<=500 chars, last char is \u2026) + trailing "_"
-      expect(aiLine!.length).toBeLessThanOrEqual(
-        '_AI analysis: '.length + 500 + 1,
-      );
+      expect(aiLine!.length).toBeLessThanOrEqual('_AI analysis: '.length + 500 + 1);
       expect(aiLine).toContain('\u2026');
     });
   });
@@ -820,13 +789,7 @@ describe('directive-builder', () => {
         last_seen_at: '2026-04-14T22:00:00Z',
       };
 
-      const result = buildDirectiveBody(
-        project,
-        '2026-04-14T22:20:00Z',
-        47,
-        [makeProposal()],
-        0,
-      );
+      const result = buildDirectiveBody(project, '2026-04-14T22:20:00Z', 47, [makeProposal()], 0);
 
       expect(result.body).toContain('47 turns analyzed');
       expect(result.body).toContain('architect-principal-engineer, main');

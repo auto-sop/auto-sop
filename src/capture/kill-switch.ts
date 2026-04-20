@@ -18,9 +18,7 @@
 /** Module-scoped flag: emit the deprecation notice at most once per process. */
 let deprecationWarned = false;
 
-export function isCaptureDisabled(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
+export function isCaptureDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
   if (env.AUTO_SOP_CAPTURE_SUPPRESS === '1') return true;
   if (env.CLAUDE_SOP_CAPTURE_SUPPRESS === '1') {
     emitDeprecationNotice('CLAUDE_SOP_CAPTURE_SUPPRESS', 'AUTO_SOP_CAPTURE_SUPPRESS');
@@ -37,10 +35,7 @@ function emitDeprecationNotice(oldVar: string, newVar: string): void {
   if (deprecationWarned) return;
   deprecationWarned = true;
   try {
-    process.stderr.write(
-      `[auto-sop] ${oldVar} is deprecated; ` +
-        `use ${newVar} instead.\n`,
-    );
+    process.stderr.write(`[auto-sop] ${oldVar} is deprecated; ` + `use ${newVar} instead.\n`);
   } catch {
     /* stderr may be closed in detached writer — ignore */
   }

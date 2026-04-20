@@ -17,11 +17,7 @@ vi.mock('../../src/config/machine-id.js', () => ({
   getMachineId: vi.fn().mockResolvedValue('deadbeef01234567890abcdef0123456'),
 }));
 
-import {
-  readSecrets,
-  writeSecrets,
-  recordLicenseOnInstall,
-} from '../../src/license/storage.js';
+import { readSecrets, writeSecrets, recordLicenseOnInstall } from '../../src/license/storage.js';
 import type { SecretsPayloadV1 } from '../../src/license/schema.js';
 
 beforeAll(() => installNoNetworkGuards());

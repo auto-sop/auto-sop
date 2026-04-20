@@ -35,11 +35,7 @@ function readPkgVersion(): string {
     try {
       const content: string = readFileSync(p, 'utf8');
       const parsed: unknown = JSON.parse(content);
-      if (
-        typeof parsed === 'object' &&
-        parsed !== null &&
-        'version' in parsed
-      ) {
+      if (typeof parsed === 'object' && parsed !== null && 'version' in parsed) {
         const ver = (parsed as { version?: unknown }).version;
         if (typeof ver === 'string') return ver;
       }
@@ -79,12 +75,8 @@ export async function runCli(argv: string[]): Promise<number> {
       return ExitCode.MISUSE;
     }
     if (err instanceof PreconditionError) {
-      if (jsonMode)
-        emitError(ExitCode.PRECONDITION_FAILED, err.message, err.hint);
-      else
-        process.stderr.write(
-          pc.yellow(`precondition failed: ${err.message}`) + '\n',
-        );
+      if (jsonMode) emitError(ExitCode.PRECONDITION_FAILED, err.message, err.hint);
+      else process.stderr.write(pc.yellow(`precondition failed: ${err.message}`) + '\n');
       return ExitCode.PRECONDITION_FAILED;
     }
     const msg = (err as Error)?.message ?? String(err);

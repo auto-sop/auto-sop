@@ -10,18 +10,14 @@ import { TRIAL_DURATION_DAYS } from './trial.js';
 /**
  * Read and decrypt secrets.enc, returning a validated SecretsPayloadV1 or null if file is missing.
  */
-export async function readSecrets(
-  secretsEncPath: string,
-): Promise<SecretsPayloadV1 | null> {
+export async function readSecrets(secretsEncPath: string): Promise<SecretsPayloadV1 | null> {
   const file = await readSecretsFile(secretsEncPath);
   if (file === null) return null;
   const plaintext = await decryptSecrets(file);
   const parsed: unknown = JSON.parse(plaintext);
   const result = secretsPayloadV1Schema.safeParse(parsed);
   if (!result.success) {
-    throw new Error(
-      `secrets.enc payload validation failed: ${result.error.message}`,
-    );
+    throw new Error(`secrets.enc payload validation failed: ${result.error.message}`);
   }
   return result.data;
 }
@@ -55,9 +51,7 @@ export interface RecordLicenseOpts {
  * Critical invariant (LIC-02): `trial.started_at` is written ONCE on first
  * install and **never** overwritten on subsequent re-installs.
  */
-export async function recordLicenseOnInstall(
-  opts: RecordLicenseOpts,
-): Promise<SecretsPayloadV1> {
+export async function recordLicenseOnInstall(opts: RecordLicenseOpts): Promise<SecretsPayloadV1> {
   const now = opts.now ?? Date.now();
   const machineIdPrefix = opts.machineIdFull.slice(0, 8);
   const existing = await readSecrets(opts.secretsEncPath);

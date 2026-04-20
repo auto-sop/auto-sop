@@ -36,8 +36,7 @@ interface FailureRecord {
 
 export const repeatedBashFailureDetector: Detector = {
   name: DETECTOR_NAME,
-  description:
-    'Flags Bash commands that have exited non-zero across >= 3 distinct sessions.',
+  description: 'Flags Bash commands that have exited non-zero across >= 3 distinct sessions.',
 
   detect(turns: TurnData[]): DirectiveProposalType[] {
     // Map: fingerprint → list of failure records (one per failure)
@@ -89,10 +88,11 @@ export const repeatedBashFailureDetector: Detector = {
       // Build proposal — TEMPLATE ONLY, no raw output interpolation.
       const sessionIds = [...distinctSessions].sort();
       const turnIds = [...new Set(failures.map((f) => f.turn_id))].sort();
-      const firstSeen = failures
-        .map((f) => f.t)
-        .filter((t) => t.length > 0)
-        .sort()[0] ?? nowIso;
+      const firstSeen =
+        failures
+          .map((f) => f.t)
+          .filter((t) => t.length > 0)
+          .sort()[0] ?? nowIso;
 
       const rule_text = buildRuleText(fingerprint, distinctSessions.size);
       const id = generateProposalId(DETECTOR_NAME, fingerprint);

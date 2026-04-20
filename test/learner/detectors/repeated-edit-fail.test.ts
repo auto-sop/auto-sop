@@ -63,18 +63,10 @@ function makeTurn(
 describe('repeated-edit-fail detector', () => {
   it('4 sessions with 3 Edit failures on src/index.ts → 1 proposal', () => {
     const turns: TurnData[] = [
-      makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [
-        { file_path: 'src/index.ts', success: false },
-      ]),
-      makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [
-        { file_path: 'src/index.ts', success: false },
-      ]),
-      makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [
-        { file_path: 'src/index.ts', success: false },
-      ]),
-      makeTurn('t4', 's4', '2026-04-14T13:00:00Z', [
-        { file_path: 'src/other.ts', success: true },
-      ]),
+      makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [{ file_path: 'src/index.ts', success: false }]),
+      makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [{ file_path: 'src/index.ts', success: false }]),
+      makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [{ file_path: 'src/index.ts', success: false }]),
+      makeTurn('t4', 's4', '2026-04-14T13:00:00Z', [{ file_path: 'src/other.ts', success: true }]),
     ];
 
     const proposals = repeatedEditFailDetector.detect(turns);
@@ -87,15 +79,9 @@ describe('repeated-edit-fail detector', () => {
 
   it('3 sessions with Edit fail on different files → 0 proposals', () => {
     const turns: TurnData[] = [
-      makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [
-        { file_path: 'src/a.ts', success: false },
-      ]),
-      makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [
-        { file_path: 'src/b.ts', success: false },
-      ]),
-      makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [
-        { file_path: 'src/c.ts', success: false },
-      ]),
+      makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [{ file_path: 'src/a.ts', success: false }]),
+      makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [{ file_path: 'src/b.ts', success: false }]),
+      makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [{ file_path: 'src/c.ts', success: false }]),
     ];
 
     const proposals = repeatedEditFailDetector.detect(turns);
@@ -104,15 +90,9 @@ describe('repeated-edit-fail detector', () => {
 
   it('Edit succeeds (success=true) → 0 proposals', () => {
     const turns: TurnData[] = [
-      makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [
-        { file_path: 'src/a.ts', success: true },
-      ]),
-      makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [
-        { file_path: 'src/a.ts', success: true },
-      ]),
-      makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [
-        { file_path: 'src/a.ts', success: true },
-      ]),
+      makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [{ file_path: 'src/a.ts', success: true }]),
+      makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [{ file_path: 'src/a.ts', success: true }]),
+      makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [{ file_path: 'src/a.ts', success: true }]),
     ];
 
     const proposals = repeatedEditFailDetector.detect(turns);
@@ -158,15 +138,9 @@ describe('repeated-edit-fail detector', () => {
 
   it('proposal passes DirectiveProposal schema validation', () => {
     const turns: TurnData[] = [
-      makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [
-        { file_path: 'file.ts', success: false },
-      ]),
-      makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [
-        { file_path: 'file.ts', success: false },
-      ]),
-      makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [
-        { file_path: 'file.ts', success: false },
-      ]),
+      makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [{ file_path: 'file.ts', success: false }]),
+      makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [{ file_path: 'file.ts', success: false }]),
+      makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [{ file_path: 'file.ts', success: false }]),
     ];
     const proposals = repeatedEditFailDetector.detect(turns);
     expect(proposals).toHaveLength(1);
@@ -274,9 +248,7 @@ describe('repeated-edit-fail detector', () => {
     });
 
     it('strips [REDACTED:hash] project prefix', () => {
-      expect(
-        fingerprintFilePath('[REDACTED:abc]-shopify-theme/src/index.ts'),
-      ).toBe('src/index.ts');
+      expect(fingerprintFilePath('[REDACTED:abc]-shopify-theme/src/index.ts')).toBe('src/index.ts');
     });
 
     it('caps at 200 chars', () => {
@@ -293,22 +265,12 @@ describe('repeated-edit-fail detector', () => {
     it('counts below-threshold file patterns (1-2 sessions)', () => {
       const turns: TurnData[] = [
         // file-a: 2 sessions → candidate
-        makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [
-          { file_path: 'src/a.ts', success: false },
-        ]),
-        makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [
-          { file_path: 'src/a.ts', success: false },
-        ]),
+        makeTurn('t1', 's1', '2026-04-14T10:00:00Z', [{ file_path: 'src/a.ts', success: false }]),
+        makeTurn('t2', 's2', '2026-04-14T11:00:00Z', [{ file_path: 'src/a.ts', success: false }]),
         // file-b: 3 sessions → NOT a candidate
-        makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [
-          { file_path: 'src/b.ts', success: false },
-        ]),
-        makeTurn('t4', 's4', '2026-04-14T13:00:00Z', [
-          { file_path: 'src/b.ts', success: false },
-        ]),
-        makeTurn('t5', 's5', '2026-04-14T14:00:00Z', [
-          { file_path: 'src/b.ts', success: false },
-        ]),
+        makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [{ file_path: 'src/b.ts', success: false }]),
+        makeTurn('t4', 's4', '2026-04-14T13:00:00Z', [{ file_path: 'src/b.ts', success: false }]),
+        makeTurn('t5', 's5', '2026-04-14T14:00:00Z', [{ file_path: 'src/b.ts', success: false }]),
       ];
       expect(countEditFailureCandidates(turns)).toBe(1);
     });

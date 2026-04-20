@@ -40,9 +40,7 @@ describe('pickBackend', () => {
     const result = await pickBackend('linux');
     expect(result.backend).toBe(linuxCron);
     expect(result.fallbackWarning).toBeDefined();
-    expect(result.fallbackWarning).toContain(
-      'systemd --user is unavailable',
-    );
+    expect(result.fallbackWarning).toContain('systemd --user is unavailable');
     expect(result.fallbackWarning).toContain('cron entry as a fallback');
   });
 

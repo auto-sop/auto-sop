@@ -84,21 +84,16 @@ export async function mergeGlobalMarketplace(
   marketplaceDirAbs: string,
 ): Promise<void> {
   if (!marketplaceDirAbs.startsWith('/')) {
-    throw new Error(
-      `marketplaceDirAbs must be absolute, got: ${marketplaceDirAbs}`,
-    );
+    throw new Error(`marketplaceDirAbs must be absolute, got: ${marketplaceDirAbs}`);
   }
 
   let text = await readSettingsText(settingsPath);
   assertJsonObject(text);
 
   const value = { source: { source: 'directory', path: marketplaceDirAbs } };
-  const edits = modify(
-    text,
-    ['extraKnownMarketplaces', 'auto-sop'],
-    value,
-    { formattingOptions: FORMAT_OPTIONS },
-  );
+  const edits = modify(text, ['extraKnownMarketplaces', 'auto-sop'], value, {
+    formattingOptions: FORMAT_OPTIONS,
+  });
   text = applyEdits(text, edits);
 
   await writeFileAtomic(settingsPath, text);

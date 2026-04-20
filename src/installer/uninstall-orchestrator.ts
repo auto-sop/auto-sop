@@ -2,11 +2,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { parse, modify, applyEdits } from 'jsonc-parser';
 import { writeFileAtomic } from '../atomic/write.js';
-import {
-  stripManagedSection,
-  MANAGED_BEGIN,
-  MANAGED_END,
-} from './managed-section.js';
+import { stripManagedSection, MANAGED_BEGIN, MANAGED_END } from './managed-section.js';
 import { HOOK_EVENTS, CLAUDE_SOP_HOOK_ID, LEGACY_HOOK_ID } from './hook-entries.js';
 import type { SchedulerBackend } from '../scheduler/types.js';
 import { removeProject } from '../learner/project-registry.js';
@@ -37,9 +33,7 @@ export interface UninstallResult {
   backupPath: string | null;
 }
 
-export async function runUninstall(
-  opts: UninstallOptions,
-): Promise<UninstallResult> {
+export async function runUninstall(opts: UninstallOptions): Promise<UninstallResult> {
   const steps: UninstallResult['steps'] = [];
   const warnings: string[] = [];
   let backupPath: string | null = null;
@@ -50,29 +44,13 @@ export async function runUninstall(
   const secretsEncPath = path.join(claudeSopHome, 'secrets.enc');
   const versionTxtPath = path.join(claudeSopHome, 'version.txt');
   const marketplaceDir = path.join(claudeSopHome, 'marketplace', 'auto-sop');
-  const projectClaudeSettings = path.join(
-    opts.projectRoot,
-    '.claude',
-    'settings.json',
-  );
+  const projectClaudeSettings = path.join(opts.projectRoot, '.claude', 'settings.json');
   const claudeMdPath = path.join(opts.projectRoot, 'CLAUDE.md');
-  const globalSopDir = path.join(
-    opts.homeDir,
-    '.claude',
-    'sop',
-    opts.projectHash12,
-  );
+  const globalSopDir = path.join(opts.homeDir, '.claude', 'sop', opts.projectHash12);
   const managedHistoryDir = path.join(globalSopDir, 'managed-history');
-  const projectCapturesDir = path.join(
-    opts.projectRoot,
-    '.auto-sop',
-    'captures',
-  );
+  const projectCapturesDir = path.join(opts.projectRoot, '.auto-sop', 'captures');
 
-  async function step(
-    name: string,
-    fn: () => Promise<string | void>,
-  ): Promise<void> {
+  async function step(name: string, fn: () => Promise<string | void>): Promise<void> {
     try {
       const detail = await fn();
       const entry: UninstallResult['steps'][number] = { step: name, outcome: 'ok' };
@@ -142,8 +120,7 @@ export async function runUninstall(
     try {
       text = await fs.readFile(projectClaudeSettings, 'utf8');
     } catch (e: unknown) {
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT')
-        return 'settings.json absent';
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return 'settings.json absent';
       throw e;
     }
 
@@ -157,18 +134,15 @@ export async function runUninstall(
       const arr: unknown[] = current?.hooks?.[ev] ?? [];
       const filtered = arr.filter(
         (entry: unknown) =>
-          !(
-            (entry as { hooks?: Array<{ id?: string }> })?.hooks ?? []
-          ).some((h) => h?.id === CLAUDE_SOP_HOOK_ID || h?.id === LEGACY_HOOK_ID),
+          !((entry as { hooks?: Array<{ id?: string }> })?.hooks ?? []).some(
+            (h) => h?.id === CLAUDE_SOP_HOOK_ID || h?.id === LEGACY_HOOK_ID,
+          ),
       );
       updated = applyEdits(
         updated,
-        modify(
-          updated,
-          ['hooks', ev],
-          filtered.length > 0 ? filtered : undefined,
-          { formattingOptions: { insertSpaces: true, tabSize: 2 } },
-        ),
+        modify(updated, ['hooks', ev], filtered.length > 0 ? filtered : undefined, {
+          formattingOptions: { insertSpaces: true, tabSize: 2 },
+        }),
       );
     }
     await writeFileAtomic(projectClaudeSettings, updated);
@@ -235,9 +209,7 @@ export async function runUninstall(
  * Preview helper: reads managed section content without mutating the file.
  * Used by backup step BEFORE strip step runs.
  */
-async function stripManagedSectionPreview(
-  p: string,
-): Promise<{ removed: string | null }> {
+async function stripManagedSectionPreview(p: string): Promise<{ removed: string | null }> {
   try {
     const text = await fs.readFile(p, 'utf8');
     const begin = text.indexOf(MANAGED_BEGIN);

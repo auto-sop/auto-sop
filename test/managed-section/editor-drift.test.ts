@@ -20,14 +20,8 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import {
-  writeManagedSection,
-  removeManagedSection,
-} from '../../src/managed-section/editor.js';
-import {
-  readLastHash,
-  clearLastHash,
-} from '../../src/managed-section/hash-store.js';
+import { writeManagedSection, removeManagedSection } from '../../src/managed-section/editor.js';
+import { readLastHash, clearLastHash } from '../../src/managed-section/hash-store.js';
 
 function makeTmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'auto-sop-editor-drift-'));
@@ -36,8 +30,7 @@ function makeTmpDir(): string {
 describe('ManagedSectionEditor — E1 drift detection', () => {
   let projectRoot: string;
   const events: Array<{ kind: string; data: unknown }> = [];
-  const logger = (kind: string, data?: unknown) =>
-    events.push({ kind, data });
+  const logger = (kind: string, data?: unknown) => events.push({ kind, data });
 
   beforeEach(() => {
     projectRoot = makeTmpDir();
@@ -49,8 +42,7 @@ describe('ManagedSectionEditor — E1 drift detection', () => {
   });
 
   const claudeMd = () => join(projectRoot, 'CLAUDE.md');
-  const historyDir = () =>
-    join(projectRoot, '.auto-sop', 'state', 'managed-history');
+  const historyDir = () => join(projectRoot, '.auto-sop', 'state', 'managed-history');
 
   it('first run (no stored hash) writes successfully and records post-write hash', () => {
     expect(readLastHash(projectRoot)).toBeNull();
@@ -121,18 +113,12 @@ describe('ManagedSectionEditor — E1 drift detection', () => {
     const snapshots = readdirSync(historyDir());
     expect(snapshots.length).toBe(1);
     expect(snapshots[0]).toMatch(/^conflict-.*\.md$/);
-    expect(readFileSync(join(historyDir(), snapshots[0]!), 'utf-8')).toBe(
-      tampered,
-    );
+    expect(readFileSync(join(historyDir(), snapshots[0]!), 'utf-8')).toBe(tampered);
 
     // Structured event was logged
-    const drift = events.find(
-      (e) => e.kind === 'managed_section_drift_detected',
-    );
+    const drift = events.find((e) => e.kind === 'managed_section_drift_detected');
     expect(drift).toBeDefined();
-    expect((drift!.data as Record<string, unknown>).conflictPath).toBe(
-      result.backupPath,
-    );
+    expect((drift!.data as Record<string, unknown>).conflictPath).toBe(result.backupPath);
   });
 
   it('conflict backup is mode 0600', () => {
@@ -169,9 +155,7 @@ describe('ManagedSectionEditor — E1 drift detection', () => {
     // Dry-run must NOT touch disk — no history dir created
     expect(existsSync(historyDir())).toBe(false);
     // Drift event is still emitted so the recap surfaces what happened
-    expect(events.some((e) => e.kind === 'managed_section_drift_detected')).toBe(
-      true,
-    );
+    expect(events.some((e) => e.kind === 'managed_section_drift_detected')).toBe(true);
   });
 
   it('clearLastHash forgets the stored hash so the next write proceeds', () => {
@@ -228,9 +212,7 @@ describe('ManagedSectionEditor — E1 drift detection', () => {
     // The section is gone → computed hash is empty, but stored hash is not
     // → that's drift; abort instead of silently re-adding what user removed.
     expect(result.verdict).toBe('drift_aborted');
-    expect(events.some((e) => e.kind === 'managed_section_drift_detected')).toBe(
-      true,
-    );
+    expect(events.some((e) => e.kind === 'managed_section_drift_detected')).toBe(true);
   });
 
   // Regression: YODA Fix 1 — removeManagedSection must clear the stored
@@ -259,9 +241,7 @@ describe('ManagedSectionEditor — E1 drift detection', () => {
     });
     expect(result.verdict).toBe('updated');
     expect(readFileSync(claudeMd(), 'utf-8')).toContain('v2-after-remove');
-    expect(
-      events.some((e) => e.kind === 'managed_section_drift_detected'),
-    ).toBe(false);
+    expect(events.some((e) => e.kind === 'managed_section_drift_detected')).toBe(false);
     // Post-write hash is recorded again.
     expect(readLastHash(projectRoot)).not.toBeNull();
   });
@@ -270,8 +250,7 @@ describe('ManagedSectionEditor — E1 drift detection', () => {
 describe('ManagedSectionEditor — E2 git-aware skip', () => {
   let projectRoot: string;
   const events: Array<{ kind: string; data: unknown }> = [];
-  const logger = (kind: string, data?: unknown) =>
-    events.push({ kind, data });
+  const logger = (kind: string, data?: unknown) => events.push({ kind, data });
 
   beforeEach(() => {
     projectRoot = makeTmpDir();
@@ -297,9 +276,7 @@ describe('ManagedSectionEditor — E2 git-aware skip', () => {
     expect(result.verdict).toBe('git_busy');
     expect(result.bytesAfter).toBe(0);
     expect(existsSync(claudeMd())).toBe(false);
-    expect(
-      events.some((e) => e.kind === 'managed_section_skip_git_state'),
-    ).toBe(true);
+    expect(events.some((e) => e.kind === 'managed_section_skip_git_state')).toBe(true);
   });
 
   it('skips write when in interactive rebase (rebase-merge/ dir)', () => {
@@ -400,9 +377,7 @@ describe('ManagedSectionEditor — E2 git-aware skip', () => {
 
     expect(result.verdict).toBe('git_busy');
     // No conflict snapshot was created — git-busy short-circuits FIRST
-    expect(
-      existsSync(join(projectRoot, '.auto-sop', 'state', 'managed-history')),
-    ).toBe(false);
+    expect(existsSync(join(projectRoot, '.auto-sop', 'state', 'managed-history'))).toBe(false);
     // CLAUDE.md still has the tampered content
     expect(readFileSync(claudeMd(), 'utf-8')).toContain('tampered');
   });

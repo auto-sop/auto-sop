@@ -8,11 +8,7 @@ cpSync('plugin/', 'dist/plugin/', { recursive: true });
 cpSync('dist/capture/writer.cjs', 'dist/plugin/writer.cjs');
 
 if (platform() !== 'win32') {
-  for (const f of [
-    'dist/plugin/shim.cjs',
-    'dist/plugin/learner.cjs',
-    'dist/capture/shim.cjs',
-  ]) {
+  for (const f of ['dist/plugin/shim.cjs', 'dist/plugin/learner.cjs', 'dist/capture/shim.cjs']) {
     try {
       chmodSync(f, 0o755);
     } catch {

@@ -99,8 +99,7 @@ function validDirective(idSuffix: string): unknown {
     id: `det-${idSuffix}`,
     detector: 'llm',
     severity: 'warning',
-    rule_text:
-      'Always run `npm install` before `npm test` after pulling fresh dependencies.',
+    rule_text: 'Always run `npm install` before `npm test` after pulling fresh dependencies.',
     evidence: {
       session_ids: ['sess-aaa', 'sess-bbb', 'sess-ccc'],
       turn_ids: ['t-1', 't-2', 't-3'],
@@ -137,8 +136,7 @@ function badDirectiveTooShort(): unknown {
  * JSON.parse passes to recover the directive payload.
  */
 function wrapClaude(payload: unknown): string {
-  const inner =
-    typeof payload === 'string' ? payload : JSON.stringify(payload);
+  const inner = typeof payload === 'string' ? payload : JSON.stringify(payload);
   return JSON.stringify({
     type: 'result',
     result: inner,
@@ -244,9 +242,7 @@ describe('runLlmAnalysis', () => {
   });
 
   it('non-zero exit → error reflects the exit code', async () => {
-    mockedExeca.mockResolvedValue(
-      execaReturn({ failed: true, exitCode: 2, stdout: '' }),
-    );
+    mockedExeca.mockResolvedValue(execaReturn({ failed: true, exitCode: 2, stdout: '' }));
 
     const result = await runLlmAnalysis(fakeTurns(5), 'proj', 3);
     expect(result.error).toBe('claude_exit_2');
@@ -254,9 +250,7 @@ describe('runLlmAnalysis', () => {
   });
 
   it('invalid JSON response → error field set to "json_parse_failed"', async () => {
-    mockedExeca.mockResolvedValue(
-      execaReturn({ stdout: 'this is plain text, not JSON at all' }),
-    );
+    mockedExeca.mockResolvedValue(execaReturn({ stdout: 'this is plain text, not JSON at all' }));
 
     const result = await runLlmAnalysis(fakeTurns(5), 'proj', 3);
     expect(result.error).toBe('json_parse_failed');
@@ -279,11 +273,7 @@ describe('runLlmAnalysis', () => {
 
   it('partial valid (2 good, 1 bad) → 2 accepted, 1 rejected', async () => {
     const inner = {
-      directives: [
-        validDirective('one'),
-        badDirectiveTooShort(),
-        validDirective('two'),
-      ],
+      directives: [validDirective('one'), badDirectiveTooShort(), validDirective('two')],
       summary: '',
       turns_analyzed: 3,
       patterns_below_threshold: 0,
@@ -343,8 +333,7 @@ describe('runLlmAnalysis', () => {
       id: 'det-nometa',
       // intentionally no `detector` and no `created_at`
       severity: 'warning',
-      rule_text:
-        'Always run `npm install` before `npm test` after pulling fresh dependencies.',
+      rule_text: 'Always run `npm install` before `npm test` after pulling fresh dependencies.',
       evidence: {
         session_ids: ['sess-aaa', 'sess-bbb', 'sess-ccc'],
         turn_ids: ['t-1', 't-2', 't-3'],
@@ -381,8 +370,7 @@ describe('runLlmAnalysis', () => {
       id: 'det-withmeta',
       detector: 'llm-custom-detector',
       severity: 'warning',
-      rule_text:
-        'Always run `npm install` before `npm test` after pulling fresh dependencies.',
+      rule_text: 'Always run `npm install` before `npm test` after pulling fresh dependencies.',
       evidence: {
         session_ids: ['sess-aaa', 'sess-bbb', 'sess-ccc'],
         turn_ids: ['t-1', 't-2', 't-3'],
@@ -410,9 +398,7 @@ describe('runLlmAnalysis', () => {
   });
 
   it('durationMs is populated even when the call errors out', async () => {
-    mockedExeca.mockResolvedValue(
-      execaReturn({ failed: true, exitCode: 1 }),
-    );
+    mockedExeca.mockResolvedValue(execaReturn({ failed: true, exitCode: 1 }));
 
     const result = await runLlmAnalysis(fakeTurns(2), 'proj', 1);
     // Time elapsed at least 0ms — the field MUST be a number, not undefined.

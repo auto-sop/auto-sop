@@ -31,10 +31,7 @@ describe('copyPluginBundle', () => {
 
     const rootContent = await fs.readFile(join(dstDir, 'root.txt'), 'utf8');
     expect(rootContent).toBe('root-content');
-    const nestedContent = await fs.readFile(
-      join(dstDir, 'sub', 'nested.txt'),
-      'utf8',
-    );
+    const nestedContent = await fs.readFile(join(dstDir, 'sub', 'nested.txt'), 'utf8');
     expect(nestedContent).toBe('nested-content');
   });
 
@@ -57,16 +54,12 @@ describe('copyPluginBundle', () => {
 
   it('throws if src does not exist', async () => {
     const missing = join(testDir, 'no-such-dir');
-    await expect(copyPluginBundle(missing, dstDir)).rejects.toThrow(
-      /does not exist/,
-    );
+    await expect(copyPluginBundle(missing, dstDir)).rejects.toThrow(/does not exist/);
   });
 
   it('throws if src is a file not a directory', async () => {
     const filePath = join(testDir, 'a-file');
     await fs.writeFile(filePath, 'content');
-    await expect(copyPluginBundle(filePath, dstDir)).rejects.toThrow(
-      /not a directory/,
-    );
+    await expect(copyPluginBundle(filePath, dstDir)).rejects.toThrow(/not a directory/);
   });
 });

@@ -88,12 +88,7 @@ describe('unifiedDiff', () => {
   });
 
   it('handles CLAUDE.md-like content with markers', () => {
-    const old = [
-      '# My Project',
-      '',
-      'Custom rules here.',
-      '',
-    ].join('\n');
+    const old = ['# My Project', '', 'Custom rules here.', ''].join('\n');
 
     const now = [
       '# My Project',

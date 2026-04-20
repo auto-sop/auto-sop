@@ -46,10 +46,7 @@ export function registerStatusVerb(program: Command): void {
             ['project root', report.project.root],
             ['project hash', report.project.hash12],
             ['project slug', report.project.slug],
-            [
-              'installed version',
-              report.installedVersion ?? '(not installed)',
-            ],
+            ['installed version', report.installedVersion ?? '(not installed)'],
             [
               'hooks',
               `${report.hooks.wiringState} (${report.hooks.eventsCovered.length}/5 events)`,
@@ -66,9 +63,7 @@ export function registerStatusVerb(program: Command): void {
             ],
             [
               'last learner run',
-              report.learner.lastRunAt
-                ? new Date(report.learner.lastRunAt).toISOString()
-                : 'never',
+              report.learner.lastRunAt ? new Date(report.learner.lastRunAt).toISOString() : 'never',
             ],
             ['pending captures', String(report.pendingCaptures)],
             ['directives', String(report.directives.count)],
@@ -82,10 +77,7 @@ export function registerStatusVerb(program: Command): void {
     });
 }
 
-function formatLicense(l: {
-  status: string;
-  daysRemaining: number | null;
-}): string {
+function formatLicense(l: { status: string; daysRemaining: number | null }): string {
   if (l.status === 'trial' && l.daysRemaining != null)
     return `trial (${l.daysRemaining.toFixed(1)} days left)`;
   if (l.status === 'dev-key') return 'dev-key';

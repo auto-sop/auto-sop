@@ -84,11 +84,7 @@ export interface MergeResult {
  *   - truncate to FINGERPRINT_PREFIX_CHARS
  */
 function normalizeRuleText(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, FINGERPRINT_PREFIX_CHARS);
+  return text.toLowerCase().replace(/\s+/g, ' ').trim().slice(0, FINGERPRINT_PREFIX_CHARS);
 }
 
 /**
@@ -182,8 +178,7 @@ export function mergeProposalsWithDedup(
     // Note: no severity tiebreak — fingerprint includes severity, so all
     // members of a group share severity by construction.
     const sorted = [...bucket].sort((a, b) => {
-      const evDiff =
-        b.evidence.session_ids.length - a.evidence.session_ids.length;
+      const evDiff = b.evidence.session_ids.length - a.evidence.session_ids.length;
       if (evDiff !== 0) return evDiff;
       const aLlm = isLlmSource(a) ? 1 : 0;
       const bLlm = isLlmSource(b) ? 1 : 0;
@@ -206,9 +201,7 @@ export function mergeProposalsWithDedup(
   });
 
   const proposals =
-    finalSorted.length > MAX_DIRECTIVES
-      ? finalSorted.slice(0, MAX_DIRECTIVES)
-      : finalSorted;
+    finalSorted.length > MAX_DIRECTIVES ? finalSorted.slice(0, MAX_DIRECTIVES) : finalSorted;
 
   return { proposals, dedupedCount };
 }

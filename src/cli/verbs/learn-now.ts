@@ -78,9 +78,7 @@ function llmLabel(entry: Record<string, unknown>): string {
   }
   const ms = typeof entry.llm_duration_ms === 'number' ? entry.llm_duration_ms : 0;
   const proposed =
-    typeof entry.llm_directives_proposed === 'number'
-      ? entry.llm_directives_proposed
-      : 0;
+    typeof entry.llm_directives_proposed === 'number' ? entry.llm_directives_proposed : 0;
   return pc.green(`on (${ms}ms, ${proposed} proposed)`);
 }
 
@@ -115,17 +113,13 @@ export function registerLearnNowVerb(program: Command): void {
 
       if (result.error) {
         if (!jsonMode) {
-          process.stderr.write(
-            pc.yellow(`warning: learner exited with error: ${result.error}\n`),
-          );
+          process.stderr.write(pc.yellow(`warning: learner exited with error: ${result.error}\n`));
         }
       }
 
       // Apply --limit
       const limit = opts.limit;
-      const lines = limit && limit > 0
-        ? result.recapLines.slice(-limit)
-        : result.recapLines;
+      const lines = limit && limit > 0 ? result.recapLines.slice(-limit) : result.recapLines;
 
       if (jsonMode) {
         emit({

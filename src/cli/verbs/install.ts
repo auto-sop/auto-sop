@@ -19,19 +19,12 @@ export function registerInstallVerb(program: Command): void {
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
       const here =
-        typeof __dirname !== 'undefined'
-          ? __dirname
-          : path.dirname(fileURLToPath(import.meta.url));
+        typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
       const { root: packageRoot, pkg } = findPackageRoot(here);
       const packageVersion = pkg.version as string;
       const pluginBundleSrc = path.join(packageRoot, 'dist', 'plugin');
       const homeDir = os.homedir();
-      const marketplaceDir = path.join(
-        homeDir,
-        '.auto-sop',
-        'marketplace',
-        'auto-sop',
-      );
+      const marketplaceDir = path.join(homeDir, '.auto-sop', 'marketplace', 'auto-sop');
       const result = await runInstall({
         projectRoot: path.resolve(opts.project as string),
         homeDir,
@@ -46,9 +39,7 @@ export function registerInstallVerb(program: Command): void {
       if (jsonMode) {
         emit({ ok: true, verb: 'install', ...result });
       } else {
-        process.stdout.write(
-          pc.green(`\u2713 auto-sop ${result.verdict} install complete\n`),
-        );
+        process.stdout.write(pc.green(`\u2713 auto-sop ${result.verdict} install complete\n`));
         const tableRows: Array<[string, string]> = [
           ['version', result.installedVersion],
           ['scheduler', result.scheduler],

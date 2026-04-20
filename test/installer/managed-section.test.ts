@@ -24,10 +24,7 @@ describe('stripManagedSection (legacy marker cleanup for uninstall)', () => {
   it('removes markers and content between them', async () => {
     const p = join(testDir, 'CLAUDE.md');
     const between = '\nsome managed content\n';
-    await fs.writeFile(
-      p,
-      `before\n${MANAGED_BEGIN}${between}${MANAGED_END}\nafter\n`,
-    );
+    await fs.writeFile(p, `before\n${MANAGED_BEGIN}${between}${MANAGED_END}\nafter\n`);
     const result = await stripManagedSection(p);
     expect(result.removed).toBe(between);
     const text = await fs.readFile(p, 'utf8');

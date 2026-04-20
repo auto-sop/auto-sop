@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('execa', () => ({ execa: vi.fn() }));
+
 vi.mock('../../src/atomic/write.js', () => ({
   writeFileAtomic: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('node:fs', async (importOriginal) => {
-  const orig =
-    (await importOriginal()) as typeof import('node:fs');
+  const orig = (await importOriginal()) as typeof import('node:fs');
   return {
     ...orig,
     promises: {
@@ -28,6 +28,7 @@ import {
 } from '../../src/scheduler/linux-systemd.js';
 
 const mockExeca = vi.mocked(execa);
+type ExecaResult = Awaited<ReturnType<typeof execa>>;
 const mockWriteFileAtomic = vi.mocked(writeFileAtomic);
 const mockAccess = vi.mocked(fs.access);
 const mockRm = vi.mocked(fs.rm);
@@ -48,9 +49,7 @@ describe('renderServiceUnit', () => {
       user: 'alice',
       homeDir: '/home/alice',
     });
-    expect(unit).toContain(
-      'ExecStart=/home/alice/.auto-sop/bin/tick.sh',
-    );
+    expect(unit).toContain('ExecStart=/home/alice/.auto-sop/bin/tick.sh');
   });
 
   it('contains Environment=CLAUDE_SOP_CAPTURE_SUPPRESS=1 (canonical)', () => {
@@ -77,12 +76,8 @@ describe('renderServiceUnit', () => {
       user: 'alice',
       homeDir: '/home/alice',
     });
-    expect(unit).toContain(
-      'StandardOutput=append:/home/alice/.auto-sop/logs/systemd.out.log',
-    );
-    expect(unit).toContain(
-      'StandardError=append:/home/alice/.auto-sop/logs/systemd.err.log',
-    );
+    expect(unit).toContain('StandardOutput=append:/home/alice/.auto-sop/logs/systemd.out.log');
+    expect(unit).toContain('StandardError=append:/home/alice/.auto-sop/logs/systemd.err.log');
   });
 });
 
@@ -104,9 +99,7 @@ describe('renderTimerUnit', () => {
   });
 
   it('targets the service unit', () => {
-    expect(renderTimerUnit()).toContain(
-      'Unit=auto-sop-learner.service',
-    );
+    expect(renderTimerUnit()).toContain('Unit=auto-sop-learner.service');
   });
 });
 
@@ -117,7 +110,7 @@ describe('linuxSystemd', () => {
       exitCode: 0,
       stdout: '',
       stderr: '',
-    } as any);
+    } as unknown as ExecaResult);
   });
 
   describe('install', () => {
@@ -125,47 +118,36 @@ describe('linuxSystemd', () => {
       await linuxSystemd.install(baseOpts);
 
       // mkdir for systemd user dir
-      expect(mockMkdir).toHaveBeenCalledWith(
-        '/home/alice/.config/systemd/user',
-        { recursive: true },
-      );
+      expect(mockMkdir).toHaveBeenCalledWith('/home/alice/.config/systemd/user', {
+        recursive: true,
+      });
 
       // Two writeFileAtomic calls: service + timer
       expect(mockWriteFileAtomic).toHaveBeenCalledTimes(2);
       const [servicePath] = mockWriteFileAtomic.mock.calls[0]!;
       const [timerPath] = mockWriteFileAtomic.mock.calls[1]!;
-      expect(servicePath).toBe(
-        '/home/alice/.config/systemd/user/auto-sop-learner.service',
-      );
-      expect(timerPath).toBe(
-        '/home/alice/.config/systemd/user/auto-sop-learner.timer',
-      );
+      expect(servicePath).toBe('/home/alice/.config/systemd/user/auto-sop-learner.service');
+      expect(timerPath).toBe('/home/alice/.config/systemd/user/auto-sop-learner.timer');
 
       // execa calls: daemon-reload, disable legacy, enable --now, loginctl enable-linger
       expect(mockExeca).toHaveBeenCalledTimes(4);
-      expect(mockExeca).toHaveBeenNthCalledWith(1, 'systemctl', [
-        '--user',
-        'daemon-reload',
-      ]);
+      expect(mockExeca).toHaveBeenNthCalledWith(1, 'systemctl', ['--user', 'daemon-reload']);
       // Step: disable legacy timer (cleanup)
-      expect(mockExeca).toHaveBeenNthCalledWith(2, 'systemctl', [
-        '--user',
-        'disable',
-        '--now',
-        'claude-sop-learner.timer',
-      ], { reject: false });
+      expect(mockExeca).toHaveBeenNthCalledWith(
+        2,
+        'systemctl',
+        ['--user', 'disable', '--now', 'claude-sop-learner.timer'],
+        { reject: false },
+      );
       expect(mockExeca).toHaveBeenNthCalledWith(3, 'systemctl', [
         '--user',
         'enable',
         '--now',
         'auto-sop-learner.timer',
       ]);
-      expect(mockExeca).toHaveBeenNthCalledWith(
-        4,
-        'loginctl',
-        ['enable-linger', 'alice'],
-        { reject: false },
-      );
+      expect(mockExeca).toHaveBeenNthCalledWith(4, 'loginctl', ['enable-linger', 'alice'], {
+        reject: false,
+      });
     });
   });
 
@@ -190,11 +172,9 @@ describe('linuxSystemd', () => {
         '/home/alice/.config/systemd/user/auto-sop-learner.service',
         { force: true },
       );
-      expect(mockExeca).toHaveBeenLastCalledWith(
-        'systemctl',
-        ['--user', 'daemon-reload'],
-        { reject: false },
-      );
+      expect(mockExeca).toHaveBeenLastCalledWith('systemctl', ['--user', 'daemon-reload'], {
+        reject: false,
+      });
       expect(result.warnings).toEqual([]);
     });
   });
@@ -204,9 +184,8 @@ describe('linuxSystemd', () => {
       mockAccess.mockResolvedValueOnce(undefined);
       mockExeca.mockResolvedValueOnce({
         exitCode: 0,
-        stdout:
-          'LastTriggerUSec=1700000000000000\nResult=success\nActiveState=active',
-      } as any);
+        stdout: 'LastTriggerUSec=1700000000000000\nResult=success\nActiveState=active',
+      } as unknown as ExecaResult);
 
       const s = await linuxSystemd.status({
         homeDir: '/home/alice',
@@ -223,7 +202,7 @@ describe('linuxSystemd', () => {
       mockExeca.mockResolvedValueOnce({
         exitCode: 4,
         stdout: '',
-      } as any);
+      } as unknown as ExecaResult);
 
       const s = await linuxSystemd.status({
         homeDir: '/home/alice',

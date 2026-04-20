@@ -57,26 +57,13 @@ describe('errors verb', () => {
 
   describe('missing errors.jsonl', () => {
     it('human mode prints (no errors)', async () => {
-      const code = await runCli([
-        'node',
-        'auto-sop',
-        'errors',
-        '--project',
-        tmpDir,
-      ]);
+      const code = await runCli(['node', 'auto-sop', 'errors', '--project', tmpDir]);
       expect(code).toBe(0);
       expect(stdout()).toContain('no errors');
     });
 
     it('--json returns empty entries', async () => {
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'errors',
-        '--project',
-        tmpDir,
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'errors', '--project', tmpDir]);
       const out = JSON.parse(stdout().trim());
       expect(out.ok).toBe(true);
       expect(out.verb).toBe('errors');
@@ -92,14 +79,7 @@ describe('errors verb', () => {
       );
       await writeErrorsJsonl(entries);
 
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'errors',
-        '--project',
-        tmpDir,
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'errors', '--project', tmpDir]);
       const out = JSON.parse(stdout().trim());
       expect(out.count).toBe(10);
       expect(out.entries).toHaveLength(10);
@@ -111,16 +91,7 @@ describe('errors verb', () => {
       );
       await writeErrorsJsonl(entries);
 
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'errors',
-        '--project',
-        tmpDir,
-        '--tail',
-        '5',
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'errors', '--project', tmpDir, '--tail', '5']);
       const out = JSON.parse(stdout().trim());
       expect(out.count).toBe(5);
       expect(out.entries).toHaveLength(5);
@@ -138,16 +109,7 @@ describe('errors verb', () => {
       ];
       await writeErrorsJsonl(entries);
 
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'errors',
-        '--project',
-        tmpDir,
-        '--since',
-        '1h',
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'errors', '--project', tmpDir, '--since', '1h']);
       const out = JSON.parse(stdout().trim());
       expect(out.count).toBe(2);
       expect(out.entries[0].kind).toBe('recent_error');
@@ -164,14 +126,7 @@ describe('errors verb', () => {
       ].join('\n');
       await fs.writeFile(errorsJsonlPath(), content, 'utf8');
 
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'errors',
-        '--project',
-        tmpDir,
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'errors', '--project', tmpDir]);
       const out = JSON.parse(stdout().trim());
       expect(out.count).toBe(2);
     });
@@ -180,13 +135,7 @@ describe('errors verb', () => {
       const entries = [makeEntry(1700000000000, 'hook_crash', 'boom')];
       await writeErrorsJsonl(entries);
 
-      await runCli([
-        'node',
-        'auto-sop',
-        'errors',
-        '--project',
-        tmpDir,
-      ]);
+      await runCli(['node', 'auto-sop', 'errors', '--project', tmpDir]);
       const out = stdout();
       expect(out).toContain('hook_crash');
       expect(out).toContain('boom');

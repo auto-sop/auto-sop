@@ -15,10 +15,7 @@ export function registerPauseVerb(program: Command): void {
       const projectRoot = path.resolve(opts.project);
       const flagPath = path.join(projectRoot, '.auto-sop', 'paused.flag');
       await fs.mkdir(path.dirname(flagPath), { recursive: true });
-      await writeFileAtomic(
-        flagPath,
-        JSON.stringify({ paused_at: Date.now() }) + '\n',
-      );
+      await writeFileAtomic(flagPath, JSON.stringify({ paused_at: Date.now() }) + '\n');
       if (jsonMode) emit({ ok: true, verb: 'pause', flag: flagPath });
       else process.stdout.write(pc.yellow(`\u2713 paused \u2014 ${flagPath}\n`));
     });

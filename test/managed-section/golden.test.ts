@@ -67,32 +67,19 @@ function formatByteDiff(expected: Buffer, actual: Buffer): string {
   }
 
   const windowStart = Math.max(0, firstDiff - 40);
-  const windowEnd = Math.min(
-    Math.max(expected.length, actual.length),
-    firstDiff + 40,
-  );
-  const expectedHex = expected
-    .slice(windowStart, windowEnd)
-    .toString('hex');
+  const windowEnd = Math.min(Math.max(expected.length, actual.length), firstDiff + 40);
+  const expectedHex = expected.slice(windowStart, windowEnd).toString('hex');
   const actualHex = actual.slice(windowStart, windowEnd).toString('hex');
-  const expectedSnippet = JSON.stringify(
-    expected.slice(windowStart, windowEnd).toString('utf-8'),
-  );
-  const actualSnippet = JSON.stringify(
-    actual.slice(windowStart, windowEnd).toString('utf-8'),
-  );
+  const expectedSnippet = JSON.stringify(expected.slice(windowStart, windowEnd).toString('utf-8'));
+  const actualSnippet = JSON.stringify(actual.slice(windowStart, windowEnd).toString('utf-8'));
 
   lines.push(`first byte diff at offset ${firstDiff}`);
   lines.push(`  expected [0x${windowStart.toString(16)}..]: ${expectedSnippet}`);
   lines.push(`  actual   [0x${windowStart.toString(16)}..]: ${actualSnippet}`);
   lines.push(`  expected hex: ${expectedHex}`);
   lines.push(`  actual   hex: ${actualHex}`);
-  lines.push(
-    '  If CRLF is involved, check git autocrlf / .gitattributes.',
-  );
-  lines.push(
-    '  If the change was intentional, run `npm run test:golden:update`.',
-  );
+  lines.push('  If CRLF is involved, check git autocrlf / .gitattributes.');
+  lines.push('  If the change was intentional, run `npm run test:golden:update`.');
   return lines.join('\n');
 }
 
@@ -116,10 +103,7 @@ describe('managed-section golden files (E7)', () => {
         // Vitest's toEqual() diffs strings up to a length cap. For large
         // fixtures we fall back to a compact unified-ish diff ourselves.
         throw new Error(
-          `Golden mismatch for ${fx.name}\n${formatByteDiff(
-            expectedBytes,
-            actualBytes,
-          )}`,
+          `Golden mismatch for ${fx.name}\n${formatByteDiff(expectedBytes, actualBytes)}`,
         );
       }
       // Even when the assertion above passes, include a positive assertion

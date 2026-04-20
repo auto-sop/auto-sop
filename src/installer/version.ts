@@ -8,9 +8,7 @@ export type Verdict = 'none' | 'same' | 'newer-package' | 'older-package';
  * Read the installed version from a version.txt file.
  * Returns null if file does not exist or contains invalid semver.
  */
-export async function readInstalledVersion(
-  versionTxtPath: string,
-): Promise<string | null> {
+export async function readInstalledVersion(versionTxtPath: string): Promise<string | null> {
   try {
     const raw = (await fs.readFile(versionTxtPath, 'utf8')).trim();
     return semver.valid(raw);
@@ -35,10 +33,7 @@ export async function writeInstalledVersion(
  * Compare installed version against current package version.
  * Returns a human-readable verdict.
  */
-export function compareVersions(
-  installed: string | null,
-  current: string,
-): Verdict {
+export function compareVersions(installed: string | null, current: string): Verdict {
   if (installed == null) return 'none';
   const cmp = semver.compare(installed, current);
   if (cmp === 0) return 'same';

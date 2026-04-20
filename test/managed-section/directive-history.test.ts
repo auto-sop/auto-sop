@@ -11,15 +11,7 @@
  *   - history file is preserved when entries are pruned
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-  readFileSync,
-  statSync,
-  existsSync,
-  mkdirSync,
-} from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, statSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -43,9 +35,7 @@ function makeTmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'auto-sop-dh-'));
 }
 
-function makeEntry(
-  overrides: Partial<DirectiveHistoryEntry> = {},
-): DirectiveHistoryEntry {
+function makeEntry(overrides: Partial<DirectiveHistoryEntry> = {}): DirectiveHistoryEntry {
   return {
     id: 'det-default-0000',
     rule_text: 'Default rule text body long enough to be realistic.',
@@ -58,9 +48,7 @@ function makeEntry(
   };
 }
 
-function makeProposal(
-  overrides: Partial<DirectiveProposalLike> = {},
-): DirectiveProposalLike {
+function makeProposal(overrides: Partial<DirectiveProposalLike> = {}): DirectiveProposalLike {
   return {
     id: 'det-default-0000',
     rule_text: 'Default rule text body long enough to be realistic.',
@@ -110,7 +98,12 @@ describe('directive-history load/save', () => {
     const input: DirectiveHistory = {
       entries: {
         'det-a': makeEntry({ id: 'det-a' }),
-        'det-b': makeEntry({ id: 'det-b', severity: 'error', pruned: true, pruned_at: '2026-02-01T00:00:00.000Z' }),
+        'det-b': makeEntry({
+          id: 'det-b',
+          severity: 'error',
+          pruned: true,
+          pruned_at: '2026-02-01T00:00:00.000Z',
+        }),
       },
       updated_at: '2026-03-01T00:00:00.000Z',
     };
@@ -224,7 +217,7 @@ describe('updateFromProposals', () => {
 
   it('does not mutate the input history', () => {
     const history: DirectiveHistory = {
-      entries: { 'a': makeEntry({ id: 'a' }) },
+      entries: { a: makeEntry({ id: 'a' }) },
       updated_at: '2026-01-01T00:00:00.000Z',
     };
     const snapshot = JSON.parse(JSON.stringify(history));
@@ -299,12 +292,7 @@ describe('applyTTLAndCap', () => {
     });
 
     const now = new Date('2026-04-01T00:00:00.000Z');
-    const res = applyTTLAndCap(
-      { entries, updated_at: '2026-04-01T00:00:00.000Z' },
-      now,
-      30,
-      3,
-    );
+    const res = applyTTLAndCap({ entries, updated_at: '2026-04-01T00:00:00.000Z' }, now, 30, 3);
     expect(res.active).toHaveLength(3);
     expect(res.active.map((e) => e.severity)).toEqual(['error', 'warning', 'warning']);
     // All 4 infos are pruned in the history.
@@ -331,12 +319,7 @@ describe('applyTTLAndCap', () => {
       }),
     };
     const now = new Date('2026-04-01T00:00:00.000Z');
-    const res = applyTTLAndCap(
-      { entries, updated_at: '2026-04-01T00:00:00.000Z' },
-      now,
-      30,
-      1,
-    );
+    const res = applyTTLAndCap({ entries, updated_at: '2026-04-01T00:00:00.000Z' }, now, 30, 1);
     expect(res.active.map((e) => e.id)).toEqual(['recent']);
     expect(res.history.entries['old']!.pruned).toBe(true);
   });
@@ -360,12 +343,7 @@ describe('applyTTLAndCap', () => {
       }),
     };
     const now = new Date('2026-04-01T00:00:00.000Z');
-    const res = applyTTLAndCap(
-      { entries, updated_at: '2026-04-01T00:00:00.000Z' },
-      now,
-      30,
-      25,
-    );
+    const res = applyTTLAndCap({ entries, updated_at: '2026-04-01T00:00:00.000Z' }, now, 30, 25);
     expect(res.active.map((e) => e.id)).toEqual(['b', 'a', 'c']);
   });
 
@@ -379,12 +357,7 @@ describe('applyTTLAndCap', () => {
       }),
     };
     const now = new Date('2026-04-01T00:00:00.000Z');
-    const res = applyTTLAndCap(
-      { entries, updated_at: '2026-04-01T00:00:00.000Z' },
-      now,
-      30,
-      25,
-    );
+    const res = applyTTLAndCap({ entries, updated_at: '2026-04-01T00:00:00.000Z' }, now, 30, 25);
     expect(res.active.map((e) => e.id)).toEqual(['revived']);
     expect(res.history.entries['revived']!.pruned).toBe(false);
     expect(res.history.entries['revived']!.pruned_at).toBeUndefined();
@@ -533,9 +506,7 @@ describe('applyDirectiveHistory (end-to-end)', () => {
     const loaded = loadHistory(root);
     expect(loaded.entries['comeback']!.pruned).toBe(false);
     expect(loaded.entries['comeback']!.pruned_at).toBeUndefined();
-    expect(loaded.entries['comeback']!.last_reinforced).toBe(
-      '2026-04-01T00:00:00.000Z',
-    );
+    expect(loaded.entries['comeback']!.last_reinforced).toBe('2026-04-01T00:00:00.000Z');
     // rule_text refreshed.
     expect(loaded.entries['comeback']!.rule_text).toContain('second appearance');
     // occurrence_count bumped.
@@ -789,8 +760,12 @@ describe('APEX SEC-006: saveHistory creates 0700 state directory', () => {
 
 describe('SEC-L01: string length capping in coerceEntry', () => {
   let root: string;
-  beforeEach(() => { root = makeTmpDir(); });
-  afterEach(() => { rmSync(root, { recursive: true, force: true }); });
+  beforeEach(() => {
+    root = makeTmpDir();
+  });
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
 
   it('truncates oversized id and rule_text on load', () => {
     const longId = 'x'.repeat(100_000);
@@ -810,10 +785,7 @@ describe('SEC-L01: string length capping in coerceEntry', () => {
       updated_at: '2025-01-01T00:00:00.000Z',
     };
     mkdirSync(join(root, '.auto-sop', 'state'), { recursive: true });
-    writeFileSync(
-      join(root, '.auto-sop', 'state', 'directive-history.json'),
-      JSON.stringify(raw),
-    );
+    writeFileSync(join(root, '.auto-sop', 'state', 'directive-history.json'), JSON.stringify(raw));
     const h = loadHistory(root);
     const entries = Object.values(h.entries);
     expect(entries.length).toBe(1);

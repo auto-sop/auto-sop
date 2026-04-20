@@ -8,9 +8,7 @@ export async function systemdUserAvailable(): Promise<boolean> {
     });
     // running, degraded, starting, initializing, maintenance all mean bus is up
     if (r.exitCode === 0) return true;
-    return /running|degraded|starting|initializing|maintenance/.test(
-      r.stdout || '',
-    );
+    return /running|degraded|starting|initializing|maintenance/.test(r.stdout || '');
   } catch {
     return false;
   }

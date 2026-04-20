@@ -1,9 +1,5 @@
 import { execa } from 'execa';
-import type {
-  SchedulerBackend,
-  SchedulerInstallOpts,
-  SchedulerStatus,
-} from './types.js';
+import type { SchedulerBackend, SchedulerInstallOpts, SchedulerStatus } from './types.js';
 
 const MARKER = '# auto-sop:managed';
 const LEGACY_MARKER = '# claude-sop:managed';
@@ -12,22 +8,17 @@ export const linuxCron: SchedulerBackend = {
   name: 'cron',
 
   async install(opts: SchedulerInstallOpts): Promise<void> {
-    const existing =
-      (await execa('crontab', ['-l'], { reject: false })).stdout || '';
+    const existing = (await execa('crontab', ['-l'], { reject: false })).stdout || '';
     const stripped = existing
       .split('\n')
       .filter((l) => !l.includes(MARKER) && !l.includes(LEGACY_MARKER))
       .join('\n');
     const entry = `0 * * * * ${opts.tickScriptPath} ${MARKER}`;
-    const next =
-      (stripped.trimEnd() + '\n' + entry + '\n').replace(/\n\n+/g, '\n');
+    const next = (stripped.trimEnd() + '\n' + entry + '\n').replace(/\n\n+/g, '\n');
     await execa('crontab', ['-'], { input: next });
   },
 
-  async uninstall(opts: {
-    homeDir: string;
-    user: string;
-  }): Promise<{ warnings: string[] }> {
+  async uninstall(_opts: { homeDir: string; user: string }): Promise<{ warnings: string[] }> {
     const warnings: string[] = [];
     const r = await execa('crontab', ['-l'], { reject: false });
     if (r.exitCode !== 0) {
@@ -43,10 +34,7 @@ export const linuxCron: SchedulerBackend = {
     return { warnings };
   },
 
-  async status(_opts: {
-    homeDir: string;
-    user: string;
-  }): Promise<SchedulerStatus> {
+  async status(_opts: { homeDir: string; user: string }): Promise<SchedulerStatus> {
     const r = await execa('crontab', ['-l'], { reject: false });
     const installed = (r.stdout || '').includes(MARKER) || (r.stdout || '').includes(LEGACY_MARKER);
     return {

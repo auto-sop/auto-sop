@@ -6,20 +6,13 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
-import {
-  mkdtempSync,
-  mkdirSync,
-  writeFileSync,
-  rmSync,
-} from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 describe('recent verb: flag registration', () => {
   it('registers recent command with expected flags', async () => {
-    const { registerRecentVerb } = await import(
-      '../../../src/cli/verbs/recent.js'
-    );
+    const { registerRecentVerb } = await import('../../../src/cli/verbs/recent.js');
 
     const program = new Command();
     registerRecentVerb(program);
@@ -33,9 +26,7 @@ describe('recent verb: flag registration', () => {
   });
 
   it('recent description mentions activity', async () => {
-    const { registerRecentVerb } = await import(
-      '../../../src/cli/verbs/recent.js'
-    );
+    const { registerRecentVerb } = await import('../../../src/cli/verbs/recent.js');
 
     const program = new Command();
     registerRecentVerb(program);
@@ -47,9 +38,7 @@ describe('recent verb: flag registration', () => {
 
 describe('recent verb: help output', () => {
   it('--help includes all flag names', async () => {
-    const { registerRecentVerb } = await import(
-      '../../../src/cli/verbs/recent.js'
-    );
+    const { registerRecentVerb } = await import('../../../src/cli/verbs/recent.js');
 
     const program = new Command().exitOverride();
     registerRecentVerb(program);
@@ -64,9 +53,7 @@ describe('recent verb: help output', () => {
 
 describe('recent verb: parseDuration', () => {
   it('parses valid duration strings', async () => {
-    const { parseDuration } = await import(
-      '../../../src/cli/verbs/recent.js'
-    );
+    const { parseDuration } = await import('../../../src/cli/verbs/recent.js');
 
     expect(parseDuration('30m')).toBe(30 * 60_000);
     expect(parseDuration('1h')).toBe(3_600_000);
@@ -76,9 +63,7 @@ describe('recent verb: parseDuration', () => {
   });
 
   it('returns null for invalid input', async () => {
-    const { parseDuration } = await import(
-      '../../../src/cli/verbs/recent.js'
-    );
+    const { parseDuration } = await import('../../../src/cli/verbs/recent.js');
 
     expect(parseDuration('')).toBeNull();
     expect(parseDuration('abc')).toBeNull();
@@ -89,9 +74,7 @@ describe('recent verb: parseDuration', () => {
   });
 
   it('handles whitespace', async () => {
-    const { parseDuration } = await import(
-      '../../../src/cli/verbs/recent.js'
-    );
+    const { parseDuration } = await import('../../../src/cli/verbs/recent.js');
 
     expect(parseDuration(' 1h ')).toBe(3_600_000);
     expect(parseDuration('  30m  ')).toBe(30 * 60_000);
@@ -142,9 +125,7 @@ describe('recent verb: turn scanning with fixtures', () => {
   }
 
   it('scanNewTurns finds turns newer than cutoff', async () => {
-    const { scanNewTurns } = await import(
-      '../../../src/learner/turn-scanner.js'
-    );
+    const { scanNewTurns } = await import('../../../src/learner/turn-scanner.js');
 
     const now = new Date();
     const thirtyMinAgo = new Date(now.getTime() - 30 * 60_000).toISOString();
@@ -164,9 +145,7 @@ describe('recent verb: turn scanning with fixtures', () => {
   });
 
   it('returns empty when no turns match', async () => {
-    const { scanNewTurns } = await import(
-      '../../../src/learner/turn-scanner.js'
-    );
+    const { scanNewTurns } = await import('../../../src/learner/turn-scanner.js');
 
     const capturesDir = join(tmpProject, '.auto-sop', 'captures');
     const futureDate = '2099-01-01T00:00:00Z';
@@ -176,20 +155,13 @@ describe('recent verb: turn scanning with fixtures', () => {
   });
 
   it('skips .pending directories', async () => {
-    const { scanNewTurns } = await import(
-      '../../../src/learner/turn-scanner.js'
-    );
+    const { scanNewTurns } = await import('../../../src/learner/turn-scanner.js');
 
     const now = new Date().toISOString();
     writeTurnFixture('turn-good', now);
 
     // Create a .pending directory
-    const pendingDir = join(
-      tmpProject,
-      '.auto-sop',
-      'captures',
-      'turn-pending.pending',
-    );
+    const pendingDir = join(tmpProject, '.auto-sop', 'captures', 'turn-pending.pending');
     mkdirSync(pendingDir, { recursive: true });
     writeFileSync(
       join(pendingDir, 'meta.json'),
@@ -211,9 +183,7 @@ describe('recent verb: turn scanning with fixtures', () => {
 
 describe('recent verb: registered in CLI', () => {
   it('registerVerbs includes recent command', async () => {
-    const { registerVerbs } = await import(
-      '../../../src/cli/verbs/index.js'
-    );
+    const { registerVerbs } = await import('../../../src/cli/verbs/index.js');
 
     const program = new Command();
     registerVerbs(program);

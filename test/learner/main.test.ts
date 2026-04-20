@@ -14,12 +14,7 @@
  * behavioral coverage with far less flakiness.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-} from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -94,11 +89,9 @@ describe('hard-timeout watchdog behavior (replayed)', () => {
     tmpHome = mkdtempSync(join(tmpdir(), 'learner-hard-timeout-'));
     // Prevent process.exit from actually terminating the test runner.
     // We throw so the timer callback unwinds after exit is "requested".
-    exitSpy = vi
-      .spyOn(process, 'exit')
-      .mockImplementation(((_code?: number) => {
-        throw new Error('process.exit-intercepted');
-      }) as never);
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(((_code?: number) => {
+      throw new Error('process.exit-intercepted');
+    }) as never);
     vi.useFakeTimers();
   });
 
@@ -141,9 +134,7 @@ describe('hard-timeout watchdog behavior (replayed)', () => {
 
     // Cross the boundary. The timer fires its callback which throws via
     // the intercepted exit; advanceTimersByTime propagates that throw.
-    expect(() => vi.advanceTimersByTime(2)).toThrow(
-      'process.exit-intercepted',
-    );
+    expect(() => vi.advanceTimersByTime(2)).toThrow('process.exit-intercepted');
 
     // Post-fire assertions.
     expect(ac.signal.aborted).toBe(true);
@@ -161,7 +152,6 @@ describe('hard-timeout watchdog behavior (replayed)', () => {
   });
 
   it('does NOT fire before HARD_TIMEOUT_MS elapses (699s < 600s is false; verify 300s still pending)', () => {
-    const tickStart = Date.now();
     const ac = new AbortController();
 
     const timer = setTimeout(() => {
@@ -192,29 +182,19 @@ describe('shouldSkipLlmForIdleTick', () => {
   });
 
   it('returns false when CLAUDE_SOP_FORCE_LLM="1" overrides the idle skip', () => {
-    expect(
-      shouldSkipLlmForIdleTick(0, { CLAUDE_SOP_FORCE_LLM: '1' }),
-    ).toBe(false);
+    expect(shouldSkipLlmForIdleTick(0, { CLAUDE_SOP_FORCE_LLM: '1' })).toBe(false);
   });
 
   it('returns false when both turnsNew > 0 and force flag is set', () => {
-    expect(
-      shouldSkipLlmForIdleTick(3, { CLAUDE_SOP_FORCE_LLM: '1' }),
-    ).toBe(false);
+    expect(shouldSkipLlmForIdleTick(3, { CLAUDE_SOP_FORCE_LLM: '1' })).toBe(false);
   });
 
   it('treats non-"1" values of CLAUDE_SOP_FORCE_LLM as NOT forcing (strict "1" check)', () => {
     // Intentional strict semantics: only the literal string '1' unlocks
     // the LLM on an idle tick. "true"/""/"yes" all fall back to skip.
-    expect(
-      shouldSkipLlmForIdleTick(0, { CLAUDE_SOP_FORCE_LLM: 'true' }),
-    ).toBe(true);
-    expect(
-      shouldSkipLlmForIdleTick(0, { CLAUDE_SOP_FORCE_LLM: '' }),
-    ).toBe(true);
-    expect(
-      shouldSkipLlmForIdleTick(0, { CLAUDE_SOP_FORCE_LLM: '0' }),
-    ).toBe(true);
+    expect(shouldSkipLlmForIdleTick(0, { CLAUDE_SOP_FORCE_LLM: 'true' })).toBe(true);
+    expect(shouldSkipLlmForIdleTick(0, { CLAUDE_SOP_FORCE_LLM: '' })).toBe(true);
+    expect(shouldSkipLlmForIdleTick(0, { CLAUDE_SOP_FORCE_LLM: '0' })).toBe(true);
   });
 
   it('defaults to reading from process.env when env arg is omitted', () => {
@@ -240,7 +220,9 @@ describe('shouldSkipLlmForIdleTick', () => {
 describe('buildRenderProposals', () => {
   const now = '2026-04-19T12:00:00.000Z';
 
-  function makeHistoryEntry(overrides: Partial<DirectiveHistoryEntry> & { id: string }): DirectiveHistoryEntry {
+  function makeHistoryEntry(
+    overrides: Partial<DirectiveHistoryEntry> & { id: string },
+  ): DirectiveHistoryEntry {
     return {
       rule_text: `Always use proper error handling for ${overrides.id}`,
       severity: 'warning',
@@ -252,7 +234,9 @@ describe('buildRenderProposals', () => {
     };
   }
 
-  function makeProposal(overrides: Partial<DirectiveProposalType> & { id: string }): DirectiveProposalType {
+  function makeProposal(
+    overrides: Partial<DirectiveProposalType> & { id: string },
+  ): DirectiveProposalType {
     return {
       rule_text: `Always use proper error handling for ${overrides.id}`,
       severity: 'warning',

@@ -222,8 +222,7 @@ function formatProposalBullet(p: DirectiveProposalType): string {
   // stripped-down version; if nothing survives, we drop the link
   // entirely and render only the session-count summary (same fallback
   // we already use for empty turn_ids).
-  const safeFirstTurn =
-    turnIds.length === 0 ? '' : sanitizeTurnId(turnIds[0]!);
+  const safeFirstTurn = turnIds.length === 0 ? '' : sanitizeTurnId(turnIds[0]!);
 
   let evidenceLine: string;
   if (safeFirstTurn.length === 0) {
@@ -246,9 +245,7 @@ function formatProposalBullet(p: DirectiveProposalType): string {
  * Pure function — no filesystem. Useful for unit testing and for the
  * main entry point that collects filesystem data once.
  */
-export function buildDirectiveBodyFromInput(
-  input: DirectiveInput,
-): ManagedSectionContent {
+export function buildDirectiveBodyFromInput(input: DirectiveInput): ManagedSectionContent {
   const {
     turnsTotalSeen,
     agentRoster,
@@ -265,8 +262,7 @@ export function buildDirectiveBodyFromInput(
     typeof newestTurnFinalizedAt === 'string' && newestTurnFinalizedAt.length > 0
       ? roundToMinute(newestTurnFinalizedAt)
       : 'no turns yet';
-  const agentList =
-    agentRoster.length > 0 ? agentRoster.join(', ') : 'none detected';
+  const agentList = agentRoster.length > 0 ? agentRoster.join(', ') : 'none detected';
   const turnsLabel = turnsTotalSeen === 1 ? 'turn' : 'turns';
   const agentCountLabel = agentRoster.length === 1 ? 'agent' : 'agents';
 
@@ -275,8 +271,7 @@ export function buildDirectiveBodyFromInput(
     `\u00b7 ${agentRoster.length} ${agentCountLabel}: ${agentList}_`;
 
   const cleanedSummary = normalizeLlmSummary(llmSummary);
-  const aiLine =
-    cleanedSummary !== null ? `\n_AI analysis: ${cleanedSummary}_` : '';
+  const aiLine = cleanedSummary !== null ? `\n_AI analysis: ${cleanedSummary}_` : '';
 
   const sorted = sortProposals(proposals);
 
@@ -301,8 +296,7 @@ export function buildDirectiveBodyFromInput(
       patternsLabel +
       '._';
   } else {
-    learningsSection =
-      '**Learnings**\n\n' + '_No recurring patterns detected yet._';
+    learningsSection = '**Learnings**\n\n' + '_No recurring patterns detected yet._';
   }
 
   const body = statsLine + aiLine + '\n\n' + learningsSection;
@@ -369,9 +363,7 @@ export interface LegacyDirectiveInput {
   newestTurnFinalizedAt?: string | null;
 }
 
-export function buildSampleDirectiveFromInput(
-  input: LegacyDirectiveInput,
-): ManagedSectionContent {
+export function buildSampleDirectiveFromInput(input: LegacyDirectiveInput): ManagedSectionContent {
   return buildDirectiveBodyFromInput({
     ...input,
     proposals: [],

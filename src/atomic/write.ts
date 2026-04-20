@@ -6,10 +6,7 @@ import { nanoid } from 'nanoid';
  * Atomically write content to a file using temp + fsync + rename.
  * Temp file is created in the same directory as the target to avoid EXDEV on cross-device rename.
  */
-export async function writeFileAtomic(
-  path: string,
-  content: string | Buffer,
-): Promise<void> {
+export async function writeFileAtomic(path: string, content: string | Buffer): Promise<void> {
   const dir = dirname(path);
   const tmp = join(dir, `.${nanoid(10)}.tmp`);
 

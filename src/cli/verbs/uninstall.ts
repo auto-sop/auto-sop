@@ -39,25 +39,17 @@ export function registerUninstallVerb(program: Command): void {
         const header =
           result.warnings.length === 0
             ? pc.green('\u2713 uninstall complete')
-            : pc.yellow(
-                `uninstall completed with ${result.warnings.length} warning(s)`,
-              );
+            : pc.yellow(`uninstall completed with ${result.warnings.length} warning(s)`);
         process.stdout.write(header + '\n');
         process.stdout.write(
           renderTable(
-            result.steps.map((s) => [
-              s.step,
-              s.outcome + (s.detail ? ' \u2014 ' + s.detail : ''),
-            ]),
+            result.steps.map((s) => [s.step, s.outcome + (s.detail ? ' \u2014 ' + s.detail : '')]),
           ) + '\n',
         );
         for (const w of result.warnings) warn(w);
         if (result.backupPath)
-          process.stdout.write(
-            pc.dim(`managed-section backed up to ${result.backupPath}\n`),
-          );
+          process.stdout.write(pc.dim(`managed-section backed up to ${result.backupPath}\n`));
       }
-      if (result.warnings.length > 0)
-        process.exitCode = ExitCode.GENERIC_FAILURE;
+      if (result.warnings.length > 0) process.exitCode = ExitCode.GENERIC_FAILURE;
     });
 }

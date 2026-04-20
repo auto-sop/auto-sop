@@ -5,11 +5,7 @@ import { linuxCron } from './linux-cron.js';
 import { windowsTaskScheduler } from './windows-task-scheduler.js';
 import type { SchedulerBackend } from './types.js';
 
-export type {
-  SchedulerBackend,
-  SchedulerStatus,
-  SchedulerInstallOpts,
-} from './types.js';
+export type { SchedulerBackend, SchedulerStatus, SchedulerInstallOpts } from './types.js';
 export { systemdUserAvailable, macosLaunchd, linuxSystemd, linuxCron, windowsTaskScheduler };
 
 export async function pickBackend(

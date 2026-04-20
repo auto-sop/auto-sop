@@ -1,5 +1,5 @@
 import { writeFileAtomic } from '../atomic/write.js';
-import { promises as fs } from 'node:fs';
+import { getPlatform } from '../platform/index.js';
 
 export interface TickScriptOpts {
   homeDir: string;
@@ -83,6 +83,6 @@ export async function writeTickScript(
     // No chmod on Windows — NTFS doesn't use POSIX modes.
   } else {
     await writeFileAtomic(path, renderTickScript(opts));
-    await fs.chmod(path, 0o755);
+    await getPlatform().chmod(path, 0o755);
   }
 }

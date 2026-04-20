@@ -5,39 +5,13 @@ import { tmpdir } from 'node:os';
 import { nanoid } from 'nanoid';
 import { lock } from 'proper-lockfile';
 import { parse } from 'jsonc-parser';
-import {
-  runInstall,
-  type InstallOptions,
-} from '../../src/installer/orchestrator.js';
+import { runInstall, type InstallOptions } from '../../src/installer/orchestrator.js';
 import { readSecrets } from '../../src/license/storage.js';
 import { CLAUDE_SOP_HOOK_ID, HOOK_EVENTS } from '../../src/installer/hook-entries.js';
 import type { SchedulerBackend, SchedulerInstallOpts } from '../../src/scheduler/types.js';
 import { PreconditionError } from '../../src/cli/errors.js';
 
 const FAKE_MACHINE_ID = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
-
-function stubBackend(
-  overrides: Partial<SchedulerBackend> = {},
-): SchedulerBackend & { installCalls: SchedulerInstallOpts[] } {
-  const installCalls: SchedulerInstallOpts[] = [];
-  return {
-    name: 'launchd',
-    install: async (opts) => {
-      installCalls.push(opts);
-    },
-    uninstall: async () => ({ warnings: [] }),
-    status: async () => ({
-      backend: 'launchd',
-      installed: false,
-      lastTickAt: null,
-      lastExitCode: null,
-      details: {},
-    }),
-    installCalls,
-    ...overrides,
-    // Re-assign installCalls after overrides to preserve tracking when install is not overridden
-  };
-}
 
 function createStubBackend(
   overrides: Partial<SchedulerBackend> = {},
@@ -132,21 +106,15 @@ describe('runInstall orchestrator', () => {
 
     // Global settings with marketplace
     const globalSettings = parse(
-      await fs.readFile(
-        join(homeDir, '.claude', 'settings.json'),
-        'utf8',
-      ),
+      await fs.readFile(join(homeDir, '.claude', 'settings.json'), 'utf8'),
     );
-    expect(
-      globalSettings.extraKnownMarketplaces['auto-sop'].source.path,
-    ).toBe(join(homeDir, '.auto-sop', 'marketplace', 'auto-sop'));
+    expect(globalSettings.extraKnownMarketplaces['auto-sop'].source.path).toBe(
+      join(homeDir, '.auto-sop', 'marketplace', 'auto-sop'),
+    );
 
     // Project hooks
     const projectSettings = parse(
-      await fs.readFile(
-        join(projectRoot, '.claude', 'settings.json'),
-        'utf8',
-      ),
+      await fs.readFile(join(projectRoot, '.claude', 'settings.json'), 'utf8'),
     );
     for (const event of HOOK_EVENTS) {
       const arr = projectSettings.hooks[event] as Array<{
@@ -159,7 +127,6 @@ describe('runInstall orchestrator', () => {
     // tick.sh exists and is executable
     const tickPath = join(homeDir, '.auto-sop', 'bin', 'tick.sh');
     const tickStat = await fs.stat(tickPath);
-    // eslint-disable-next-line no-bitwise
     expect(tickStat.mode & 0o755).toBe(0o755);
     const tickContent = await fs.readFile(tickPath, 'utf8');
     expect(tickContent).toContain(process.execPath);
@@ -172,31 +139,21 @@ describe('runInstall orchestrator', () => {
     // Installer MUST NOT touch CLAUDE.md — ManagedSectionEditor (learner) owns it.
     // With no pre-existing CLAUDE.md in this test, the installer must not create one,
     // and must not emit legacy `<!-- auto-sop:begin -->` markers.
-    await expect(
-      fs.stat(join(projectRoot, 'CLAUDE.md')),
-    ).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(fs.stat(join(projectRoot, 'CLAUDE.md'))).rejects.toMatchObject({ code: 'ENOENT' });
 
     // .gitignore with .auto-sop/
-    const gitignore = await fs.readFile(
-      join(projectRoot, '.gitignore'),
-      'utf8',
-    );
+    const gitignore = await fs.readFile(join(projectRoot, '.gitignore'), 'utf8');
     expect(gitignore).toContain('.auto-sop/');
     expect(result.gitignore).toBe('created');
 
     // secrets.enc created
-    const secrets = await readSecrets(
-      join(homeDir, '.auto-sop', 'secrets.enc'),
-    );
+    const secrets = await readSecrets(join(homeDir, '.auto-sop', 'secrets.enc'));
     expect(secrets).not.toBeNull();
     expect(secrets!.license.key).toBe('123');
     expect(secrets!.trial.started_at).toBe(fixedNow);
 
     // version.txt written LAST
-    const version = await fs.readFile(
-      join(homeDir, '.auto-sop', 'version.txt'),
-      'utf8',
-    );
+    const version = await fs.readFile(join(homeDir, '.auto-sop', 'version.txt'), 'utf8');
     expect(version.trim()).toBe(packageVersion);
   });
 
@@ -208,9 +165,7 @@ describe('runInstall orchestrator', () => {
     const first = await runInstall(opts);
     expect(first.verdict).toBe('fresh');
 
-    const secretsAfterFirst = await readSecrets(
-      join(homeDir, '.auto-sop', 'secrets.enc'),
-    );
+    const secretsAfterFirst = await readSecrets(join(homeDir, '.auto-sop', 'secrets.enc'));
     const trialStartedAt = secretsAfterFirst!.trial.started_at;
 
     // Second install — same version
@@ -218,33 +173,23 @@ describe('runInstall orchestrator', () => {
     expect(second.verdict).toBe('same-version');
 
     // version.txt unchanged
-    const version = await fs.readFile(
-      join(homeDir, '.auto-sop', 'version.txt'),
-      'utf8',
-    );
+    const version = await fs.readFile(join(homeDir, '.auto-sop', 'version.txt'), 'utf8');
     expect(version.trim()).toBe(packageVersion);
 
     // trial.started_at preserved
-    const secretsAfterSecond = await readSecrets(
-      join(homeDir, '.auto-sop', 'secrets.enc'),
-    );
+    const secretsAfterSecond = await readSecrets(join(homeDir, '.auto-sop', 'secrets.enc'));
     expect(secretsAfterSecond!.trial.started_at).toBe(trialStartedAt);
 
     // Plugin bundle still present
     const shimExists = await fs
-      .access(
-        join(homeDir, '.auto-sop', 'marketplace', 'auto-sop', 'shim.cjs'),
-      )
+      .access(join(homeDir, '.auto-sop', 'marketplace', 'auto-sop', 'shim.cjs'))
       .then(() => true)
       .catch(() => false);
     expect(shimExists).toBe(true);
 
     // Hook entries not duplicated
     const projectSettings = parse(
-      await fs.readFile(
-        join(projectRoot, '.claude', 'settings.json'),
-        'utf8',
-      ),
+      await fs.readFile(join(projectRoot, '.claude', 'settings.json'), 'utf8'),
     );
     for (const event of HOOK_EVENTS) {
       const arr = projectSettings.hooks[event] as unknown[];
@@ -260,27 +205,18 @@ describe('runInstall orchestrator', () => {
 
     // First install at 0.0.1 to create secrets
     await runInstall(baseOpts({ packageVersion: '0.0.1' }));
-    const secretsBefore = await readSecrets(
-      join(claudeSopHome, 'secrets.enc'),
-    );
+    const secretsBefore = await readSecrets(join(claudeSopHome, 'secrets.enc'));
 
     // Upgrade to 0.0.2
     const result = await runInstall(baseOpts({ packageVersion: '0.0.2' }));
 
     expect(result.verdict).toBe('upgrade');
-    const version = await fs.readFile(
-      join(claudeSopHome, 'version.txt'),
-      'utf8',
-    );
+    const version = await fs.readFile(join(claudeSopHome, 'version.txt'), 'utf8');
     expect(version.trim()).toBe('0.0.2');
 
     // trial.started_at preserved
-    const secretsAfter = await readSecrets(
-      join(claudeSopHome, 'secrets.enc'),
-    );
-    expect(secretsAfter!.trial.started_at).toBe(
-      secretsBefore!.trial.started_at,
-    );
+    const secretsAfter = await readSecrets(join(claudeSopHome, 'secrets.enc'));
+    expect(secretsAfter!.trial.started_at).toBe(secretsBefore!.trial.started_at);
   });
 
   it('downgrade refused — throws PreconditionError', async () => {
@@ -289,12 +225,12 @@ describe('runInstall orchestrator', () => {
     await fs.mkdir(claudeSopHome, { recursive: true });
     await fs.writeFile(join(claudeSopHome, 'version.txt'), '9.9.9\n');
 
-    await expect(
-      runInstall(baseOpts({ packageVersion: '0.0.1' })),
-    ).rejects.toThrow(PreconditionError);
-    await expect(
-      runInstall(baseOpts({ packageVersion: '0.0.1' })),
-    ).rejects.toThrow(/refusing downgrade/);
+    await expect(runInstall(baseOpts({ packageVersion: '0.0.1' }))).rejects.toThrow(
+      PreconditionError,
+    );
+    await expect(runInstall(baseOpts({ packageVersion: '0.0.1' }))).rejects.toThrow(
+      /refusing downgrade/,
+    );
   });
 
   it('lock contention — throws PreconditionError', async () => {
@@ -310,9 +246,7 @@ describe('runInstall orchestrator', () => {
 
     try {
       await expect(runInstall(baseOpts())).rejects.toThrow(PreconditionError);
-      await expect(runInstall(baseOpts())).rejects.toThrow(
-        /another install is in progress/,
-      );
+      await expect(runInstall(baseOpts())).rejects.toThrow(/another install is in progress/);
     } finally {
       await release();
     }
@@ -344,9 +278,7 @@ describe('runInstall orchestrator', () => {
     );
 
     expect(promptMock).not.toHaveBeenCalled();
-    const secrets = await readSecrets(
-      join(homeDir, '.auto-sop', 'secrets.enc'),
-    );
+    const secrets = await readSecrets(join(homeDir, '.auto-sop', 'secrets.enc'));
     expect(secrets!.license.key).toBe('real-key');
     expect(secrets!.license.kind).toBe('user');
     expect(result.verdict).toBe('fresh');
@@ -362,9 +294,7 @@ describe('runInstall orchestrator', () => {
     );
 
     expect(promptMock).toHaveBeenCalledTimes(1);
-    const secrets = await readSecrets(
-      join(homeDir, '.auto-sop', 'secrets.enc'),
-    );
+    const secrets = await readSecrets(join(homeDir, '.auto-sop', 'secrets.enc'));
     expect(secrets!.license.key).toBe('prompted-key');
     expect(secrets!.license.kind).toBe('user');
   });
@@ -374,7 +304,7 @@ describe('runInstall orchestrator', () => {
       name: 'cron',
     });
     // Add fallback warning to the install opts
-    const opts = baseOpts({ schedulerBackend: undefined });
+    baseOpts({ schedulerBackend: undefined });
     // We need to test via the pickBackend path, but that calls real platform detection.
     // Instead, let's verify warnings from the backend directly:
     // The orchestrator only picks up fallbackWarning from pickBackend, not from the backend itself.

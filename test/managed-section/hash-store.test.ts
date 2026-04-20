@@ -1,13 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-  readFileSync,
-  statSync,
-  existsSync,
-  mkdirSync,
-} from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, statSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -32,8 +24,7 @@ describe('hash-store', () => {
     rmSync(projectRoot, { recursive: true, force: true });
   });
 
-  const hashPath = () =>
-    join(projectRoot, '.auto-sop', 'state', 'managed-section-hash.json');
+  const hashPath = () => join(projectRoot, '.auto-sop', 'state', 'managed-section-hash.json');
 
   it('returns null when no hash file exists', () => {
     expect(readLastHash(projectRoot)).toBeNull();
@@ -117,17 +108,13 @@ describe('hash-store', () => {
 
   it('rejects relative projectRoot', () => {
     expect(() => readLastHash('relative/path')).toThrow(/must be absolute/);
-    expect(() => writeLastHash('relative/path', sha256('x'))).toThrow(
-      /must be absolute/,
-    );
+    expect(() => writeLastHash('relative/path', sha256('x'))).toThrow(/must be absolute/);
     expect(() => clearLastHash('relative/path')).toThrow(/must be absolute/);
   });
 
   it('rejects projectRoot containing ..', () => {
     expect(() => readLastHash('/tmp/../etc')).toThrow(/must not contain/);
-    expect(() => writeLastHash('/tmp/../etc', sha256('x'))).toThrow(
-      /must not contain/,
-    );
+    expect(() => writeLastHash('/tmp/../etc', sha256('x'))).toThrow(/must not contain/);
     expect(() => clearLastHash('/tmp/../etc')).toThrow(/must not contain/);
   });
 
@@ -138,9 +125,7 @@ describe('hash-store', () => {
 
   it('sha256 produces the expected digest for a known input', () => {
     // Reference: echo -n "abc" | sha256sum
-    expect(sha256('abc')).toBe(
-      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
-    );
+    expect(sha256('abc')).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
   });
 
   it('sha256 produces different digests for different inputs', () => {

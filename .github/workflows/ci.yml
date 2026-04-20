@@ -23,7 +23,7 @@ jobs:
       matrix:
         node: ['18.17', '20', '22']
         os: [ubuntu-latest, macos-latest]
-        # windows-latest explicitly excluded — INST-08
+        # windows-latest: Phase 6 v25 — platform abstraction ready (v23), chmod migrated (v24), CI runner next
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
       - run: |
           node -e "const s = require('./package.json').scripts || {}; const banned = ['postinstall','preinstall','install','prepublish','prepublishOnly']; const found = banned.filter(k => k in s); if (found.length) { console.error('FORBIDDEN lifecycle scripts present:', found); process.exit(1); }"
 
-  windows-refusal-check:
+  windows-acceptance-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,17 +57,10 @@ jobs:
           node-version: '20'
       - run: npm install --ignore-scripts
       - run: npm run build
-      - name: CLI entry must refuse win32
+      - name: CLI entry must accept win32
         run: |
-          set +e
-          CLAUDE_SOP_FAKE_PLATFORM=win32 node dist/cli.cjs
-          code=$?
-          set -e
-          if [ "$code" = "0" ]; then
-            echo "FAIL: CLI entry did not refuse win32 (exit code 0)"
-            exit 1
-          fi
-          echo "OK: CLI entry refused win32 with exit code $code"
+          CLAUDE_SOP_FAKE_PLATFORM=win32 node dist/cli.cjs --version
+          echo 'OK: CLI entry accepted win32'
       - name: Library entry must have NO side effects (import does not exit)
         run: |
           CLAUDE_SOP_FAKE_PLATFORM=win32 node -e "require('./dist/index.cjs'); console.log('OK: library import did not exit on win32');"

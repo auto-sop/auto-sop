@@ -2,11 +2,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { lock } from 'proper-lockfile';
 import { assertPlatformSupported } from '../platform-check.js';
-import {
-  readInstalledVersion,
-  writeInstalledVersion,
-  compareVersions,
-} from './version.js';
+import { readInstalledVersion, writeInstalledVersion, compareVersions } from './version.js';
 import { copyPluginBundle } from './plugin-bundle.js';
 import { mergeGlobalMarketplace, mergeProjectHooks } from './merge-settings.js';
 import { buildHookEntries } from './hook-entries.js';
@@ -61,26 +57,14 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
 
   // Derived paths
   const claudeSopHome = path.join(opts.homeDir, '.auto-sop');
-  const marketplaceDir = path.join(
-    claudeSopHome,
-    'marketplace',
-    'auto-sop',
-  );
+  const marketplaceDir = path.join(claudeSopHome, 'marketplace', 'auto-sop');
   const binDir = path.join(claudeSopHome, 'bin');
   const tickScriptPath = path.join(binDir, 'tick.sh');
   const versionTxtPath = path.join(claudeSopHome, 'version.txt');
   const secretsEncPath = path.join(claudeSopHome, 'secrets.enc');
   const logDir = path.join(claudeSopHome, 'logs');
-  const globalClaudeSettings = path.join(
-    opts.homeDir,
-    '.claude',
-    'settings.json',
-  );
-  const projectClaudeSettings = path.join(
-    opts.projectRoot,
-    '.claude',
-    'settings.json',
-  );
+  const globalClaudeSettings = path.join(opts.homeDir, '.claude', 'settings.json');
+  const projectClaudeSettings = path.join(opts.projectRoot, '.claude', 'settings.json');
   const gitignorePath = path.join(opts.projectRoot, '.gitignore');
   const installLockPath = path.join(claudeSopHome, 'install.lock');
 
@@ -103,15 +87,11 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
     const nodeVersion = process.versions.node;
     const [major, minor] = nodeVersion.split('.').map(Number);
     if (major! < 18 || (major === 18 && minor! < 17)) {
-      throw new PreconditionError(
-        `Node >= 18.17 required, got ${nodeVersion}`,
-      );
+      throw new PreconditionError(`Node >= 18.17 required, got ${nodeVersion}`);
     }
     const projectStat = await fs.stat(opts.projectRoot).catch(() => null);
     if (!projectStat?.isDirectory()) {
-      throw new PreconditionError(
-        `project root does not exist: ${opts.projectRoot}`,
-      );
+      throw new PreconditionError(`project root does not exist: ${opts.projectRoot}`);
     }
 
     // Step 2: Version compare
@@ -128,9 +108,7 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
     else verdict = 'same-version';
 
     // Step 3: License
-    const licenseKey =
-      opts.licenseKey ??
-      (await (opts.promptLicense ?? promptLicense)());
+    const licenseKey = opts.licenseKey ?? (await (opts.promptLicense ?? promptLicense)());
     const kind = classifyLicense(licenseKey);
     const machineIdFull = await (opts.getMachineId ?? getMachineId)();
     await recordLicenseOnInstall({
@@ -245,15 +223,11 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
  * Simpler than the full buildDirectiveBodyFromInput — no agent roster,
  * LLM summary, or turn statistics needed for a restore.
  */
-function buildRestoredBody(
-  entries: DirectiveHistoryEntry[],
-): { body: string } {
+function buildRestoredBody(entries: DirectiveHistoryEntry[]): { body: string } {
   const count = entries.length;
   const label = count === 1 ? 'directive' : 'directives';
   const header = `_Directives restored from previous install._\n`;
   const learnings = `**Learnings** (${count} active ${label})`;
-  const bullets = entries
-    .map((e) => `- **[${e.severity}]** ${e.rule_text}`)
-    .join('\n\n');
+  const bullets = entries.map((e) => `- **[${e.severity}]** ${e.rule_text}`).join('\n\n');
   return { body: `${header}\n${learnings}\n\n${bullets}` };
 }

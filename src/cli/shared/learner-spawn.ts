@@ -29,13 +29,7 @@ export interface LearnerResult {
 
 export function findLearnerCjs(): string | null {
   // Check installed location first
-  const installed = path.join(
-    os.homedir(),
-    '.auto-sop',
-    'marketplace',
-    'auto-sop',
-    'learner.cjs',
-  );
+  const installed = path.join(os.homedir(), '.auto-sop', 'marketplace', 'auto-sop', 'learner.cjs');
   if (existsSync(installed)) return installed;
 
   // Check dist/plugin/ (dev mode)

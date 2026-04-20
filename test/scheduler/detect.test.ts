@@ -6,6 +6,7 @@ import { execa } from 'execa';
 import { systemdUserAvailable } from '../../src/scheduler/detect.js';
 
 const mockExeca = vi.mocked(execa);
+type ExecaResult = Awaited<ReturnType<typeof execa>>;
 
 describe('systemdUserAvailable', () => {
   beforeEach(() => {
@@ -16,21 +17,20 @@ describe('systemdUserAvailable', () => {
     mockExeca.mockResolvedValueOnce({
       exitCode: 0,
       stdout: 'running',
-    } as any);
+    } as unknown as ExecaResult);
 
     expect(await systemdUserAvailable()).toBe(true);
-    expect(mockExeca).toHaveBeenCalledWith(
-      'systemctl',
-      ['--user', 'is-system-running'],
-      { reject: false, timeout: 2000 },
-    );
+    expect(mockExeca).toHaveBeenCalledWith('systemctl', ['--user', 'is-system-running'], {
+      reject: false,
+      timeout: 2000,
+    });
   });
 
   it('returns true when exitCode is 1 but stdout is "degraded"', async () => {
     mockExeca.mockResolvedValueOnce({
       exitCode: 1,
       stdout: 'degraded',
-    } as any);
+    } as unknown as ExecaResult);
 
     expect(await systemdUserAvailable()).toBe(true);
   });
@@ -39,7 +39,7 @@ describe('systemdUserAvailable', () => {
     mockExeca.mockResolvedValueOnce({
       exitCode: 1,
       stdout: 'starting',
-    } as any);
+    } as unknown as ExecaResult);
 
     expect(await systemdUserAvailable()).toBe(true);
   });
@@ -48,7 +48,7 @@ describe('systemdUserAvailable', () => {
     mockExeca.mockResolvedValueOnce({
       exitCode: 1,
       stdout: 'initializing',
-    } as any);
+    } as unknown as ExecaResult);
 
     expect(await systemdUserAvailable()).toBe(true);
   });
@@ -57,7 +57,7 @@ describe('systemdUserAvailable', () => {
     mockExeca.mockResolvedValueOnce({
       exitCode: 1,
       stdout: 'maintenance',
-    } as any);
+    } as unknown as ExecaResult);
 
     expect(await systemdUserAvailable()).toBe(true);
   });
@@ -66,7 +66,7 @@ describe('systemdUserAvailable', () => {
     mockExeca.mockResolvedValueOnce({
       exitCode: 1,
       stdout: 'offline',
-    } as any);
+    } as unknown as ExecaResult);
 
     expect(await systemdUserAvailable()).toBe(false);
   });
@@ -81,7 +81,7 @@ describe('systemdUserAvailable', () => {
     mockExeca.mockResolvedValueOnce({
       exitCode: 0,
       stdout: 'running',
-    } as any);
+    } as unknown as ExecaResult);
 
     await systemdUserAvailable();
 

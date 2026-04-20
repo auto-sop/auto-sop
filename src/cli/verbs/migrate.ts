@@ -41,7 +41,12 @@ export function registerMigrateVerb(program: Command): void {
       if (process.platform === 'win32') {
         const msg = 'Windows does not need migration — fresh install only.';
         if (jsonMode) {
-          emit({ ok: true, verb: 'migrate', dryRun, steps: [{ step: 'skip', outcome: 'skipped', detail: msg }] });
+          emit({
+            ok: true,
+            verb: 'migrate',
+            dryRun,
+            steps: [{ step: 'skip', outcome: 'skipped', detail: msg }],
+          });
         } else {
           process.stdout.write(pc.dim(msg) + '\n');
         }
@@ -56,10 +61,18 @@ export function registerMigrateVerb(program: Command): void {
         const newExists = await dirExists(newHome);
         if (oldExists && !newExists) {
           if (dryRun) {
-            steps.push({ step: 'move-home', outcome: 'ok', detail: `would move ${oldHome} → ${newHome}` });
+            steps.push({
+              step: 'move-home',
+              outcome: 'ok',
+              detail: `would move ${oldHome} → ${newHome}`,
+            });
           } else {
             await fs.rename(oldHome, newHome);
-            steps.push({ step: 'move-home', outcome: 'ok', detail: `moved ${oldHome} → ${newHome}` });
+            steps.push({
+              step: 'move-home',
+              outcome: 'ok',
+              detail: `moved ${oldHome} → ${newHome}`,
+            });
           }
         } else if (oldExists && newExists) {
           steps.push({
@@ -68,7 +81,11 @@ export function registerMigrateVerb(program: Command): void {
             detail: `both ${oldHome} and ${newHome} exist — merge manually`,
           });
         } else if (!oldExists && newExists) {
-          steps.push({ step: 'move-home', outcome: 'skipped', detail: 'already using ~/.auto-sop/' });
+          steps.push({
+            step: 'move-home',
+            outcome: 'skipped',
+            detail: 'already using ~/.auto-sop/',
+          });
         } else {
           steps.push({ step: 'move-home', outcome: 'skipped', detail: 'no ~/.claude-sop/ found' });
         }
@@ -83,8 +100,12 @@ export function registerMigrateVerb(program: Command): void {
       // Step 2: Update launchd plist label (macOS only)
       if (process.platform === 'darwin') {
         try {
-          const oldPlist = path.join(homeDir, 'Library', 'LaunchAgents', 'com.claude-sop.learner.plist');
-          const newPlist = path.join(homeDir, 'Library', 'LaunchAgents', 'com.auto-sop.learner.plist');
+          const oldPlist = path.join(
+            homeDir,
+            'Library',
+            'LaunchAgents',
+            'com.claude-sop.learner.plist',
+          );
           const oldPlistExists = await fileExists(oldPlist);
           if (oldPlistExists) {
             if (dryRun) {
@@ -97,7 +118,9 @@ export function registerMigrateVerb(program: Command): void {
               // Unload old plist
               const { execa } = await import('execa');
               const uid = process.getuid?.() ?? 501;
-              await execa('launchctl', ['bootout', `gui/${uid}/com.claude-sop.learner`], { reject: false });
+              await execa('launchctl', ['bootout', `gui/${uid}/com.claude-sop.learner`], {
+                reject: false,
+              });
               await fs.rm(oldPlist, { force: true });
               steps.push({
                 step: 'launchd-plist',
@@ -142,10 +165,18 @@ export function registerMigrateVerb(program: Command): void {
               });
             }
           } else {
-            steps.push({ step: 'project-hooks', outcome: 'skipped', detail: 'no claude-sop references found' });
+            steps.push({
+              step: 'project-hooks',
+              outcome: 'skipped',
+              detail: 'no claude-sop references found',
+            });
           }
         } else {
-          steps.push({ step: 'project-hooks', outcome: 'skipped', detail: 'no .claude/settings.json' });
+          steps.push({
+            step: 'project-hooks',
+            outcome: 'skipped',
+            detail: 'no .claude/settings.json',
+          });
         }
       } catch (e) {
         steps.push({
@@ -164,13 +195,21 @@ export function registerMigrateVerb(program: Command): void {
           if (raw.includes('.claude-sop/')) {
             const updated = raw.replace(/\.claude-sop\//g, '.auto-sop/');
             if (dryRun) {
-              steps.push({ step: 'gitignore', outcome: 'ok', detail: 'would update .gitignore entry' });
+              steps.push({
+                step: 'gitignore',
+                outcome: 'ok',
+                detail: 'would update .gitignore entry',
+              });
             } else {
               await fs.writeFile(gitignorePath, updated, 'utf8');
               steps.push({ step: 'gitignore', outcome: 'ok', detail: 'updated .gitignore entry' });
             }
           } else {
-            steps.push({ step: 'gitignore', outcome: 'skipped', detail: 'no .claude-sop/ entry found' });
+            steps.push({
+              step: 'gitignore',
+              outcome: 'skipped',
+              detail: 'no .claude-sop/ entry found',
+            });
           }
         } else {
           steps.push({ step: 'gitignore', outcome: 'skipped', detail: 'no .gitignore' });
@@ -191,7 +230,11 @@ export function registerMigrateVerb(program: Command): void {
         const newProjectExists = await dirExists(newProjectDir);
         if (oldProjectExists && !newProjectExists) {
           if (dryRun) {
-            steps.push({ step: 'move-project-dir', outcome: 'ok', detail: `would move ${oldProjectDir} → ${newProjectDir}` });
+            steps.push({
+              step: 'move-project-dir',
+              outcome: 'ok',
+              detail: `would move ${oldProjectDir} → ${newProjectDir}`,
+            });
           } else {
             await fs.rename(oldProjectDir, newProjectDir);
             steps.push({ step: 'move-project-dir', outcome: 'ok', detail: `moved project dir` });
@@ -203,7 +246,11 @@ export function registerMigrateVerb(program: Command): void {
             detail: 'both old and new project dirs exist — merge manually',
           });
         } else {
-          steps.push({ step: 'move-project-dir', outcome: 'skipped', detail: 'no old project dir' });
+          steps.push({
+            step: 'move-project-dir',
+            outcome: 'skipped',
+            detail: 'no old project dir',
+          });
         }
       } catch (e) {
         steps.push({
@@ -222,9 +269,11 @@ export function registerMigrateVerb(program: Command): void {
         process.stdout.write(prefix + pc.bold('auto-sop migrate') + '\n\n');
         for (const s of steps) {
           const icon =
-            s.outcome === 'ok' ? pc.green('✓') :
-            s.outcome === 'skipped' ? pc.dim('–') :
-            pc.yellow('⚠');
+            s.outcome === 'ok'
+              ? pc.green('✓')
+              : s.outcome === 'skipped'
+                ? pc.dim('–')
+                : pc.yellow('⚠');
           process.stdout.write(`  ${icon} ${s.step}: ${s.detail ?? s.outcome}\n`);
         }
         process.stdout.write('\n');
@@ -233,7 +282,7 @@ export function registerMigrateVerb(program: Command): void {
         } else {
           process.stdout.write(
             pc.green('Migration complete.') +
-            (dryRun ? '' : ` Run ${pc.bold('auto-sop install')} to finalize.\n`),
+              (dryRun ? '' : ` Run ${pc.bold('auto-sop install')} to finalize.\n`),
           );
         }
       }

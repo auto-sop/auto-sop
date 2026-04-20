@@ -9,8 +9,6 @@ export interface MarketplaceRegisterOptions {
  * Register the auto-sop marketplace directory in global settings.
  * Thin wrapper around mergeGlobalMarketplace for install-verb readability.
  */
-export async function registerMarketplace(
-  opts: MarketplaceRegisterOptions,
-): Promise<void> {
+export async function registerMarketplace(opts: MarketplaceRegisterOptions): Promise<void> {
   await mergeGlobalMarketplace(opts.globalSettingsPath, opts.marketplaceDir);
 }

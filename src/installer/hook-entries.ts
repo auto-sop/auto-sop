@@ -26,9 +26,7 @@ export interface HookEntry {
  * Each entry invokes the shim at `shimAbsPath` with a 10s timeout.
  * Caller is responsible for ensuring shimAbsPath is absolute.
  */
-export function buildHookEntries(
-  shimAbsPath: string,
-): Record<HookEvent, HookEntry> {
+export function buildHookEntries(shimAbsPath: string): Record<HookEvent, HookEntry> {
   const base: HookEntry = {
     hooks: [
       {

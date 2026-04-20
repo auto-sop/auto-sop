@@ -44,9 +44,7 @@ describe('renderTickScript', () => {
 
   it('contains exec line with proper variable references', () => {
     const script = renderTickScript(baseOpts);
-    expect(script).toContain(
-      'exec "$NODE_BIN" "$LEARNER_JS" 2>>"$ERRORS_LOG"',
-    );
+    expect(script).toContain('exec "$NODE_BIN" "$LEARNER_JS" 2>>"$ERRORS_LOG"');
   });
 
   it('escapes single quotes in homeDir (POSIX style)', () => {
@@ -69,9 +67,7 @@ describe('renderTickScript', () => {
   it('does NOT use flock as a command', () => {
     const script = renderTickScript(baseOpts);
     // Filter out comment lines; assert no executable flock usage
-    const codeLines = script
-      .split('\n')
-      .filter((l) => !l.startsWith('#'));
+    const codeLines = script.split('\n').filter((l) => !l.startsWith('#'));
     expect(codeLines.join('\n')).not.toMatch(/\bflock\b/);
   });
 });
@@ -122,7 +118,9 @@ describe('renderTickScriptCmd', () => {
 
   it('creates log directory before stderr redirect', () => {
     const script = renderTickScriptCmd(winOpts);
-    expect(script).toContain('if not exist "%AUTO_SOP_DATA_DIR%\\logs" mkdir "%AUTO_SOP_DATA_DIR%\\logs"');
+    expect(script).toContain(
+      'if not exist "%AUTO_SOP_DATA_DIR%\\logs" mkdir "%AUTO_SOP_DATA_DIR%\\logs"',
+    );
     // Ensure mkdir comes before the 2>> redirect
     const mkdirIdx = script.indexOf('mkdir "%AUTO_SOP_DATA_DIR%\\logs"');
     const redirectIdx = script.indexOf('2>>');

@@ -18,10 +18,8 @@ import {
 } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 
 const SHIM_PATH = resolve(__dirname, '../../../dist/capture/shim.cjs');
-const WRITER_PATH = resolve(__dirname, '../../../dist/capture/writer.cjs');
 
 export interface ScenarioRun {
   projectRoot: string;
@@ -36,8 +34,7 @@ export interface RunScenarioOpts {
   tmpRoot: string;
   env?: Record<string, string>;
   preActions?: Array<
-    | { kind: 'create-paused-flag' }
-    | { kind: 'age-pending-dirs'; minusSeconds: number }
+    { kind: 'create-paused-flag' } | { kind: 'age-pending-dirs'; minusSeconds: number }
   >;
   midActions?: Array<{ kind: 'age-pending-dirs'; minusSeconds: number }>;
   /**
@@ -112,9 +109,7 @@ export async function runScenario(opts: RunScenarioOpts): Promise<ScenarioRun> {
 
   // Substitute placeholders
   const substituted = allLines.map((line) =>
-    line
-      .replace(/<PROJECT_ROOT>/g, projectRoot)
-      .replace(/<FIXTURE_TRANSCRIPT>/g, transcriptPath),
+    line.replace(/<PROJECT_ROOT>/g, projectRoot).replace(/<FIXTURE_TRANSCRIPT>/g, transcriptPath),
   );
 
   // Build the ScenarioRun result early (for preActions and midCheckpoints)
@@ -138,7 +133,12 @@ export async function runScenario(opts: RunScenarioOpts): Promise<ScenarioRun> {
         mkdirSync(claudeSopDir, { recursive: true, mode: 0o700 });
         writeFileSync(
           join(claudeSopDir, 'paused.flag'),
-          JSON.stringify({ at: new Date().toISOString(), used: 999999999, cap: 2147483648, threshold: 1073741824 }),
+          JSON.stringify({
+            at: new Date().toISOString(),
+            used: 999999999,
+            cap: 2147483648,
+            threshold: 1073741824,
+          }),
           { mode: 0o600 },
         );
       }
@@ -147,7 +147,7 @@ export async function runScenario(opts: RunScenarioOpts): Promise<ScenarioRun> {
 
   // Build the base env for spawned processes
   const baseEnv: Record<string, string> = {
-    ...process.env as Record<string, string>,
+    ...(process.env as Record<string, string>),
     HOME: fakeHome,
     ...(opts.env ?? {}),
   };
@@ -259,8 +259,8 @@ export async function waitForQuiescence(
   const tmpList = listTmpFiles(tmpDir);
   throw new Error(
     `waitForQuiescence timed out after ${timeoutMs}ms.\n` +
-    `  Pending dirs: ${pendingList.join(', ') || '(none)'}\n` +
-    `  Tmp files: ${tmpList.join(', ') || '(none)'}`,
+      `  Pending dirs: ${pendingList.join(', ') || '(none)'}\n` +
+      `  Tmp files: ${tmpList.join(', ') || '(none)'}`,
   );
 }
 
@@ -268,10 +268,7 @@ export async function waitForQuiescence(
  * Wait until all tmp payload files are consumed (writers done), ignoring .pending dirs.
  * Used during BREAK_HERE markers where orphan .pending dirs are expected.
  */
-async function waitForWritersIdle(
-  tmpDir: string,
-  timeoutMs: number = 5000,
-): Promise<void> {
+async function waitForWritersIdle(tmpDir: string, timeoutMs: number = 5000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (!hasTmpPayloads(tmpDir)) return;
@@ -280,7 +277,7 @@ async function waitForWritersIdle(
   const tmpList = listTmpFiles(tmpDir);
   throw new Error(
     `waitForWritersIdle timed out after ${timeoutMs}ms.\n` +
-    `  Tmp files: ${tmpList.join(', ') || '(none)'}`,
+      `  Tmp files: ${tmpList.join(', ') || '(none)'}`,
   );
 }
 

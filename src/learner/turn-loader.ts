@@ -52,10 +52,7 @@ export interface TurnData {
  *                    (by finalized_at). Default 500.
  * @returns Array of TurnData, sorted ASCENDING by finalized_at.
  */
-export function loadTurnsForDetection(
-  captureDir: string,
-  maxTurns: number = 500,
-): TurnData[] {
+export function loadTurnsForDetection(captureDir: string, maxTurns: number = 500): TurnData[] {
   let entries: string[];
   try {
     entries = readdirSync(captureDir, { withFileTypes: true })

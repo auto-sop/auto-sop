@@ -12,9 +12,7 @@
 function lcsTable(a: string[], b: string[]): number[][] {
   const m = a.length;
   const n = b.length;
-  const table: number[][] = Array.from({ length: m + 1 }, () =>
-    new Array<number>(n + 1).fill(0),
-  );
+  const table: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       if (a[i - 1] === b[j - 1]) {
@@ -40,11 +38,7 @@ export interface DiffEdit {
 /**
  * Backtrack the LCS table to produce a sequence of edit operations.
  */
-function backtrackEdits(
-  table: number[][],
-  a: string[],
-  b: string[],
-): DiffEdit[] {
+function backtrackEdits(table: number[][], a: string[], b: string[]): DiffEdit[] {
   const edits: DiffEdit[] = [];
   let i = a.length;
   let j = b.length;
@@ -83,11 +77,7 @@ export interface UnifiedDiffOptions {
  * @param opts    - Labels and context line count (default 3)
  * @returns Unified diff string, or empty string if identical
  */
-export function unifiedDiff(
-  oldText: string,
-  newText: string,
-  opts?: UnifiedDiffOptions,
-): string {
+export function unifiedDiff(oldText: string, newText: string, opts?: UnifiedDiffOptions): string {
   if (oldText === newText) return '';
 
   const contextLines = opts?.context ?? 3;

@@ -6,33 +6,21 @@
  * with existing managed sections written before the rename.
  */
 
-export const BEGIN_MARKER =
-  '<!-- auto-sop:managed-section:begin v1 -->';
+export const BEGIN_MARKER = '<!-- auto-sop:managed-section:begin v1 -->';
 
-export const GENERATED_COMMENT =
-  '<!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->';
+export const GENERATED_COMMENT = '<!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->';
 
 export const END_MARKER = '<!-- auto-sop:managed-section:end -->';
 
 /** Legacy markers from before the claude-sop → auto-sop rename. */
-export const LEGACY_BEGIN_MARKER =
-  '<!-- claude-sop:managed-section:begin v1 -->';
-export const LEGACY_END_MARKER =
-  '<!-- claude-sop:managed-section:end -->';
+export const LEGACY_BEGIN_MARKER = '<!-- claude-sop:managed-section:begin v1 -->';
+export const LEGACY_END_MARKER = '<!-- claude-sop:managed-section:end -->';
 
-export const CLAUDE_MD_HEADER =
-  '# CLAUDE.md\n\n_Project-level instructions for Claude Code._\n';
+export const CLAUDE_MD_HEADER = '# CLAUDE.md\n\n_Project-level instructions for Claude Code._\n';
 
 /** Build the full managed section block from a body string. */
 export function buildSectionBlock(body: string): string {
-  return [
-    BEGIN_MARKER,
-    GENERATED_COMMENT,
-    '',
-    body,
-    '',
-    END_MARKER,
-  ].join('\n');
+  return [BEGIN_MARKER, GENERATED_COMMENT, '', body, '', END_MARKER].join('\n');
 }
 
 export interface MarkerLocation {
@@ -67,9 +55,7 @@ function findMarkersWithPair(
   if (beginIdx === -1) {
     // No begin marker — check for orphaned end marker
     if (content.indexOf(endMarker) !== -1) {
-      throw new MalformedMarkersError(
-        'Found end marker without matching begin marker',
-      );
+      throw new MalformedMarkersError('Found end marker without matching begin marker');
     }
     return null;
   }
@@ -77,24 +63,18 @@ function findMarkersWithPair(
   // Check for duplicate begin markers
   const secondBegin = content.indexOf(beginMarker, beginIdx + beginMarker.length);
   if (secondBegin !== -1) {
-    throw new AmbiguousMarkersError(
-      'Multiple begin markers found in CLAUDE.md',
-    );
+    throw new AmbiguousMarkersError('Multiple begin markers found in CLAUDE.md');
   }
 
   const endIdx = content.indexOf(endMarker, beginIdx);
   if (endIdx === -1) {
-    throw new MalformedMarkersError(
-      'Found begin marker without matching end marker',
-    );
+    throw new MalformedMarkersError('Found begin marker without matching end marker');
   }
 
   // Check for duplicate end markers
   const secondEnd = content.indexOf(endMarker, endIdx + endMarker.length);
   if (secondEnd !== -1) {
-    throw new AmbiguousMarkersError(
-      'Multiple end markers found in CLAUDE.md',
-    );
+    throw new AmbiguousMarkersError('Multiple end markers found in CLAUDE.md');
   }
 
   // endAfter includes the end marker itself, plus trailing newline if present

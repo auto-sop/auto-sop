@@ -23,9 +23,7 @@ describe('version', () => {
 
   describe('readInstalledVersion', () => {
     it('returns null for nonexistent file', async () => {
-      const result = await readInstalledVersion(
-        join(testDir, 'version.txt'),
-      );
+      const result = await readInstalledVersion(join(testDir, 'version.txt'));
       expect(result).toBeNull();
     });
 
@@ -53,9 +51,9 @@ describe('version', () => {
 
   describe('writeInstalledVersion', () => {
     it('throws for invalid semver', async () => {
-      await expect(
-        writeInstalledVersion(join(testDir, 'v.txt'), 'nope'),
-      ).rejects.toThrow('invalid semver');
+      await expect(writeInstalledVersion(join(testDir, 'v.txt'), 'nope')).rejects.toThrow(
+        'invalid semver',
+      );
     });
   });
 

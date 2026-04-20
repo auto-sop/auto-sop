@@ -40,13 +40,7 @@ function cannedReport(overrides: Partial<StatusReport> = {}): StatusReport {
     installedVersion: '2.0.0',
     hooks: {
       wiringState: 'present',
-      eventsCovered: [
-        'UserPromptSubmit',
-        'Stop',
-        'SubagentStop',
-        'PreToolUse',
-        'PostToolUse',
-      ],
+      eventsCovered: ['UserPromptSubmit', 'Stop', 'SubagentStop', 'PreToolUse', 'PostToolUse'],
       settingsPath: '/tmp/proj/.claude/settings.json',
     },
     scheduler: {
@@ -97,13 +91,7 @@ describe('status verb', () => {
   it('human output contains all row labels', async () => {
     mockCollectStatus.mockResolvedValueOnce(cannedReport());
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'status',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'status', '--project', '/tmp/proj']);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
@@ -127,14 +115,7 @@ describe('status verb', () => {
   it('--json mode emits stable JSON with all top-level fields', async () => {
     mockCollectStatus.mockResolvedValueOnce(cannedReport());
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'status',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'status', '--project', '/tmp/proj']);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
@@ -165,13 +146,7 @@ describe('status verb', () => {
       }),
     );
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'status',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'status', '--project', '/tmp/proj']);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
@@ -180,17 +155,9 @@ describe('status verb', () => {
   });
 
   it('not installed shows (not installed) in human output', async () => {
-    mockCollectStatus.mockResolvedValueOnce(
-      cannedReport({ installedVersion: null }),
-    );
+    mockCollectStatus.mockResolvedValueOnce(cannedReport({ installedVersion: null }));
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'status',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'status', '--project', '/tmp/proj']);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');

@@ -2,15 +2,8 @@
  * Unit tests for the recap verb — specifically the directive column
  * and dry-run diff rendering.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-  mkdtempSync,
-  rmSync,
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  existsSync,
-} from 'node:fs';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -48,12 +41,10 @@ describe('recap verb: dry-run diff computation', () => {
 
   it('unifiedDiff produces correct diff for CLAUDE.md creation scenario', async () => {
     const { unifiedDiff } = await import('../../../src/cli/diff.js');
-    const { buildSampleDirectiveFromInput } = await import(
-      '../../../src/learner/directive-builder.js'
-    );
-    const { buildSectionBlock, CLAUDE_MD_HEADER } = await import(
-      '../../../src/managed-section/markers.js'
-    );
+    const { buildSampleDirectiveFromInput } =
+      await import('../../../src/learner/directive-builder.js');
+    const { buildSectionBlock, CLAUDE_MD_HEADER } =
+      await import('../../../src/managed-section/markers.js');
 
     const content = buildSampleDirectiveFromInput({
       turnsTotalSeen: 5,
@@ -78,12 +69,10 @@ describe('recap verb: dry-run diff computation', () => {
 
   it('unifiedDiff shows only managed section delta on update', async () => {
     const { unifiedDiff } = await import('../../../src/cli/diff.js');
-    const { buildSampleDirectiveFromInput } = await import(
-      '../../../src/learner/directive-builder.js'
-    );
-    const { buildSectionBlock, BEGIN_MARKER, END_MARKER, GENERATED_COMMENT } = await import(
-      '../../../src/managed-section/markers.js'
-    );
+    const { buildSampleDirectiveFromInput } =
+      await import('../../../src/learner/directive-builder.js');
+    const { buildSectionBlock, BEGIN_MARKER, END_MARKER, GENERATED_COMMENT } =
+      await import('../../../src/managed-section/markers.js');
 
     // Existing CLAUDE.md with user content + old managed section.
     // B4: stats line now reads "_Data as of:" anchored to newest

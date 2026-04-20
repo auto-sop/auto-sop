@@ -21,9 +21,6 @@ export function registerResumeVerb(program: Command): void {
         if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
       }
       if (jsonMode) emit({ ok: true, verb: 'resume', removed });
-      else
-        process.stdout.write(
-          pc.green(removed ? '\u2713 resumed\n' : '(already resumed)\n'),
-        );
+      else process.stdout.write(pc.green(removed ? '\u2713 resumed\n' : '(already resumed)\n'));
     });
 }

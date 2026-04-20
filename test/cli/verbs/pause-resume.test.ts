@@ -34,13 +34,7 @@ describe('pause / resume verbs', () => {
 
   describe('pause', () => {
     it('creates paused.flag with paused_at timestamp', async () => {
-      const code = await runCli([
-        'node',
-        'auto-sop',
-        'pause',
-        '--project',
-        tmpDir,
-      ]);
+      const code = await runCli(['node', 'auto-sop', 'pause', '--project', tmpDir]);
       expect(code).toBe(0);
       const content = await fs.readFile(flagPath(), 'utf8');
       const parsed = JSON.parse(content.trim());
@@ -56,27 +50,14 @@ describe('pause / resume verbs', () => {
 
     it('is idempotent — re-running overwrites flag without error', async () => {
       await runCli(['node', 'auto-sop', 'pause', '--project', tmpDir]);
-      const code = await runCli([
-        'node',
-        'auto-sop',
-        'pause',
-        '--project',
-        tmpDir,
-      ]);
+      const code = await runCli(['node', 'auto-sop', 'pause', '--project', tmpDir]);
       expect(code).toBe(0);
       const content = await fs.readFile(flagPath(), 'utf8');
       expect(JSON.parse(content.trim()).paused_at).toBeTypeOf('number');
     });
 
     it('--json emits correct shape', async () => {
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'pause',
-        '--project',
-        tmpDir,
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'pause', '--project', tmpDir]);
       const out = JSON.parse(stdout().trim());
       expect(out.ok).toBe(true);
       expect(out.verb).toBe('pause');
@@ -101,13 +82,7 @@ describe('pause / resume verbs', () => {
       ).toBe(true);
 
       // Resume
-      const code = await runCli([
-        'node',
-        'auto-sop',
-        'resume',
-        '--project',
-        tmpDir,
-      ]);
+      const code = await runCli(['node', 'auto-sop', 'resume', '--project', tmpDir]);
       expect(code).toBe(0);
       expect(
         await fs
@@ -118,13 +93,7 @@ describe('pause / resume verbs', () => {
     });
 
     it('is no-op if already resumed (no flag)', async () => {
-      const code = await runCli([
-        'node',
-        'auto-sop',
-        'resume',
-        '--project',
-        tmpDir,
-      ]);
+      const code = await runCli(['node', 'auto-sop', 'resume', '--project', tmpDir]);
       expect(code).toBe(0);
       expect(stdout()).toContain('already resumed');
     });
@@ -132,14 +101,7 @@ describe('pause / resume verbs', () => {
     it('--json shows removed: true when flag existed', async () => {
       await runCli(['node', 'auto-sop', 'pause', '--project', tmpDir]);
       stdoutChunks = [];
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'resume',
-        '--project',
-        tmpDir,
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'resume', '--project', tmpDir]);
       const out = JSON.parse(stdout().trim());
       expect(out.ok).toBe(true);
       expect(out.verb).toBe('resume');
@@ -147,14 +109,7 @@ describe('pause / resume verbs', () => {
     });
 
     it('--json shows removed: false when no flag', async () => {
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'resume',
-        '--project',
-        tmpDir,
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'resume', '--project', tmpDir]);
       const out = JSON.parse(stdout().trim());
       expect(out.ok).toBe(true);
       expect(out.removed).toBe(false);

@@ -10,9 +10,7 @@ import pc from 'picocolors';
 export function registerPurgeVerb(program: Command): void {
   program
     .command('purge')
-    .description(
-      'wipe all captures (project + global) without removing hooks/scheduler',
-    )
+    .description('wipe all captures (project + global) without removing hooks/scheduler')
     .option('--project <path>', 'project root', process.cwd())
     .option('--yes', 'skip confirmation prompt', false)
     .action(async (opts, cmd) => {
@@ -22,17 +20,8 @@ export function registerPurgeVerb(program: Command): void {
       const git = new RealGitRunner();
       const identity = await resolveIdentity(projectRoot, git);
       const projectHash12 = identity.projectId;
-      const projectCaptures = path.join(
-        projectRoot,
-        '.auto-sop',
-        'captures',
-      );
-      const globalProject = path.join(
-        homeDir,
-        '.claude',
-        'sop',
-        projectHash12,
-      );
+      const projectCaptures = path.join(projectRoot, '.auto-sop', 'captures');
+      const globalProject = path.join(homeDir, '.claude', 'sop', projectHash12);
 
       if (!opts.yes && !jsonMode) {
         const readline = await import('node:readline/promises');

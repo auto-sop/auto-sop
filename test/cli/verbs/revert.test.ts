@@ -23,10 +23,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runCli } from '../../../src/cli/main.js';
-import {
-  writeLastHash,
-  readLastHash,
-} from '../../../src/managed-section/hash-store.js';
+import { writeLastHash, readLastHash } from '../../../src/managed-section/hash-store.js';
 
 describe('revert verb', () => {
   let tmpDir: string;
@@ -92,13 +89,7 @@ describe('revert verb', () => {
       writeBackup(original);
       writeFileSync(claudeMdPath(), current);
 
-      const code = await runCli([
-        'node',
-        'auto-sop',
-        'revert',
-        '--project',
-        tmpDir,
-      ]);
+      const code = await runCli(['node', 'auto-sop', 'revert', '--project', tmpDir]);
 
       expect(code).toBe(0);
       expect(process.exitCode).toBeFalsy();
@@ -123,13 +114,7 @@ describe('revert verb', () => {
       writeBackup(original);
       // no CLAUDE.md written
 
-      const code = await runCli([
-        'node',
-        'auto-sop',
-        'revert',
-        '--project',
-        tmpDir,
-      ]);
+      const code = await runCli(['node', 'auto-sop', 'revert', '--project', tmpDir]);
 
       expect(code).toBe(0);
       expect(readFileSync(claudeMdPath(), 'utf-8')).toBe(original);
@@ -140,14 +125,7 @@ describe('revert verb', () => {
       writeBackup(original);
       writeFileSync(claudeMdPath(), 'current');
 
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'revert',
-        '--project',
-        tmpDir,
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'revert', '--project', tmpDir]);
 
       const parsed = JSON.parse(stdout().trim()) as Record<string, unknown>;
       expect(parsed.ok).toBe(true);
@@ -156,9 +134,7 @@ describe('revert verb', () => {
       expect(parsed.bytes).toBe(Buffer.byteLength(original, 'utf-8'));
       expect(typeof parsed.backup_taken_at).toBe('string');
       // Backup timestamp is an ISO8601 datetime.
-      expect(Number.isFinite(Date.parse(parsed.backup_taken_at as string))).toBe(
-        true,
-      );
+      expect(Number.isFinite(Date.parse(parsed.backup_taken_at as string))).toBe(true);
     });
   });
 
@@ -191,14 +167,7 @@ describe('revert verb', () => {
     });
 
     it('--json emits ok:false with reason:no_backup', async () => {
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'revert',
-        '--project',
-        tmpDir,
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'revert', '--project', tmpDir]);
 
       const parsed = JSON.parse(stdout().trim()) as Record<string, unknown>;
       expect(parsed.ok).toBe(false);
@@ -218,14 +187,7 @@ describe('revert verb', () => {
       writeFileSync(claudeMdPath(), current);
 
       const beforeStat = statSync(claudeMdPath()).mtimeMs;
-      await runCli([
-        'node',
-        'auto-sop',
-        'revert',
-        '--project',
-        tmpDir,
-        '--dry-run',
-      ]);
+      await runCli(['node', 'auto-sop', 'revert', '--project', tmpDir, '--dry-run']);
 
       expect(stdout()).toContain('Would restore:');
       expect(stdout()).toContain(backupPath());
@@ -242,14 +204,7 @@ describe('revert verb', () => {
       const before = readLastHash(tmpDir);
       expect(before).not.toBeNull();
 
-      await runCli([
-        'node',
-        'auto-sop',
-        'revert',
-        '--project',
-        tmpDir,
-        '--dry-run',
-      ]);
+      await runCli(['node', 'auto-sop', 'revert', '--project', tmpDir, '--dry-run']);
 
       const after = readLastHash(tmpDir);
       expect(after).not.toBeNull();
@@ -260,15 +215,7 @@ describe('revert verb', () => {
       writeBackup('backup body\nsecond line\n');
       writeFileSync(claudeMdPath(), 'current body\n');
 
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'revert',
-        '--project',
-        tmpDir,
-        '--dry-run',
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'revert', '--project', tmpDir, '--dry-run']);
 
       const parsed = JSON.parse(stdout().trim()) as Record<string, unknown>;
       expect(parsed.ok).toBe(true);
@@ -337,14 +284,7 @@ describe('revert verb', () => {
       // an attacker-influenced path; with the guard we bail early.
       const traversalPath = path.join(tmpdir(), 'evil..injected');
 
-      await runCli([
-        'node',
-        'auto-sop',
-        '--json',
-        'revert',
-        '--project',
-        traversalPath,
-      ]);
+      await runCli(['node', 'auto-sop', '--json', 'revert', '--project', traversalPath]);
 
       const parsed = JSON.parse(stdout().trim()) as Record<string, unknown>;
       expect(parsed.ok).toBe(false);
@@ -355,13 +295,7 @@ describe('revert verb', () => {
 
     it('rejects a traversal path in human mode with clear error message', async () => {
       const traversalPath = path.join(tmpdir(), 'foo..bar');
-      await runCli([
-        'node',
-        'auto-sop',
-        'revert',
-        '--project',
-        traversalPath,
-      ]);
+      await runCli(['node', 'auto-sop', 'revert', '--project', traversalPath]);
       expect(process.exitCode).toBe(1);
       expect(stderr()).toContain('Invalid project path');
     });
@@ -369,13 +303,7 @@ describe('revert verb', () => {
     it('does NOT touch files when path is rejected', async () => {
       const traversalPath = path.join(tmpdir(), 'bad..path');
       // Nothing to set up — the guard must fire before any fs work.
-      await runCli([
-        'node',
-        'auto-sop',
-        'revert',
-        '--project',
-        traversalPath,
-      ]);
+      await runCli(['node', 'auto-sop', 'revert', '--project', traversalPath]);
       expect(process.exitCode).toBe(1);
       // The guarded path must not exist as a side-effect.
       expect(existsSync(traversalPath)).toBe(false);

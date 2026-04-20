@@ -76,7 +76,7 @@ export const handleStop: Handler<StopPayload> = (event, ctx): void => {
     finalized_at: new Date().toISOString(),
     finalization_reason: 'stop',
     files_changed_count: filesResult.count,
-    scrubber_hit_count: ((currentMeta?.scrubber_hit_count) ?? 0) + responseResult.hitCount,
+    scrubber_hit_count: (currentMeta?.scrubber_hit_count ?? 0) + responseResult.hitCount,
   });
 
   // Atomically rename: drop .pending

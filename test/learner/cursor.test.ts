@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { readCursor, writeCursor, withCursorLock } from '../../src/learner/cursor.js';
@@ -42,7 +42,11 @@ describe('cursor', () => {
   it('withCursorLock runs fn and returns result', () => {
     const result = withCursorLock(stateDir, () => {
       const cursor = readCursor(stateDir);
-      writeCursor(stateDir, { ...cursor, total_turns_seen: 7, updated_at: new Date().toISOString() });
+      writeCursor(stateDir, {
+        ...cursor,
+        total_turns_seen: 7,
+        updated_at: new Date().toISOString(),
+      });
       return 'done';
     });
     expect(result).toBe('done');

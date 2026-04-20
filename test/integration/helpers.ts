@@ -37,9 +37,7 @@ export async function makeTempHome(): Promise<{
  * Copy the fixtures/plugin-bundle directory into <destPkgRoot>/dist/plugin
  * so the orchestrator sees it as a valid plugin bundle source.
  */
-export async function seedPluginBundleFixture(
-  destPkgRoot: string,
-): Promise<string> {
+export async function seedPluginBundleFixture(destPkgRoot: string): Promise<string> {
   const src = path.join(__dirname, 'fixtures', 'plugin-bundle');
   const dst = path.join(destPkgRoot, 'dist', 'plugin');
   await fs.mkdir(path.dirname(dst), { recursive: true });

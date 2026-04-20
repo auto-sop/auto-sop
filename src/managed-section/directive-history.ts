@@ -36,9 +36,9 @@ import {
   openSync,
   fsyncSync,
   closeSync,
-  chmodSync,
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
+import { getPlatform } from '../platform/index.js';
 
 // ─── Constants ───────────────────────────────────────────
 
@@ -151,9 +151,7 @@ function historyPath(projectRoot: string): string {
  * non-positive overrides are ignored — we never let a misconfigured env
  * var break the learner.
  */
-export function getDirectiveConfig(
-  env: NodeJS.ProcessEnv = process.env,
-): DirectiveConfig {
+export function getDirectiveConfig(env: NodeJS.ProcessEnv = process.env): DirectiveConfig {
   const ttlDays = parsePositiveInt(
     env[ENV_TTL_DAYS] ?? env[LEGACY_ENV_TTL_DAYS],
     DEFAULT_TTL_DAYS,
@@ -228,19 +226,14 @@ export function loadHistory(projectRoot: string): DirectiveHistory {
   // Object.prototype via later `entriesOut[key] = …` writes. Any
   // downstream consumer that iterates via `Object.entries`/
   // `Object.keys` still behaves identically.
-  const entriesOut = Object.create(null) as Record<
-    string,
-    DirectiveHistoryEntry
-  >;
+  const entriesOut = Object.create(null) as Record<string, DirectiveHistoryEntry>;
   for (const [k, v] of Object.entries(entriesIn)) {
     const entry = coerceEntry(k, v);
     if (entry !== null) entriesOut[k] = entry;
   }
   const updated = (parsed as { updated_at?: unknown }).updated_at;
   const updated_at =
-    typeof updated === 'string' && updated.length > 0
-      ? updated
-      : new Date().toISOString();
+    typeof updated === 'string' && updated.length > 0 ? updated : new Date().toISOString();
   return { entries: entriesOut, updated_at };
 }
 
@@ -248,15 +241,14 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-function coerceEntry(
-  idKey: string,
-  v: unknown,
-): DirectiveHistoryEntry | null {
+function coerceEntry(idKey: string, v: unknown): DirectiveHistoryEntry | null {
   if (!isRecord(v)) return null;
   const rec = v as Record<string, unknown>;
-  const id = typeof rec.id === 'string' ? rec.id.slice(0, MAX_ID_LENGTH) : idKey.slice(0, MAX_ID_LENGTH);
+  const id =
+    typeof rec.id === 'string' ? rec.id.slice(0, MAX_ID_LENGTH) : idKey.slice(0, MAX_ID_LENGTH);
   if (id.length === 0) return null;
-  const rule_text = typeof rec.rule_text === 'string' ? rec.rule_text.slice(0, MAX_RULE_TEXT_LENGTH) : '';
+  const rule_text =
+    typeof rec.rule_text === 'string' ? rec.rule_text.slice(0, MAX_RULE_TEXT_LENGTH) : '';
   if (rule_text.length === 0) return null;
   const sev = rec.severity;
   if (sev !== 'error' && sev !== 'warning' && sev !== 'info') return null;
@@ -292,10 +284,7 @@ function coerceEntry(
  * Atomically persist the history. Writes tmp → fsync → rename so a crash
  * mid-write leaves the prior (or empty) file intact. File mode is 0600.
  */
-export function saveHistory(
-  projectRoot: string,
-  history: DirectiveHistory,
-): void {
+export function saveHistory(projectRoot: string, history: DirectiveHistory): void {
   assertNoTraversal(projectRoot);
   const path = historyPath(projectRoot);
   const dir = join(projectRoot, '.auto-sop', 'state');
@@ -325,7 +314,7 @@ export function saveHistory(
   }
 
   try {
-    chmodSync(path, 0o600);
+    getPlatform().chmodSync(path, 0o600);
   } catch {
     // best-effort; umask may soften it on some filesystems
   }
@@ -370,8 +359,7 @@ export function updateFromProposals(
         rule_text: p.rule_text,
         severity: p.severity,
         first_seen:
-          typeof p.evidence.first_seen === 'string' &&
-          p.evidence.first_seen.length > 0
+          typeof p.evidence.first_seen === 'string' && p.evidence.first_seen.length > 0
             ? p.evidence.first_seen
             : now,
         last_reinforced: now,
@@ -529,17 +517,8 @@ export function applyDirectiveHistory(
   const config = options?.config ?? getDirectiveConfig();
 
   const history = loadHistory(projectRoot);
-  const afterUpdate = updateFromProposals(
-    history,
-    proposals,
-    now.toISOString(),
-  );
-  const result = applyTTLAndCap(
-    afterUpdate,
-    now,
-    config.ttlDays,
-    config.maxDirectives,
-  );
+  const afterUpdate = updateFromProposals(history, proposals, now.toISOString());
+  const result = applyTTLAndCap(afterUpdate, now, config.ttlDays, config.maxDirectives);
   try {
     saveHistory(projectRoot, result.history);
   } catch {
@@ -644,9 +623,7 @@ function simpleHash(input: string): string {
  * for deterministic rendering. Returns an empty array when history is
  * missing, corrupt, or has no active directives.
  */
-export function loadActiveDirectives(
-  projectRoot: string,
-): DirectiveHistoryEntry[] {
+export function loadActiveDirectives(projectRoot: string): DirectiveHistoryEntry[] {
   assertNoTraversal(projectRoot);
   const history = loadHistory(projectRoot);
   const entries = Object.values(history.entries).filter((e) => !e.pruned);

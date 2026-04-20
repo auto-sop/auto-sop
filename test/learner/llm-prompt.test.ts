@@ -12,8 +12,7 @@ import { buildAnalysisPrompt } from '../../src/learner/llm-prompt.js';
 
 describe('llm-prompt', () => {
   it('includes untrusted marker, ≥3 rule, ACTIONABLE keyword, and JSON schema', () => {
-    const serialized =
-      '<capture untrusted="true">\n--- Turn t-1 ---\n</capture>\n';
+    const serialized = '<capture untrusted="true">\n--- Turn t-1 ---\n</capture>\n';
     const out = buildAnalysisPrompt(serialized, 'my-proj', 5, 20);
 
     // Security markers
@@ -49,17 +48,14 @@ describe('llm-prompt', () => {
 
     expect(out).toContain('acme-svc');
     expect(out).toContain('42'); // turn count
-    expect(out).toContain('7');  // session count
+    expect(out).toContain('7'); // session count
     expect(out).toContain('42 turns from 7 sessions');
   });
 
   it('output is valid UTF-8 and under 200K chars', () => {
     // Feed a realistically large serialized block (~80K chars) and
     // make sure the final prompt stays comfortably under the cap.
-    const serialized =
-      '<capture untrusted="true">\n' +
-      'X'.repeat(80_000) +
-      '\n</capture>\n';
+    const serialized = '<capture untrusted="true">\n' + 'X'.repeat(80_000) + '\n</capture>\n';
     const out = buildAnalysisPrompt(serialized, 'demo', 3, 30);
 
     expect(out.length).toBeLessThan(200_000);
@@ -79,12 +75,7 @@ describe('llm-prompt', () => {
   });
 
   it('renders zero-turn analysis without throwing', () => {
-    const out = buildAnalysisPrompt(
-      '<capture untrusted="true"></capture>\n',
-      'demo',
-      0,
-      0,
-    );
+    const out = buildAnalysisPrompt('<capture untrusted="true"></capture>\n', 'demo', 0, 0);
     expect(out).toContain('0 turns from 0 sessions');
     expect(out).toContain('ACTIONABLE');
   });

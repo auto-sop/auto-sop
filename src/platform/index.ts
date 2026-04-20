@@ -11,9 +11,7 @@ export type { PlatformAdapter } from './types.js';
  * Accepts an explicit platform string so callers (and tests) can request
  * a specific adapter without mutating `process.platform`.
  */
-export function getPlatform(
-  platform: NodeJS.Platform = process.platform,
-): PlatformAdapter {
+export function getPlatform(platform: NodeJS.Platform = process.platform): PlatformAdapter {
   switch (platform) {
     case 'darwin':
       return darwinAdapter;

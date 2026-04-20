@@ -54,14 +54,8 @@ function utf8(s: string): Buffer {
   return Buffer.from(s, 'utf-8');
 }
 
-function concat(...parts: Buffer[]): Buffer {
-  return Buffer.concat(parts);
-}
-
 function existingSectionBlock(bodyLines: string[]): string {
-  return [BEGIN_MARKER, GENERATED_COMMENT, '', ...bodyLines, '', END_MARKER].join(
-    '\n',
-  );
+  return [BEGIN_MARKER, GENERATED_COMMENT, '', ...bodyLines, '', END_MARKER].join('\n');
 }
 
 // ─── Fixtures ────────────────────────────────────────────
@@ -214,8 +208,7 @@ export const GOLDEN_FIXTURES: GoldenFixture[] = [
     buildInput: () => {
       // A deterministic, non-trivial repeating block (~100 bytes). We repeat
       // it until total bytes > 500 KB.
-      const block =
-        'The quick brown fox jumps over the lazy dog. 0123456789 — abcdefghij\n';
+      const block = 'The quick brown fox jumps over the lazy dog. 0123456789 — abcdefghij\n';
       const blockBytes = Buffer.byteLength(block, 'utf-8');
       const reps = Math.ceil((500 * 1024) / blockBytes) + 1;
       const body = block.repeat(reps);

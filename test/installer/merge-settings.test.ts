@@ -3,10 +3,7 @@ import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { nanoid } from 'nanoid';
-import {
-  mergeProjectHooks,
-  mergeGlobalMarketplace,
-} from '../../src/installer/merge-settings.js';
+import { mergeProjectHooks, mergeGlobalMarketplace } from '../../src/installer/merge-settings.js';
 import {
   buildHookEntries,
   CLAUDE_SOP_HOOK_ID,
@@ -35,9 +32,7 @@ describe('mergeProjectHooks', () => {
     const text = await fs.readFile(settingsPath, 'utf8');
     const parsed = parse(text);
     expect(parsed.hooks.UserPromptSubmit).toHaveLength(1);
-    expect(parsed.hooks.UserPromptSubmit[0].hooks[0].id).toBe(
-      CLAUDE_SOP_HOOK_ID,
-    );
+    expect(parsed.hooks.UserPromptSubmit[0].hooks[0].id).toBe(CLAUDE_SOP_HOOK_ID);
   });
 
   it('handles empty file (Pitfall 4)', async () => {
@@ -106,8 +101,8 @@ describe('mergeProjectHooks', () => {
     // Verify there's exactly 1 entry per event
     for (const ev of HOOK_EVENTS) {
       const arr = parsed1.hooks[ev];
-      const sopEntries = arr.filter((e: any) =>
-        e.hooks?.some?.((h: any) => h.id === CLAUDE_SOP_HOOK_ID),
+      const sopEntries = arr.filter((e: Record<string, unknown>) =>
+        (e.hooks as Array<Record<string, unknown>>)?.some?.((h) => h.id === CLAUDE_SOP_HOOK_ID),
       );
       expect(sopEntries).toHaveLength(1);
     }
@@ -116,8 +111,8 @@ describe('mergeProjectHooks', () => {
     const text2 = await fs.readFile(settingsPath, 'utf8');
     const parsed2 = parse(text2);
     for (const ev of HOOK_EVENTS) {
-      const sopEntries = parsed2.hooks[ev].filter((e: any) =>
-        e.hooks?.some?.((h: any) => h.id === CLAUDE_SOP_HOOK_ID),
+      const sopEntries = parsed2.hooks[ev].filter((e: Record<string, unknown>) =>
+        (e.hooks as Array<Record<string, unknown>>)?.some?.((h) => h.id === CLAUDE_SOP_HOOK_ID),
       );
       expect(sopEntries).toHaveLength(1);
     }
@@ -161,26 +156,18 @@ describe('mergeGlobalMarketplace', () => {
     await mergeGlobalMarketplace(settingsPath, mpDir);
     const text = await fs.readFile(settingsPath, 'utf8');
     const parsed = parse(text);
-    expect(parsed.extraKnownMarketplaces['auto-sop'].source.path).toBe(
-      mpDir,
-    );
-    expect(
-      parsed.extraKnownMarketplaces['auto-sop'].source.source,
-    ).toBe('directory');
+    expect(parsed.extraKnownMarketplaces['auto-sop'].source.path).toBe(mpDir);
+    expect(parsed.extraKnownMarketplaces['auto-sop'].source.source).toBe('directory');
   });
 
   it('throws on non-absolute path', async () => {
-    await expect(
-      mergeGlobalMarketplace(settingsPath, '~/relative/path'),
-    ).rejects.toThrow('marketplaceDirAbs must be absolute');
+    await expect(mergeGlobalMarketplace(settingsPath, '~/relative/path')).rejects.toThrow(
+      'marketplaceDirAbs must be absolute',
+    );
   });
 
   it('does NOT touch enabledPlugins (mutual exclusion G1)', async () => {
-    const fixture = JSON.stringify(
-      { enabledPlugins: ['some-plugin'] },
-      null,
-      2,
-    );
+    const fixture = JSON.stringify({ enabledPlugins: ['some-plugin'] }, null, 2);
     await fs.writeFile(settingsPath, fixture);
     await mergeGlobalMarketplace(settingsPath, '/abs/marketplace');
     const text = await fs.readFile(settingsPath, 'utf8');

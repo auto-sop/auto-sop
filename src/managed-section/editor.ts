@@ -19,30 +19,21 @@ import {
   writeFileSync,
   renameSync,
   mkdirSync,
-  existsSync,
   unlinkSync,
   openSync,
   fsyncSync,
   closeSync,
-  chmodSync,
 } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
+import { getPlatform } from '../platform/index.js';
 import {
-  BEGIN_MARKER,
   GENERATED_COMMENT,
   END_MARKER,
   CLAUDE_MD_HEADER,
   buildSectionBlock,
   findMarkers,
-  AmbiguousMarkersError,
-  MalformedMarkersError,
 } from './markers.js';
-import {
-  readLastHash,
-  writeLastHash,
-  clearLastHash,
-  sha256,
-} from './hash-store.js';
+import { readLastHash, writeLastHash, clearLastHash, sha256 } from './hash-store.js';
 import { isGitBusy } from './git-state.js';
 
 // Re-export error classes for consumers
@@ -65,13 +56,7 @@ export interface ManagedSectionContent {
 export type ManagedSectionLogger = (kind: string, data?: unknown) => void;
 
 export interface WriteResult {
-  verdict:
-    | 'created'
-    | 'updated'
-    | 'unchanged'
-    | 'dry_run'
-    | 'drift_aborted'
-    | 'git_busy';
+  verdict: 'created' | 'updated' | 'unchanged' | 'dry_run' | 'drift_aborted' | 'git_busy';
   claudeMdPath: string;
   /**
    * - normal write: path to the rolling backup (CLAUDE.md.backup)
@@ -128,10 +113,7 @@ function assertNoTraversal(projectRoot: string): void {
  * markers in `currentContent` are malformed. That is the same surface
  * `writeManagedSection` exposes, and tests rely on it.
  */
-export function renderManagedSection(
-  currentContent: string | null,
-  body: string,
-): string {
+export function renderManagedSection(currentContent: string | null, body: string): string {
   const sectionBlock = buildSectionBlock(body);
 
   if (currentContent === null) {
@@ -230,12 +212,7 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
       // creating a backup file would violate the dry-run contract.
       if (dryRun !== true && current !== null) {
         const ts = new Date().toISOString().replace(/[:.]/g, '-');
-        const historyDir = join(
-          projectRoot,
-          '.auto-sop',
-          'state',
-          'managed-history',
-        );
+        const historyDir = join(projectRoot, '.auto-sop', 'state', 'managed-history');
         try {
           mkdirSync(historyDir, { recursive: true });
         } catch {
@@ -354,9 +331,9 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
 
   // Ensure final permissions (no-op on Windows — NTFS ignores POSIX modes)
   try {
-    chmodSync(claudeMdPath, 0o644);
-  } catch (err) {
-    if (process.platform !== 'win32') throw err;
+    getPlatform().chmodSync(claudeMdPath, 0o644);
+  } catch {
+    // best-effort — platform adapter handles Windows no-op
   }
 
   // 8. Record the post-write hash so the next run can detect drift.
@@ -388,9 +365,7 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
 
 // ─── Read ────────────────────────────────────────────────
 
-export function readManagedSection(
-  projectRoot: string,
-): ManagedSectionContent | null {
+export function readManagedSection(projectRoot: string): ManagedSectionContent | null {
   assertNoTraversal(projectRoot);
 
   const claudeMdPath = join(projectRoot, 'CLAUDE.md');
@@ -410,8 +385,7 @@ export function readManagedSection(
   }
 
   // Extract body: everything between begin-marker line and end-marker line
-  const afterBeginLine =
-    content.indexOf('\n', markers.beginStart) + 1;
+  const afterBeginLine = content.indexOf('\n', markers.beginStart) + 1;
 
   // Skip the GENERATED comment line
   let bodyStart = afterBeginLine;
@@ -459,7 +433,7 @@ export function removeManagedSection(projectRoot: string): void {
   }
 
   // Splice out the markers + body, including a trailing blank line if present
-  let before = content.slice(0, markers.beginStart);
+  const before = content.slice(0, markers.beginStart);
   const after = content.slice(markers.endAfter);
 
   // Remove the trailing blank line left by removal

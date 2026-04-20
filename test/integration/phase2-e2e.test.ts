@@ -32,11 +32,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { parse } from 'jsonc-parser';
-import {
-  makeTempHome,
-  seedPluginBundleFixture,
-  stubSchedulerBackend,
-} from './helpers.js';
+import { makeTempHome, seedPluginBundleFixture, stubSchedulerBackend } from './helpers.js';
 import { runInstall } from '../../src/installer/orchestrator.js';
 import { runUninstall } from '../../src/installer/uninstall-orchestrator.js';
 import { collectStatus } from '../../src/status/collector.js';
@@ -67,12 +63,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
 
   function makeInstallOpts(scheduler = stubSchedulerBackend()) {
     const homeDir = tmp.homeDir;
-    const marketplaceDir = path.join(
-      homeDir,
-      '.auto-sop',
-      'marketplace',
-      'auto-sop',
-    );
+    const marketplaceDir = path.join(homeDir, '.auto-sop', 'marketplace', 'auto-sop');
     return {
       opts: {
         projectRoot: tmp.projectRoot,
@@ -105,16 +96,11 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     // Scheduler stub called
     expect(scheduler.calls.install).toHaveLength(1);
     // secrets.enc exists
-    const secretsStat = await fs.stat(
-      path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'),
-    );
+    const secretsStat = await fs.stat(path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'));
     expect(secretsStat.isFile()).toBe(true);
     // Hooks wired in project settings.json
     const settings = parse(
-      await fs.readFile(
-        path.join(tmp.projectRoot, '.claude', 'settings.json'),
-        'utf8',
-      ),
+      await fs.readFile(path.join(tmp.projectRoot, '.claude', 'settings.json'), 'utf8'),
       [],
       { allowTrailingComma: true },
     );
@@ -123,9 +109,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
       const hasOurs = arr.some(
         (e: unknown) =>
           (
-            (e as Record<string, unknown>)?.hooks as
-              | Array<Record<string, unknown>>
-              | undefined
+            (e as Record<string, unknown>)?.hooks as Array<Record<string, unknown>> | undefined
           )?.some((h) => h.id === CLAUDE_SOP_HOOK_ID) ?? false,
       );
       expect(hasOurs, `hook event ${ev} should be wired`).toBe(true);
@@ -136,11 +120,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
   it('INST-02: install is idempotent (re-run produces byte-identical settings.json)', async () => {
     const { opts } = makeInstallOpts();
     await runInstall(opts);
-    const projectSettings = path.join(
-      tmp.projectRoot,
-      '.claude',
-      'settings.json',
-    );
+    const projectSettings = path.join(tmp.projectRoot, '.claude', 'settings.json');
     const firstHash = await hashFile(projectSettings);
 
     // Re-install with fresh scheduler stub
@@ -161,42 +141,28 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
       hooks: {
         UserPromptSubmit: [
           {
-            hooks: [
-              { type: 'command', command: '/usr/local/bin/my-hook', timeout: 5 },
-            ],
+            hooks: [{ type: 'command', command: '/usr/local/bin/my-hook', timeout: 5 }],
           },
         ],
       },
     };
-    await fs.writeFile(
-      path.join(settingsDir, 'settings.json'),
-      JSON.stringify(userHook, null, 2),
-    );
+    await fs.writeFile(path.join(settingsDir, 'settings.json'), JSON.stringify(userHook, null, 2));
 
     const { opts } = makeInstallOpts();
     await runInstall(opts);
 
-    const after = JSON.parse(
-      await fs.readFile(path.join(settingsDir, 'settings.json'), 'utf8'),
-    );
+    const after = JSON.parse(await fs.readFile(path.join(settingsDir, 'settings.json'), 'utf8'));
     // User hook preserved, ours appended after
     expect(after.hooks.UserPromptSubmit).toHaveLength(2);
-    expect(after.hooks.UserPromptSubmit[0].hooks[0].command).toBe(
-      '/usr/local/bin/my-hook',
-    );
-    expect(after.hooks.UserPromptSubmit[1].hooks[0].id).toBe(
-      CLAUDE_SOP_HOOK_ID,
-    );
+    expect(after.hooks.UserPromptSubmit[0].hooks[0].command).toBe('/usr/local/bin/my-hook');
+    expect(after.hooks.UserPromptSubmit[1].hooks[0].id).toBe(CLAUDE_SOP_HOOK_ID);
   });
 
   // ─── INST-04 ──────────────────────────────────────────────────────────────
   it('INST-04: install appends .auto-sop/ to project .gitignore', async () => {
     const { opts } = makeInstallOpts();
     await runInstall(opts);
-    const gitignore = await fs.readFile(
-      path.join(tmp.projectRoot, '.gitignore'),
-      'utf8',
-    );
+    const gitignore = await fs.readFile(path.join(tmp.projectRoot, '.gitignore'), 'utf8');
     expect(gitignore).toContain('.auto-sop/');
   });
 
@@ -206,9 +172,9 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     await runInstall(opts);
     // With no pre-existing CLAUDE.md, the installer must not create one
     // and must not emit legacy `<!-- auto-sop:begin -->` markers.
-    await expect(
-      fs.stat(path.join(tmp.projectRoot, 'CLAUDE.md')),
-    ).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(fs.stat(path.join(tmp.projectRoot, 'CLAUDE.md'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
   });
 
   it('INST-05b: installer preserves pre-existing CLAUDE.md byte-for-byte', async () => {
@@ -240,15 +206,12 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     const tick = path.join(tmp.homeDir, '.auto-sop', 'bin', 'tick.sh');
     const st = await fs.stat(tick);
     expect(st.isFile()).toBe(true);
-    // eslint-disable-next-line no-bitwise
     expect((st.mode & 0o111) !== 0).toBe(true); // executable bit set
     const content = await fs.readFile(tick, 'utf8');
     // CRITICAL: flock must NOT be used as a command (macOS has no flock(1)).
     // The word "flock" may appear in comments explaining why it's absent,
     // but it must never appear as an actual shell command invocation.
-    const nonCommentLines = content
-      .split('\n')
-      .filter((l) => !l.trimStart().startsWith('#'));
+    const nonCommentLines = content.split('\n').filter((l) => !l.trimStart().startsWith('#'));
     for (const line of nonCommentLines) {
       expect(line).not.toMatch(/\bflock\b/);
     }
@@ -265,9 +228,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     const { opts } = makeInstallOpts();
     await runInstall(opts);
     const { readSecrets } = await import('../../src/license/storage.js');
-    const payload = await readSecrets(
-      path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'),
-    );
+    const payload = await readSecrets(path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'));
     expect(payload).not.toBeNull();
     expect(payload!.schema_version).toBe(1);
     expect(payload!.license.kind).toBe('dev');
@@ -288,9 +249,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     });
 
     const { readSecrets } = await import('../../src/license/storage.js');
-    const payload = await readSecrets(
-      path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'),
-    );
+    const payload = await readSecrets(path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'));
     // trial.started_at must be the FIRST install's timestamp, not the re-install's
     expect(payload!.trial.started_at).toBe(1_700_000_000_000);
   });
@@ -378,10 +337,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
 
     // Hooks removed from settings.json
     const settings = parse(
-      await fs.readFile(
-        path.join(tmp.projectRoot, '.claude', 'settings.json'),
-        'utf8',
-      ),
+      await fs.readFile(path.join(tmp.projectRoot, '.claude', 'settings.json'), 'utf8'),
       [],
       { allowTrailingComma: true },
     );
@@ -399,25 +355,16 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     expect(md).not.toContain(MANAGED_BEGIN);
 
     // secrets.enc removed
-    await expect(
-      fs.stat(path.join(tmp.homeDir, '.auto-sop', 'secrets.enc')),
-    ).rejects.toThrow();
+    await expect(fs.stat(path.join(tmp.homeDir, '.auto-sop', 'secrets.enc'))).rejects.toThrow();
 
     // tick.sh removed
-    await expect(
-      fs.stat(path.join(tmp.homeDir, '.auto-sop', 'bin', 'tick.sh')),
-    ).rejects.toThrow();
+    await expect(fs.stat(path.join(tmp.homeDir, '.auto-sop', 'bin', 'tick.sh'))).rejects.toThrow();
 
     // version.txt removed
-    await expect(
-      fs.stat(path.join(tmp.homeDir, '.auto-sop', 'version.txt')),
-    ).rejects.toThrow();
+    await expect(fs.stat(path.join(tmp.homeDir, '.auto-sop', 'version.txt'))).rejects.toThrow();
 
     // Captures preserved
-    const captureContent = await fs.readFile(
-      path.join(capturesDir, 'turn-001.json'),
-      'utf8',
-    );
+    const captureContent = await fs.readFile(path.join(capturesDir, 'turn-001.json'), 'utf8');
     expect(captureContent.length).toBeGreaterThan(0);
 
     // Scheduler backend uninstall called
@@ -451,10 +398,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
 
     // Check global settings: should have extraKnownMarketplaces, NOT enabledPlugins
     const globalSettings = parse(
-      await fs.readFile(
-        path.join(tmp.homeDir, '.claude', 'settings.json'),
-        'utf8',
-      ),
+      await fs.readFile(path.join(tmp.homeDir, '.claude', 'settings.json'), 'utf8'),
       [],
       { allowTrailingComma: true },
     );
@@ -463,10 +407,7 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
 
     // Check project settings: should have hooks, NOT enabledPlugins
     const projectSettings = parse(
-      await fs.readFile(
-        path.join(tmp.projectRoot, '.claude', 'settings.json'),
-        'utf8',
-      ),
+      await fs.readFile(path.join(tmp.projectRoot, '.claude', 'settings.json'), 'utf8'),
       [],
       { allowTrailingComma: true },
     );

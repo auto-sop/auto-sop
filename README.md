@@ -99,12 +99,12 @@ Pro cloud sync is opt-in and encrypted client-side (AES-256) before upload. The 
 
 ## Compatibility
 
-| Requirement | Version |
-|-------------|---------|
-| Claude Code | >= 2.1.107 |
-| Node.js | >= 18.17 |
-| OS | macOS, Linux |
-| Windows | Phase 6 (planned) |
+| Requirement | Version           |
+| ----------- | ----------------- |
+| Claude Code | >= 2.1.107        |
+| Node.js     | >= 18.17          |
+| OS          | macOS, Linux      |
+| Windows     | Phase 6 (planned) |
 
 ## Star History
 
@@ -117,5 +117,3 @@ Pro cloud sync is opt-in and encrypted client-side (AES-256) before upload. The 
 ## License
 
 [Apache License 2.0](./LICENSE)
-
-

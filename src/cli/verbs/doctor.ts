@@ -61,9 +61,7 @@ export function registerDoctorVerb(program: Command): void {
         await schedulerEffectiveCheck(homeDir),
         {
           name: 'managed section',
-          ok:
-            report.directives.count === 0 ||
-            report.directives.sectionPresent,
+          ok: report.directives.count === 0 || report.directives.sectionPresent,
           detail:
             report.directives.count === 0
               ? 'no directives yet'
@@ -79,10 +77,7 @@ export function registerDoctorVerb(program: Command): void {
         {
           name: 'license not expired',
           ok: report.license.status !== 'expired',
-          detail:
-            report.license.daysRemaining != null
-              ? `${report.license.daysRemaining}d`
-              : 'n/a',
+          detail: report.license.daysRemaining != null ? `${report.license.daysRemaining}d` : 'n/a',
         },
         {
           name: 'disk usage',
@@ -136,12 +131,11 @@ async function schedulerEffectiveCheck(homeDir: string): Promise<Check> {
     };
   }
 
-  const label =
-    process.env.AUTO_SOP_LABEL?.startsWith('com.auto-sop.learner')
-      ? process.env.AUTO_SOP_LABEL
-      : process.env.CLAUDE_SOP_LABEL?.startsWith('com.claude-sop.learner')
-        ? process.env.CLAUDE_SOP_LABEL
-        : 'com.auto-sop.learner';
+  const label = process.env.AUTO_SOP_LABEL?.startsWith('com.auto-sop.learner')
+    ? process.env.AUTO_SOP_LABEL
+    : process.env.CLAUDE_SOP_LABEL?.startsWith('com.claude-sop.learner')
+      ? process.env.CLAUDE_SOP_LABEL
+      : 'com.auto-sop.learner';
 
   const uid = process.getuid?.() ?? 501;
   const serviceTarget = `gui/${uid}/${label}`;
@@ -160,9 +154,7 @@ async function schedulerEffectiveCheck(homeDir: string): Promise<Check> {
 
   // 2. Parse runs and last exit code from stdout
   const runsMatch = result.stdout.match(/^\s*runs\s*=\s*(\d+)/m);
-  const lastExitMatch = result.stdout.match(
-    /^\s*last exit code\s*=\s*(.+)$/m,
-  );
+  const lastExitMatch = result.stdout.match(/^\s*last exit code\s*=\s*(.+)$/m);
   if (!runsMatch || !lastExitMatch) {
     return {
       name: 'scheduler effective',
@@ -221,16 +213,11 @@ async function schedulerEffectiveCheck(homeDir: string): Promise<Check> {
 }
 
 async function schedulerEffectiveCheckWindows(): Promise<Check> {
-  const r = await execa('schtasks', [
-    '/Query',
-    '/TN', TASK_NAME,
-  ], { reject: false });
+  const r = await execa('schtasks', ['/Query', '/TN', TASK_NAME], { reject: false });
   return {
     name: 'scheduler effective',
     ok: r.exitCode === 0,
-    detail: r.exitCode === 0
-      ? 'Task Scheduler task registered'
-      : 'Task Scheduler task not found',
+    detail: r.exitCode === 0 ? 'Task Scheduler task registered' : 'Task Scheduler task not found',
   };
 }
 

@@ -1,10 +1,10 @@
-# Trailing WS Doctorate   
+# Trailing WS Doctorate
 
-Line with trailing tab:	
-Line with trailing mix:  		 
+Line with trailing tab:
+Line with trailing mix:
 Normal line.
 
-Final line.    
+Final line.
 
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->

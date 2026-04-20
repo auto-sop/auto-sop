@@ -22,7 +22,12 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import pc from 'picocolors';
 import { renderTable, error as cliError } from '../output/human.js';
 import { emit } from '../output/json.js';
-import type { TurnMeta, ToolCallLine, ToolCallLinePre, ToolCallLinePost } from '../../capture/types.js';
+import type {
+  TurnMeta,
+  ToolCallLine,
+  ToolCallLinePre,
+  ToolCallLinePost,
+} from '../../capture/types.js';
 
 // ── Input validation ──────────────────────────────────────
 
@@ -30,8 +35,7 @@ import type { TurnMeta, ToolCallLine, ToolCallLinePre, ToolCallLinePost } from '
 const TURN_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
 /** UUID v4 format for session_id. */
-const SESSION_ID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Characters that must never appear in user input (path traversal). */
 const UNSAFE_CHARS_RE = /[.\\/\0]/;
@@ -114,9 +118,7 @@ function findSessionTurnDirs(
     }
   }
 
-  results.sort((a, b) =>
-    (a.meta.finalized_at ?? '').localeCompare(b.meta.finalized_at ?? ''),
-  );
+  results.sort((a, b) => (a.meta.finalized_at ?? '').localeCompare(b.meta.finalized_at ?? ''));
   return results;
 }
 
@@ -319,9 +321,7 @@ function printTurnFull(
       const tc = toolCalls[i]!;
       const dur = tc.durationMs !== null ? formatDuration(tc.durationMs) : '?';
       const status = tc.success === true ? 'success' : tc.success === false ? 'failed' : '?';
-      process.stdout.write(
-        `${i + 1}. ${pc.bold(tc.name)} (${dur}, ${status})\n`,
-      );
+      process.stdout.write(`${i + 1}. ${pc.bold(tc.name)} (${dur}, ${status})\n`);
       if (tc.inputSnippet) {
         process.stdout.write(`   ${pc.dim(tc.inputSnippet)}\n`);
       }
@@ -336,19 +336,14 @@ function printSessionCompact(
   sessionId: string,
   turns: Array<{ turnDir: string; meta: TurnMeta }>,
 ): void {
-  process.stdout.write(
-    pc.bold(`Session: ${sessionId}\n`) +
-      pc.dim(`${turns.length} turn(s)\n\n`),
-  );
+  process.stdout.write(pc.bold(`Session: ${sessionId}\n`) + pc.dim(`${turns.length} turn(s)\n\n`));
 
   // Table header
   const headers = ['turn_id', 'agent', 'finalized_at', 'tools', 'files'];
   const rows = turns.map(({ meta }) => [
     meta.turn_id,
     meta.agent + (meta.subagent_type ? `(${meta.subagent_type})` : ''),
-    meta.finalized_at
-      ? new Date(meta.finalized_at).toLocaleTimeString()
-      : '-',
+    meta.finalized_at ? new Date(meta.finalized_at).toLocaleTimeString() : '-',
     String(meta.tool_call_count),
     String(meta.files_changed_count),
   ]);
@@ -360,9 +355,7 @@ function printSessionCompact(
     }
   }
 
-  const headerLine = headers
-    .map((h, i) => pc.dim(h.padEnd(maxLens[i]!)))
-    .join('  ');
+  const headerLine = headers.map((h, i) => pc.dim(h.padEnd(maxLens[i]!))).join('  ');
   process.stdout.write(headerLine + '\n');
   process.stdout.write(pc.dim('─'.repeat(headerLine.length)) + '\n');
 

@@ -4,14 +4,9 @@
  * Covers: flag registration, id classification, turn display (all modes),
  * session display, invalid inputs, missing turns, path traversal rejection.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
-import {
-  mkdtempSync,
-  mkdirSync,
-  writeFileSync,
-  rmSync,
-} from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -259,7 +254,15 @@ describe('show verb: turn display with fixtures', () => {
       const program = new Command().exitOverride();
       registerShowVerb(program);
 
-      await program.parseAsync(['node', 'test', 'show', 'rawTurn01', '--raw', '--project', tmpProject]);
+      await program.parseAsync([
+        'node',
+        'test',
+        'show',
+        'rawTurn01',
+        '--raw',
+        '--project',
+        tmpProject,
+      ]);
 
       const output = chunks.join('');
       expect(output).toContain('=== meta.json ===');
@@ -290,7 +293,15 @@ describe('show verb: turn display with fixtures', () => {
       const program = new Command().exitOverride();
       registerShowVerb(program);
 
-      await program.parseAsync(['node', 'test', 'show', 'filesTurn01', '--files', '--project', tmpProject]);
+      await program.parseAsync([
+        'node',
+        'test',
+        'show',
+        'filesTurn01',
+        '--files',
+        '--project',
+        tmpProject,
+      ]);
 
       const output = chunks.join('');
       expect(output).toContain('Files changed:');
@@ -324,7 +335,15 @@ describe('show verb: turn display with fixtures', () => {
       const program = new Command().exitOverride();
       registerShowVerb(program);
 
-      await program.parseAsync(['node', 'test', 'show', 'toolsTurn01', '--tools', '--project', tmpProject]);
+      await program.parseAsync([
+        'node',
+        'test',
+        'show',
+        'toolsTurn01',
+        '--tools',
+        '--project',
+        tmpProject,
+      ]);
 
       const output = chunks.join('');
       expect(output).toContain('Tool calls: 2');
@@ -358,7 +377,15 @@ describe('show verb: turn display with fixtures', () => {
       const program = new Command().option('--json', 'json mode');
       registerShowVerb(program);
 
-      await program.parseAsync(['node', 'test', '--json', 'show', 'jsonTurn01', '--project', tmpProject]);
+      await program.parseAsync([
+        'node',
+        'test',
+        '--json',
+        'show',
+        'jsonTurn01',
+        '--project',
+        tmpProject,
+      ]);
 
       const output = chunks.join('');
       const parsed = JSON.parse(output);
@@ -455,7 +482,15 @@ describe('show verb: turn display with fixtures', () => {
       const program = new Command().exitOverride();
       registerShowVerb(program);
 
-      await program.parseAsync(['node', 'test', 'show', 'nofiles01', '--files', '--project', tmpProject]);
+      await program.parseAsync([
+        'node',
+        'test',
+        'show',
+        'nofiles01',
+        '--files',
+        '--project',
+        tmpProject,
+      ]);
 
       const output = chunks.join('');
       expect(output).toContain('no files changed');
@@ -480,7 +515,15 @@ describe('show verb: turn display with fixtures', () => {
       const program = new Command().exitOverride();
       registerShowVerb(program);
 
-      await program.parseAsync(['node', 'test', 'show', 'notools01', '--tools', '--project', tmpProject]);
+      await program.parseAsync([
+        'node',
+        'test',
+        'show',
+        'notools01',
+        '--tools',
+        '--project',
+        tmpProject,
+      ]);
 
       const output = chunks.join('');
       expect(output).toContain('no tool calls');

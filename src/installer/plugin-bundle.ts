@@ -6,10 +6,7 @@ import path from 'node:path';
  * Destructive: removes any existing dstDir first, then copies recursively.
  * Requires Node >= 18.17 for fs.cp recursive support.
  */
-export async function copyPluginBundle(
-  srcDir: string,
-  dstDir: string,
-): Promise<void> {
+export async function copyPluginBundle(srcDir: string, dstDir: string): Promise<void> {
   const stat = await fs.stat(srcDir).catch((e: unknown) => {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new Error(`plugin bundle source does not exist: ${srcDir}`);

@@ -37,24 +37,14 @@ export interface CollectOptions {
   schedulerBackend?: SchedulerBackend | undefined;
 }
 
-export async function collectStatus(
-  opts: CollectOptions,
-): Promise<StatusReport> {
+export async function collectStatus(opts: CollectOptions): Promise<StatusReport> {
   const claudeSopHome = path.join(opts.homeDir, '.auto-sop');
   const versionTxt = path.join(claudeSopHome, 'version.txt');
   const secretsEnc = path.join(claudeSopHome, 'secrets.enc');
-  const projectClaudeSettings = path.join(
-    opts.projectRoot,
-    '.claude',
-    'settings.json',
-  );
+  const projectClaudeSettings = path.join(opts.projectRoot, '.claude', 'settings.json');
   const claudeMdPath = path.join(opts.projectRoot, 'CLAUDE.md');
   const capturesDir = path.join(opts.projectRoot, '.auto-sop', 'captures');
-  const errorsJsonl = path.join(
-    opts.projectRoot,
-    '.auto-sop',
-    'errors.jsonl',
-  );
+  const errorsJsonl = path.join(opts.projectRoot, '.auto-sop', 'errors.jsonl');
   const pausedFlag = path.join(opts.projectRoot, '.auto-sop', 'paused.flag');
 
   const installedVersion = await readInstalledVersion(versionTxt);
@@ -72,10 +62,7 @@ export async function collectStatus(
         details: {},
       };
   const learner = await readLastLearnerRun(claudeSopHome);
-  const pendingCaptures = await countPendingCaptures(
-    capturesDir,
-    learner.lastRunAt,
-  );
+  const pendingCaptures = await countPendingCaptures(capturesDir, learner.lastRunAt);
   const directives = await countDirectives(claudeMdPath);
   const license = await readLicenseStatus(secretsEnc);
   const errors = { last24h: await count24hErrors(errorsJsonl) };
@@ -101,9 +88,7 @@ export async function collectStatus(
   };
 }
 
-async function inspectHooks(
-  settingsPath: string,
-): Promise<StatusReport['hooks']> {
+async function inspectHooks(settingsPath: string): Promise<StatusReport['hooks']> {
   let text: string;
   try {
     text = await fs.readFile(settingsPath, 'utf8');
@@ -120,15 +105,15 @@ async function inspectHooks(
       (e: unknown) =>
         ((e as Record<string, unknown>)?.hooks as unknown[] | undefined)?.some(
           (h: unknown) =>
-            (h as Record<string, unknown>)?.id === CLAUDE_SOP_HOOK_ID || (h as Record<string, unknown>)?.id === LEGACY_HOOK_ID,
+            (h as Record<string, unknown>)?.id === CLAUDE_SOP_HOOK_ID ||
+            (h as Record<string, unknown>)?.id === LEGACY_HOOK_ID,
         ) ?? false,
     );
     if (hasOurs) eventsCovered.push(ev);
   }
   if (eventsCovered.length === HOOK_EVENTS.length)
     return { wiringState: 'present', eventsCovered, settingsPath };
-  if (eventsCovered.length === 0)
-    return { wiringState: 'absent', eventsCovered, settingsPath };
+  if (eventsCovered.length === 0) return { wiringState: 'absent', eventsCovered, settingsPath };
   return { wiringState: 'stale', eventsCovered, settingsPath };
 }
 
@@ -146,9 +131,7 @@ async function countPendingCaptures(
   try {
     const entries = await fs.readdir(capturesDir);
     if (lastRunAt == null) return entries.length;
-    const stats = await Promise.all(
-      entries.map((e) => fs.stat(path.join(capturesDir, e))),
-    );
+    const stats = await Promise.all(entries.map((e) => fs.stat(path.join(capturesDir, e))));
     return stats.filter((s) => s.mtimeMs > lastRunAt).length;
   } catch (e: unknown) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return 0;
@@ -163,21 +146,17 @@ async function countDirectives(
     const text = await fs.readFile(claudeMdPath, 'utf8');
     const begin = text.indexOf(MANAGED_BEGIN);
     const end = text.indexOf(MANAGED_END);
-    if (begin === -1 || end === -1)
-      return { count: 0, sectionPresent: false };
+    if (begin === -1 || end === -1) return { count: 0, sectionPresent: false };
     const between = text.slice(begin + MANAGED_BEGIN.length, end);
     const count = (between.match(/^- /gm) || []).length;
     return { count, sectionPresent: true };
   } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT')
-      return { count: 0, sectionPresent: false };
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { count: 0, sectionPresent: false };
     throw e;
   }
 }
 
-async function readLicenseStatus(
-  secretsEnc: string,
-): Promise<StatusReport['license']> {
+async function readLicenseStatus(secretsEnc: string): Promise<StatusReport['license']> {
   try {
     const payload = await readSecrets(secretsEnc);
     if (payload == null) return { status: 'none', daysRemaining: null };
@@ -214,9 +193,7 @@ async function count24hErrors(errorsJsonl: string): Promise<number> {
   }
 }
 
-async function diskUsage(
-  dir: string,
-): Promise<StatusReport['disk']> {
+async function diskUsage(dir: string): Promise<StatusReport['disk']> {
   try {
     const usage = await walkSum(dir);
     return { usageBytes: usage, capBytes: null };
@@ -230,9 +207,7 @@ async function walkSum(p: string): Promise<number> {
   const st = await fs.stat(p);
   if (!st.isDirectory()) return st.size;
   const entries = await fs.readdir(p);
-  const sizes = await Promise.all(
-    entries.map((e) => walkSum(path.join(p, e)).catch(() => 0)),
-  );
+  const sizes = await Promise.all(entries.map((e) => walkSum(path.join(p, e)).catch(() => 0)));
   return sizes.reduce((a, b) => a + b, 0);
 }
 

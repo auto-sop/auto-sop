@@ -20,7 +20,10 @@ import { renderTable, warn } from '../output/human.js';
 import { emit } from '../output/json.js';
 import pc from 'picocolors';
 import { unifiedDiff } from '../diff.js';
-import { buildSampleDirectiveFromInput, collectAgentRoster } from '../../learner/directive-builder.js';
+import {
+  buildSampleDirectiveFromInput,
+  collectAgentRoster,
+} from '../../learner/directive-builder.js';
 import { writeManagedSection } from '../../managed-section/editor.js';
 import { readRegistry } from '../../learner/project-registry.js';
 import { runLearner, recapLogPath } from '../shared/learner-spawn.js';
@@ -76,9 +79,7 @@ function llmLabel(entry: Record<string, unknown>): string {
   }
   const ms = typeof entry.llm_duration_ms === 'number' ? entry.llm_duration_ms : 0;
   const proposed =
-    typeof entry.llm_directives_proposed === 'number'
-      ? entry.llm_directives_proposed
-      : 0;
+    typeof entry.llm_directives_proposed === 'number' ? entry.llm_directives_proposed : 0;
   return pc.green(`on (${ms}ms, ${proposed} proposed)`);
 }
 
@@ -231,10 +232,7 @@ function resolveProjectRoot(projectId: string): string | null {
  * only counts. Callers must disclose this to the user (see
  * `printDryRunDiffs` banner).
  */
-function simulateDirectiveWrite(
-  projectRoot: string,
-  entry: Record<string, unknown>,
-): string {
+function simulateDirectiveWrite(projectRoot: string, entry: Record<string, unknown>): string {
   const capturesDir = path.join(projectRoot, '.auto-sop', 'captures');
   const agentRoster = collectAgentRoster(capturesDir);
   const turnsTotalSeen = Number(entry.turns_total_seen ?? 0);
@@ -271,26 +269,23 @@ export function registerRecapVerb(program: Command): void {
     .option('--follow', 'alias for --tail')
     .option('--run', 'run the learner now (LLM mode is ON by default)')
     .option('--dry-run', 'dry-run mode: show what would change without writing (requires --run)')
-    .option(
-      '--offline',
-      'disable LLM mode (run rule-based detectors only; requires --run)',
-    )
+    .option('--offline', 'disable LLM mode (run rule-based detectors only; requires --run)')
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
       const logPath = recapLogPath();
 
       // Validate: --dry-run requires --run
       if (opts.dryRun && !opts.run) {
-        process.stderr.write(pc.red('error: --dry-run requires --run (e.g., auto-sop recap --run --dry-run)\n'));
+        process.stderr.write(
+          pc.red('error: --dry-run requires --run (e.g., auto-sop recap --run --dry-run)\n'),
+        );
         process.exitCode = 1;
         return;
       }
       // Validate: --offline requires --run (matches --dry-run's UX)
       if (opts.offline && !opts.run) {
         process.stderr.write(
-          pc.red(
-            'error: --offline requires --run (e.g., auto-sop recap --run --offline)\n',
-          ),
+          pc.red('error: --offline requires --run (e.g., auto-sop recap --run --offline)\n'),
         );
         process.exitCode = 1;
         return;
@@ -423,7 +418,9 @@ export function registerRecapVerb(program: Command): void {
           if (jsonMode) {
             emit({ ok: true, verb: 'recap', count: 0, entries: [] });
           } else {
-            process.stdout.write(pc.dim('(no recap log — run `auto-sop recap --run` to generate)\n'));
+            process.stdout.write(
+              pc.dim('(no recap log — run `auto-sop recap --run` to generate)\n'),
+            );
           }
         } else {
           throw err;
@@ -431,4 +428,3 @@ export function registerRecapVerb(program: Command): void {
       }
     });
 }
-

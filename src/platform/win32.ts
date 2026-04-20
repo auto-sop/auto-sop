@@ -1,3 +1,4 @@
+import { execa } from 'execa';
 import type { PlatformAdapter } from './types.js';
 
 export const win32Adapter: PlatformAdapter = {
@@ -21,5 +22,11 @@ export const win32Adapter: PlatformAdapter = {
 
   tickScriptExtension() {
     return '.cmd';
+  },
+
+  async restrictFileAccess(filePath: string) {
+    const user = process.env.USERNAME ?? process.env.USER ?? 'unknown';
+    // Remove inherited permissions, then grant current user full control
+    await execa('icacls', [filePath, '/inheritance:r', '/grant:r', `${user}:F`]);
   },
 };

@@ -2,11 +2,7 @@ import { execa } from 'execa';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../atomic/write.js';
-import type {
-  SchedulerBackend,
-  SchedulerInstallOpts,
-  SchedulerStatus,
-} from './types.js';
+import type { SchedulerBackend, SchedulerInstallOpts, SchedulerStatus } from './types.js';
 
 const SERVICE_NAME = 'auto-sop-learner.service';
 const TIMER_NAME = 'auto-sop-learner.timer';
@@ -73,7 +69,10 @@ export const linuxSystemd: SchedulerBackend = {
         homeDir: opts.homeDir,
       }),
     );
-    await writeFileAtomic(join(dir, TIMER_NAME), renderTimerUnit({ intervalSec: opts.intervalSec }));
+    await writeFileAtomic(
+      join(dir, TIMER_NAME),
+      renderTimerUnit({ intervalSec: opts.intervalSec }),
+    );
 
     await execa('systemctl', ['--user', 'daemon-reload']);
     // Clean up legacy timer if it exists
@@ -81,34 +80,20 @@ export const linuxSystemd: SchedulerBackend = {
     await fs.rm(join(dir, LEGACY_TIMER_NAME), { force: true });
     await fs.rm(join(dir, LEGACY_SERVICE_NAME), { force: true });
 
-    await execa('systemctl', [
-      '--user',
-      'enable',
-      '--now',
-      TIMER_NAME,
-    ]);
+    await execa('systemctl', ['--user', 'enable', '--now', TIMER_NAME]);
     // Linger so timer runs when user is logged out; non-fatal
     await execa('loginctl', ['enable-linger', opts.user], { reject: false });
   },
 
-  async uninstall(opts: {
-    homeDir: string;
-    user: string;
-  }): Promise<{ warnings: string[] }> {
+  async uninstall(opts: { homeDir: string; user: string }): Promise<{ warnings: string[] }> {
     const warnings: string[] = [];
     const dir = unitDir(opts.homeDir);
 
-    const r = await execa(
-      'systemctl',
-      ['--user', 'disable', '--now', TIMER_NAME],
-      { reject: false },
-    );
+    const r = await execa('systemctl', ['--user', 'disable', '--now', TIMER_NAME], {
+      reject: false,
+    });
     // Also clean up legacy timer
-    await execa(
-      'systemctl',
-      ['--user', 'disable', '--now', LEGACY_TIMER_NAME],
-      { reject: false },
-    );
+    await execa('systemctl', ['--user', 'disable', '--now', LEGACY_TIMER_NAME], { reject: false });
     if (r.exitCode !== 0 && r.stderr) {
       warnings.push(r.stderr);
     }
@@ -122,10 +107,7 @@ export const linuxSystemd: SchedulerBackend = {
     return { warnings };
   },
 
-  async status(opts: {
-    homeDir: string;
-    user: string;
-  }): Promise<SchedulerStatus> {
+  async status(opts: { homeDir: string; user: string }): Promise<SchedulerStatus> {
     const dir = unitDir(opts.homeDir);
     let installed = false;
     try {
@@ -141,12 +123,7 @@ export const linuxSystemd: SchedulerBackend = {
 
     const r = await execa(
       'systemctl',
-      [
-        '--user',
-        'show',
-        TIMER_NAME,
-        '--property=LastTriggerUSec,Result,ActiveState',
-      ],
+      ['--user', 'show', TIMER_NAME, '--property=LastTriggerUSec,Result,ActiveState'],
       { reject: false },
     );
     if (r.exitCode === 0 && r.stdout) {

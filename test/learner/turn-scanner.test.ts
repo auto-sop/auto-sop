@@ -18,7 +18,11 @@ describe('turn-scanner', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  function createTurn(turnId: string, finalizedAt: string | null, opts?: { poison?: boolean; pending?: boolean }) {
+  function createTurn(
+    turnId: string,
+    finalizedAt: string | null,
+    opts?: { poison?: boolean; pending?: boolean },
+  ) {
     const suffix = opts?.pending ? '.pending' : '';
     const dirName = `20260414T120000-main-abc-${turnId}${suffix}`;
     const turnDir = join(capturesDir, dirName);
@@ -26,24 +30,27 @@ describe('turn-scanner', () => {
     if (opts?.poison) {
       writeFileSync(join(turnDir, 'meta.json'), 'INVALID');
     } else {
-      writeFileSync(join(turnDir, 'meta.json'), JSON.stringify({
-        schema_version: 1,
-        project_id: 'test123',
-        project_slug: 'test',
-        session_id: 'sess-1',
-        turn_id: turnId,
-        parent_turn_id: null,
-        children_turn_ids: [],
-        agent: 'main',
-        subagent_type: null,
-        started_at: '2026-04-14T12:00:00.000Z',
-        finalized_at: finalizedAt,
-        finalization_reason: finalizedAt ? 'stop' : null,
-        hook_shim_version: '0.0.0',
-        files_changed_count: 1,
-        tool_call_count: 2,
-        scrubber_hit_count: 0,
-      }));
+      writeFileSync(
+        join(turnDir, 'meta.json'),
+        JSON.stringify({
+          schema_version: 1,
+          project_id: 'test123',
+          project_slug: 'test',
+          session_id: 'sess-1',
+          turn_id: turnId,
+          parent_turn_id: null,
+          children_turn_ids: [],
+          agent: 'main',
+          subagent_type: null,
+          started_at: '2026-04-14T12:00:00.000Z',
+          finalized_at: finalizedAt,
+          finalization_reason: finalizedAt ? 'stop' : null,
+          hook_shim_version: '0.0.0',
+          files_changed_count: 1,
+          tool_call_count: 2,
+          scrubber_hit_count: 0,
+        }),
+      );
     }
   }
 

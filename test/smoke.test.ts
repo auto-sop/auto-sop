@@ -15,7 +15,10 @@ import {
   readdirSync,
   rmSync,
   cpSync,
-  appendFileSync,
+  openSync,
+  readSync,
+  writeSync,
+  closeSync,
 } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
@@ -103,8 +106,7 @@ describe('smoke: plugin bundle artifacts', () => {
     // Source shape guard: must be string OR object-with-'type', never nested 'source'
     const src = parsed.plugins[0].source;
     const isString = typeof src === 'string';
-    const isObjWithType =
-      typeof src === 'object' && src !== null && typeof src.type === 'string';
+    const isObjWithType = typeof src === 'object' && src !== null && typeof src.type === 'string';
     expect(isString || isObjWithType).toBe(true);
     // REGRESSION GUARD: no nested source.source
     if (typeof src === 'object' && src !== null) {
@@ -185,16 +187,15 @@ describe('smoke: shebang and exec bit', () => {
   for (const { name, path: filePath } of executables) {
     it(`${name} starts with shebang`, () => {
       const buf = Buffer.alloc(20);
-      const fd = require('node:fs').openSync(filePath, 'r');
-      require('node:fs').readSync(fd, buf, 0, 20, 0);
-      require('node:fs').closeSync(fd);
+      const fd = openSync(filePath, 'r');
+      readSync(fd, buf, 0, 20, 0);
+      closeSync(fd);
       const head = buf.toString('utf8');
       expect(head).toMatch(/^#!\/usr\/bin\/env node\n/);
     });
 
     it(`${name} has exec bit set`, () => {
       const st = statSync(filePath);
-      // eslint-disable-next-line no-bitwise
       expect(st.mode & 0o111).not.toBe(0);
     });
   }
@@ -247,19 +248,30 @@ describe('smoke: isolated end-to-end capture pipeline', () => {
           lines.push(`writer re-run stdout:\n${diag.toString().slice(0, 2000)}`);
         } catch (e: unknown) {
           const err = e as { stdout?: Buffer; stderr?: Buffer; message?: string };
-          lines.push(`writer re-run FAILED:\n${err.stderr?.toString().slice(0, 2000) || err.message || '(no output)'}`);
-          if (err.stdout) lines.push(`writer re-run stdout:\n${err.stdout.toString().slice(0, 1000)}`);
+          lines.push(
+            `writer re-run FAILED:\n${err.stderr?.toString().slice(0, 2000) || err.message || '(no output)'}`,
+          );
+          if (err.stdout)
+            lines.push(`writer re-run stdout:\n${err.stdout.toString().slice(0, 1000)}`);
         }
       }
-    } catch { lines.push('tmp/: (read error)'); }
+    } catch {
+      lines.push('tmp/: (read error)');
+    }
     try {
-      lines.push(`captures/: ${existsSync(capturesDir) ? readdirSync(capturesDir).join(', ') || '(empty)' : '(missing)'}`);
-    } catch { lines.push('captures/: (read error)'); }
+      lines.push(
+        `captures/: ${existsSync(capturesDir) ? readdirSync(capturesDir).join(', ') || '(empty)' : '(missing)'}`,
+      );
+    } catch {
+      lines.push('captures/: (read error)');
+    }
     try {
       if (existsSync(errorsLog)) {
         lines.push(`errors.jsonl:\n${readFileSync(errorsLog, 'utf8').slice(0, 2000)}`);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return lines.join('\n');
   }
 
@@ -271,9 +283,9 @@ describe('smoke: isolated end-to-end capture pipeline', () => {
   it('writer.cjs has no shebang', () => {
     const WRITER = resolve(ROOT, 'dist/plugin/writer.cjs');
     const buf = Buffer.alloc(2);
-    const fd = require('node:fs').openSync(WRITER, 'r');
-    require('node:fs').readSync(fd, buf, 0, 2, 0);
-    require('node:fs').closeSync(fd);
+    const fd = openSync(WRITER, 'r');
+    readSync(fd, buf, 0, 2, 0);
+    closeSync(fd);
     expect(buf.toString('utf8')).not.toBe('#!');
   });
 
@@ -366,13 +378,49 @@ describe('smoke: isolated end-to-end capture pipeline', () => {
 
     // Node.js built-in modules
     const NODE_BUILTINS = new Set([
-      'assert', 'buffer', 'child_process', 'cluster', 'console', 'constants',
-      'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events',
-      'fs', 'http', 'http2', 'https', 'inspector', 'module', 'net', 'os',
-      'path', 'perf_hooks', 'process', 'punycode', 'querystring', 'readline',
-      'repl', 'stream', 'stream/promises', 'string_decoder', 'timers',
-      'timers/promises', 'tls', 'trace_events', 'tty', 'url', 'util', 'v8',
-      'vm', 'wasi', 'worker_threads', 'zlib', 'async_hooks',
+      'assert',
+      'buffer',
+      'child_process',
+      'cluster',
+      'console',
+      'constants',
+      'crypto',
+      'dgram',
+      'diagnostics_channel',
+      'dns',
+      'domain',
+      'events',
+      'fs',
+      'http',
+      'http2',
+      'https',
+      'inspector',
+      'module',
+      'net',
+      'os',
+      'path',
+      'perf_hooks',
+      'process',
+      'punycode',
+      'querystring',
+      'readline',
+      'repl',
+      'stream',
+      'stream/promises',
+      'string_decoder',
+      'timers',
+      'timers/promises',
+      'tls',
+      'trace_events',
+      'tty',
+      'url',
+      'util',
+      'v8',
+      'vm',
+      'wasi',
+      'worker_threads',
+      'zlib',
+      'async_hooks',
     ]);
 
     // Filter: keep only bare requires that are NOT node: prefixed, NOT relative, NOT builtins
@@ -424,7 +472,10 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     return { tmpHome, bundleDir, learnerPath: join(bundleDir, 'learner.cjs') };
   }
 
-  function writeRegistry(home: string, projects: Array<{ project_id: string; slug: string; project_root: string }>) {
+  function writeRegistry(
+    home: string,
+    projects: Array<{ project_id: string; slug: string; project_root: string }>,
+  ) {
     const regDir = join(home, '.auto-sop');
     mkdirSync(regDir, { recursive: true });
     const registry = {
@@ -435,10 +486,17 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
         last_seen_at: new Date().toISOString(),
       })),
     };
-    writeFileSync(join(regDir, 'projects.json'), JSON.stringify(registry, null, 2), { mode: 0o600 });
+    writeFileSync(join(regDir, 'projects.json'), JSON.stringify(registry, null, 2), {
+      mode: 0o600,
+    });
   }
 
-  function createFinalizedTurn(capturesDir: string, turnId: string, finalizedAt: string, opts?: { poison?: boolean }) {
+  function createFinalizedTurn(
+    capturesDir: string,
+    turnId: string,
+    finalizedAt: string,
+    opts?: { poison?: boolean },
+  ) {
     const turnDir = join(capturesDir, `20260414T120000-main-abc-${turnId}`);
     mkdirSync(turnDir, { recursive: true });
     if (opts?.poison) {
@@ -471,7 +529,10 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     const logPath = join(home, '.auto-sop', 'logs', 'recap.log');
     try {
       const text = readFileSync(logPath, 'utf8');
-      return text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+      return text
+        .split('\n')
+        .filter((l) => l.trim())
+        .map((l) => JSON.parse(l));
     } catch {
       return [];
     }
@@ -492,7 +553,10 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     expect(result.exitCode).toBe(0);
     const entries = readRecapLog(tmpHome);
     expect(entries.length).toBeGreaterThanOrEqual(1);
-    const summary = entries.find((e: any) => e.summary === true) as any;
+    const summary = entries.find((e: Record<string, unknown>) => e.summary === true) as Record<
+      string,
+      unknown
+    >;
     expect(summary).toBeDefined();
     expect(summary.projects_processed).toBe(0);
   }, 10000);
@@ -509,12 +573,16 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     createFinalizedTurn(capturesDir, 't2', '2026-04-14T11:00:00.000Z');
     createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z');
 
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     const result = await runLearner(learnerPath, tmpHome);
     expect(result.exitCode).toBe(0);
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.turns_new).toBe(3);
   }, 10000);
@@ -528,7 +596,9 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     mkdirSync(join(projectRoot, '.auto-sop', 'state'), { recursive: true });
 
     createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z');
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     // First run
     await runLearner(learnerPath, tmpHome);
@@ -536,7 +606,9 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     const result = await runLearner(learnerPath, tmpHome);
     expect(result.exitCode).toBe(0);
     const entries = readRecapLog(tmpHome);
-    const projectRecaps = entries.filter((e: any) => e.project_id === 'proj1') as any[];
+    const projectRecaps = entries.filter(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>[];
     const secondRecap = projectRecaps[projectRecaps.length - 1];
     expect(secondRecap.turns_new).toBe(0);
   }, 15000);
@@ -552,7 +624,9 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z');
     createFinalizedTurn(capturesDir, 't2', '2026-04-14T11:00:00.000Z');
     createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z');
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     // First run: processes 3 turns
     await runLearner(learnerPath, tmpHome);
@@ -563,7 +637,9 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     // Second run: should pick up 1 new turn
     await runLearner(learnerPath, tmpHome);
     const entries = readRecapLog(tmpHome);
-    const projectRecaps = entries.filter((e: any) => e.project_id === 'proj1') as any[];
+    const projectRecaps = entries.filter(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>[];
     const lastRecap = projectRecaps[projectRecaps.length - 1];
     expect(lastRecap.turns_new).toBe(1);
   }, 15000);
@@ -571,12 +647,21 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
   // (e) missing project root → projects_missing:1
   it('(e) missing project root → projects_missing:1', async () => {
     const { tmpHome, learnerPath } = makeTmpEnv();
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'ghost-project', project_root: '/tmp/nonexistent-project-root-12345' }]);
+    writeRegistry(tmpHome, [
+      {
+        project_id: 'proj1',
+        slug: 'ghost-project',
+        project_root: '/tmp/nonexistent-project-root-12345',
+      },
+    ]);
 
     const result = await runLearner(learnerPath, tmpHome);
     expect(result.exitCode).toBe(0);
     const entries = readRecapLog(tmpHome);
-    const summary = entries.find((e: any) => e.summary === true) as any;
+    const summary = entries.find((e: Record<string, unknown>) => e.summary === true) as Record<
+      string,
+      unknown
+    >;
     expect(summary).toBeDefined();
     expect(summary.projects_missing).toBe(1);
   }, 10000);
@@ -591,12 +676,16 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
 
     createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z');
     createFinalizedTurn(capturesDir, 't-poison', '', { poison: true });
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     const result = await runLearner(learnerPath, tmpHome);
     expect(result.exitCode).toBe(0);
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.skipped_poison).toBeGreaterThanOrEqual(1);
     expect(projRecap.turns_new).toBe(1); // valid turn still processed
@@ -612,7 +701,9 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     mkdirSync(stateDir, { recursive: true });
 
     createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z');
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     // Create cursor file and manually hold a lock on it
     const cursorFile = join(stateDir, 'learner-cursor.json');
@@ -629,12 +720,19 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
 
     // Release our lock
     const { unlockSync } = await import('proper-lockfile');
-    try { unlockSync(cursorFile, { lockfilePath: lockPath }); } catch { /* ignore */ }
+    try {
+      unlockSync(cursorFile, { lockfilePath: lockPath });
+    } catch {
+      /* ignore */
+    }
 
     expect(result.exitCode).toBe(0);
     expect(elapsed).toBeLessThan(10000); // should not hang
     const entries = readRecapLog(tmpHome);
-    const summary = entries.find((e: any) => e.summary === true) as any;
+    const summary = entries.find((e: Record<string, unknown>) => e.summary === true) as Record<
+      string,
+      unknown
+    >;
     expect(summary).toBeDefined();
     expect(summary.projects_locked).toBe(1);
   }, 15000);
@@ -650,11 +748,11 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
 
     // Create 11MB file
     const chunk = 'x'.repeat(1024) + '\n';
-    const fd = require('node:fs').openSync(logPath, 'w');
+    const fd = openSync(logPath, 'w');
     for (let i = 0; i < 11 * 1024; i++) {
-      require('node:fs').writeSync(fd, chunk);
+      writeSync(fd, chunk);
     }
-    require('node:fs').closeSync(fd);
+    closeSync(fd);
     const sizeBefore = statSync(logPath).size;
     expect(sizeBefore).toBeGreaterThan(10_000_000);
 
@@ -690,7 +788,10 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
 
     // Should still produce a summary
     const entries = readRecapLog(tmpHome);
-    const summary = entries.find((e: any) => e.summary === true) as any;
+    const summary = entries.find((e: Record<string, unknown>) => e.summary === true) as Record<
+      string,
+      unknown
+    >;
     expect(summary).toBeDefined();
     expect(summary.projects_processed).toBe(0);
   }, 10000);
@@ -700,20 +801,59 @@ describe('smoke: learner batch end-to-end (isolated)', () => {
     const content = readFileSync(LEARNER, 'utf8');
     const requireMatches = [...content.matchAll(/require\(["']([^"']+)["']\)/g)];
     const NODE_BUILTINS = new Set([
-      'assert', 'buffer', 'child_process', 'cluster', 'console', 'constants',
-      'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events',
-      'fs', 'http', 'http2', 'https', 'inspector', 'module', 'net', 'os',
-      'path', 'perf_hooks', 'process', 'punycode', 'querystring', 'readline',
-      'repl', 'stream', 'stream/promises', 'string_decoder', 'timers',
-      'timers/promises', 'tls', 'trace_events', 'tty', 'url', 'util', 'v8',
-      'vm', 'wasi', 'worker_threads', 'zlib', 'async_hooks',
+      'assert',
+      'buffer',
+      'child_process',
+      'cluster',
+      'console',
+      'constants',
+      'crypto',
+      'dgram',
+      'diagnostics_channel',
+      'dns',
+      'domain',
+      'events',
+      'fs',
+      'http',
+      'http2',
+      'https',
+      'inspector',
+      'module',
+      'net',
+      'os',
+      'path',
+      'perf_hooks',
+      'process',
+      'punycode',
+      'querystring',
+      'readline',
+      'repl',
+      'stream',
+      'stream/promises',
+      'string_decoder',
+      'timers',
+      'timers/promises',
+      'tls',
+      'trace_events',
+      'tty',
+      'url',
+      'util',
+      'v8',
+      'vm',
+      'wasi',
+      'worker_threads',
+      'zlib',
+      'async_hooks',
     ]);
-    const bareRequires = requireMatches.map((m) => m[1]).filter((mod) => {
-      if (mod!.startsWith('node:') || mod!.startsWith('./') || mod!.startsWith('../')) return false;
-      const top = mod!.split('/')[0];
-      if (NODE_BUILTINS.has(mod!) || NODE_BUILTINS.has(top!)) return false;
-      return true;
-    });
+    const bareRequires = requireMatches
+      .map((m) => m[1])
+      .filter((mod) => {
+        if (mod!.startsWith('node:') || mod!.startsWith('./') || mod!.startsWith('../'))
+          return false;
+        const top = mod!.split('/')[0];
+        if (NODE_BUILTINS.has(mod!) || NODE_BUILTINS.has(top!)) return false;
+        return true;
+      });
     expect(bareRequires).toEqual([]);
   });
 });
@@ -737,7 +877,12 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     }
   });
 
-  function makeTmpEnv(): { tmpHome: string; bundleDir: string; learnerPath: string; cliPath: string } {
+  function makeTmpEnv(): {
+    tmpHome: string;
+    bundleDir: string;
+    learnerPath: string;
+    cliPath: string;
+  } {
     const tmpHome = mkdtempSync(resolve(tmpdir(), 'managed-section-smoke-'));
     tmpDirs.push(tmpHome);
     const bundleDir = join(tmpHome, 'bundle');
@@ -747,7 +892,10 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     return { tmpHome, bundleDir, learnerPath: join(bundleDir, 'learner.cjs'), cliPath };
   }
 
-  function writeRegistry(home: string, projects: Array<{ project_id: string; slug: string; project_root: string }>) {
+  function writeRegistry(
+    home: string,
+    projects: Array<{ project_id: string; slug: string; project_root: string }>,
+  ) {
     const regDir = join(home, '.auto-sop');
     mkdirSync(regDir, { recursive: true });
     const registry = {
@@ -758,10 +906,17 @@ describe('smoke: managed section end-to-end (isolated)', () => {
         last_seen_at: new Date().toISOString(),
       })),
     };
-    writeFileSync(join(regDir, 'projects.json'), JSON.stringify(registry, null, 2), { mode: 0o600 });
+    writeFileSync(join(regDir, 'projects.json'), JSON.stringify(registry, null, 2), {
+      mode: 0o600,
+    });
   }
 
-  function createFinalizedTurn(capturesDir: string, turnId: string, finalizedAt: string, agentName = 'main') {
+  function createFinalizedTurn(
+    capturesDir: string,
+    turnId: string,
+    finalizedAt: string,
+    agentName = 'main',
+  ) {
     const turnDir = join(capturesDir, `20260414T120000-${agentName}-abc-${turnId}`);
     mkdirSync(turnDir, { recursive: true });
     const meta = {
@@ -790,7 +945,10 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     const logPath = join(home, '.auto-sop', 'logs', 'recap.log');
     try {
       const text = readFileSync(logPath, 'utf8');
-      return text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+      return text
+        .split('\n')
+        .filter((l) => l.trim())
+        .map((l) => JSON.parse(l));
     } catch {
       return [];
     }
@@ -814,9 +972,16 @@ describe('smoke: managed section end-to-end (isolated)', () => {
 
     createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z', 'main');
     createFinalizedTurn(capturesDir, 't2', '2026-04-14T11:00:00.000Z', 'commander');
-    createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z', 'architect-principal-engineer');
+    createFinalizedTurn(
+      capturesDir,
+      't3',
+      '2026-04-14T12:00:00.000Z',
+      'architect-principal-engineer',
+    );
 
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     const result = await runLearner(learnerPath, tmpHome);
     expect(result.exitCode).toBe(0);
@@ -846,7 +1011,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     createFinalizedTurn(capturesDir, 't2', '2026-04-14T11:00:00.000Z');
     createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z');
 
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     // First run — creates CLAUDE.md
     await runLearner(learnerPath, tmpHome);
@@ -869,7 +1036,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
 
     // Check recap log shows unchanged
     const entries = readRecapLog(tmpHome);
-    const projRecaps = entries.filter((e: any) => e.project_id === 'proj1') as any[];
+    const projRecaps = entries.filter(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>[];
     const lastRecap = projRecaps[projRecaps.length - 1];
     expect(lastRecap.directive_written).toBe('unchanged');
   }, 20000);
@@ -886,7 +1055,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     createFinalizedTurn(capturesDir, 't2', '2026-04-14T11:00:00.000Z');
     createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z');
 
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     // First run — creates CLAUDE.md with 3 turns
     await runLearner(learnerPath, tmpHome);
@@ -912,7 +1083,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
 
     // Recap shows updated
     const entries = readRecapLog(tmpHome);
-    const projRecaps = entries.filter((e: any) => e.project_id === 'proj1') as any[];
+    const projRecaps = entries.filter(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>[];
     const lastRecap = projRecaps[projRecaps.length - 1];
     expect(lastRecap.directive_written).toBe('updated');
   }, 20000);
@@ -931,7 +1104,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     createFinalizedTurn(capturesDir, 't3', '2026-04-14T12:00:00.000Z');
     createFinalizedTurn(capturesDir, 't4', '2026-04-14T13:00:00.000Z');
 
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     // First run — creates CLAUDE.md with 4 turns
     await runLearner(learnerPath, tmpHome);
@@ -942,7 +1117,11 @@ describe('smoke: managed section end-to-end (isolated)', () => {
 
     // Remove any existing backup
     const backupPath = join(projectRoot, '.auto-sop', 'state', 'CLAUDE.md.backup');
-    try { rmSync(backupPath); } catch { /* may not exist */ }
+    try {
+      rmSync(backupPath);
+    } catch {
+      /* may not exist */
+    }
 
     // Add 5th turn
     createFinalizedTurn(capturesDir, 't5', '2026-04-14T14:00:00.000Z');
@@ -962,7 +1141,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
 
     // Recap shows dry_run
     const entries = readRecapLog(tmpHome);
-    const projRecaps = entries.filter((e: any) => e.project_id === 'proj1') as any[];
+    const projRecaps = entries.filter(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>[];
     const lastRecap = projRecaps[projRecaps.length - 1];
     expect(lastRecap.directive_written).toBe('dry_run');
   }, 20000);
@@ -976,7 +1157,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     mkdirSync(join(projectRoot, '.auto-sop', 'state'), { recursive: true });
 
     createFinalizedTurn(capturesDir, 't1', '2026-04-14T10:00:00.000Z');
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     // Write CLAUDE.md with malformed markers: begin but no end
     const originalContent =
@@ -1000,7 +1183,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
 
     // Recap should show error
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.directive_written).toBe('error');
   }, 15000);
@@ -1152,7 +1337,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
       });
     }
 
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
 
     const result = await runLearner(learnerPath, tmpHome);
     expect(result.exitCode).toBe(0);
@@ -1171,7 +1358,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
 
     // Recap reports 1 active directive
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.directives_active).toBe(1);
   }, 15000);
@@ -1196,7 +1385,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
       });
     }
 
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
     const result = await runLearner(learnerPath, tmpHome);
     expect(result.exitCode).toBe(0);
 
@@ -1207,7 +1398,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     expect(claudeMd).not.toContain('active directive');
 
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.directives_active).toBe(0);
     expect(projRecap.directives_candidates).toBe(1);
@@ -1234,7 +1427,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
       });
     }
 
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
     const result = await runLearner(learnerPath, tmpHome);
     expect(result.exitCode).toBe(0);
 
@@ -1267,7 +1462,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
       });
     }
 
-    writeRegistry(tmpHome, [{ project_id: 'proj1', slug: 'my-project', project_root: projectRoot }]);
+    writeRegistry(tmpHome, [
+      { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
+    ]);
     const result = await runLearner(learnerPath, tmpHome);
     expect(result.exitCode).toBe(0);
 
@@ -1277,7 +1474,9 @@ describe('smoke: managed section end-to-end (isolated)', () => {
     expect(claudeMd).not.toContain('Monitoring');
 
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.directives_active).toBe(0);
     expect(projRecap.directives_candidates).toBe(0);
@@ -1408,7 +1607,10 @@ describe('smoke: LLM-driven directive generation (isolated)', () => {
    * A side-effect marker file is also touched so tests can assert
    * whether the mock was actually invoked.
    */
-  function createMockClaudeBinary(tmpHome: string, stdoutBody: string): {
+  function createMockClaudeBinary(
+    tmpHome: string,
+    stdoutBody: string,
+  ): {
     binDir: string;
     markerPath: string;
   } {
@@ -1515,11 +1717,7 @@ describe('smoke: LLM-driven directive generation (isolated)', () => {
       { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
     ]);
 
-    const result = await runLearner(
-      learnerPath,
-      tmpHome,
-      `${binDir}:${SYSTEM_PATH}`,
-    );
+    const result = await runLearner(learnerPath, tmpHome, `${binDir}:${SYSTEM_PATH}`);
     expect(result.exitCode).toBe(0);
 
     // Mock was actually invoked — recursion guard did not fire.
@@ -1532,7 +1730,9 @@ describe('smoke: LLM-driven directive generation (isolated)', () => {
     expect(claudeMd).toContain('Analysis test summary from mock LLM.');
 
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.llm_mode).toBe(true);
     expect(projRecap.llm_error).toBeNull();
@@ -1561,19 +1761,12 @@ describe('smoke: LLM-driven directive generation (isolated)', () => {
 
     // Garbage body — the outer JSON.parse in extractInnerText throws,
     // so runLlmAnalysis returns `{ error: 'json_parse_failed' }`.
-    const { binDir, markerPath } = createMockClaudeBinary(
-      tmpHome,
-      'not valid json at all',
-    );
+    const { binDir, markerPath } = createMockClaudeBinary(tmpHome, 'not valid json at all');
     writeRegistry(tmpHome, [
       { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
     ]);
 
-    const result = await runLearner(
-      learnerPath,
-      tmpHome,
-      `${binDir}:${SYSTEM_PATH}`,
-    );
+    const result = await runLearner(learnerPath, tmpHome, `${binDir}:${SYSTEM_PATH}`);
     expect(result.exitCode).toBe(0);
 
     // Mock ran (so we know claude was actually spawned) but LLM
@@ -1587,7 +1780,9 @@ describe('smoke: LLM-driven directive generation (isolated)', () => {
     expect(claudeMd).toContain('active directive');
 
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.llm_mode).toBe(true);
     expect(projRecap.llm_fallback).toBe(true);
@@ -1627,7 +1822,9 @@ describe('smoke: LLM-driven directive generation (isolated)', () => {
     expect(claudeMd).toContain('npm test');
 
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.llm_mode).toBe(true);
     expect(projRecap.llm_fallback).toBe(true);
@@ -1658,12 +1855,9 @@ describe('smoke: LLM-driven directive generation (isolated)', () => {
       { project_id: 'proj1', slug: 'my-project', project_root: projectRoot },
     ]);
 
-    const result = await runLearner(
-      learnerPath,
-      tmpHome,
-      `${binDir}:${SYSTEM_PATH}`,
-      { CLAUDE_SOP_LEARNER_MODE: 'offline' },
-    );
+    const result = await runLearner(learnerPath, tmpHome, `${binDir}:${SYSTEM_PATH}`, {
+      CLAUDE_SOP_LEARNER_MODE: 'offline',
+    });
     expect(result.exitCode).toBe(0);
 
     // No spawn happened — the offline branch returns before execa is
@@ -1676,7 +1870,9 @@ describe('smoke: LLM-driven directive generation (isolated)', () => {
     expect(claudeMd).toContain('npm test');
 
     const entries = readRecapLog(tmpHome);
-    const projRecap = entries.find((e: any) => e.project_id === 'proj1') as any;
+    const projRecap = entries.find(
+      (e: Record<string, unknown>) => e.project_id === 'proj1',
+    ) as Record<string, unknown>;
     expect(projRecap).toBeDefined();
     expect(projRecap.llm_mode).toBe(false);
     // Offline → no attempted spawn → no error code.
@@ -1692,38 +1888,37 @@ describe('smoke: LLM-driven directive generation (isolated)', () => {
  * com.auto-sop.learner service. The install code reads CLAUDE_SOP_LABEL
  * and prefixes must be com.auto-sop.learner* (enforced in macos-launchd.ts).
  */
-describe.skipIf(process.platform !== 'darwin')('smoke: launchd install reliability (macOS only)', () => {
-  const TEST_LABEL = `com.auto-sop.learner.test-${process.pid}`;
-  const uid = process.getuid?.() ?? 501;
-  const serviceTarget = `gui/${uid}/${TEST_LABEL}`;
+describe.skipIf(process.platform !== 'darwin')(
+  'smoke: launchd install reliability (macOS only)',
+  () => {
+    const TEST_LABEL = `com.auto-sop.learner.test-${process.pid}`;
+    const uid = process.getuid?.() ?? 501;
+    const serviceTarget = `gui/${uid}/${TEST_LABEL}`;
 
-  afterAll(async () => {
-    // Cleanup: bootout test service if it's still loaded
-    await execa('launchctl', ['bootout', serviceTarget], { reject: false });
-    // Remove test plist if it exists
-    const plistPath = join(
-      process.env.HOME ?? '/tmp',
-      'Library',
-      'LaunchAgents',
-      `${TEST_LABEL}.plist`,
-    );
-    try {
-      rmSync(plistPath, { force: true });
-    } catch {
-      // ignore
-    }
-  });
+    afterAll(async () => {
+      // Cleanup: bootout test service if it's still loaded
+      await execa('launchctl', ['bootout', serviceTarget], { reject: false });
+      // Remove test plist if it exists
+      const plistPath = join(
+        process.env.HOME ?? '/tmp',
+        'Library',
+        'LaunchAgents',
+        `${TEST_LABEL}.plist`,
+      );
+      try {
+        rmSync(plistPath, { force: true });
+      } catch {
+        // ignore
+      }
+    });
 
-  it('(r) install bootstraps launchd AND warmup fire produces runs >= 1 within 2s', async () => {
-    const tmpHome = mkdtempSync(resolve(tmpdir(), 'auto-sop-launchd-'));
-    const projectRoot = join(tmpHome, 'test-project');
-    mkdirSync(projectRoot, { recursive: true });
+    it('(r) install bootstraps launchd AND warmup fire produces runs >= 1 within 2s', async () => {
+      const tmpHome = mkdtempSync(resolve(tmpdir(), 'auto-sop-launchd-'));
+      const projectRoot = join(tmpHome, 'test-project');
+      mkdirSync(projectRoot, { recursive: true });
 
-    // Run install via CLI with the test label
-    const installResult = await execa(
-      'node',
-      [CLI, 'install', '--project', projectRoot],
-      {
+      // Run install via CLI with the test label
+      const installResult = await execa('node', [CLI, 'install', '--project', projectRoot], {
         reject: false,
         env: {
           HOME: process.env.HOME, // Must use REAL home for LaunchAgents dir
@@ -1732,61 +1927,59 @@ describe.skipIf(process.platform !== 'darwin')('smoke: launchd install reliabili
           CLAUDE_SOP_LABEL: TEST_LABEL,
         },
         timeout: 15000,
-      },
-    );
+      });
 
-    // Install should succeed (exit 0) or at least attempt the scheduler setup
-    // Even if install exits non-zero due to missing license etc, the scheduler
-    // step may still have fired. Check launchctl directly.
+      // Install should succeed (exit 0) or at least attempt the scheduler setup
+      // Even if install exits non-zero due to missing license etc, the scheduler
+      // step may still have fired. Check launchctl directly.
 
-    // Wait for warmup kickstart to complete
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Wait for warmup kickstart to complete
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // Check launchctl print for the test service
-    const printResult = await execa('launchctl', ['print', serviceTarget], {
-      reject: false,
-    });
+      // Check launchctl print for the test service
+      const printResult = await execa('launchctl', ['print', serviceTarget], {
+        reject: false,
+      });
 
-    // If the service was loaded, check runs
-    if (printResult.exitCode === 0) {
-      const runsMatch = printResult.stdout.match(/^\s*runs\s*=\s*(\d+)/m);
-      expect(runsMatch, 'launchctl print should contain runs field').toBeTruthy();
-      const runs = parseInt(runsMatch![1]!, 10);
-      expect(runs, 'warmup kickstart should produce at least 1 run').toBeGreaterThanOrEqual(1);
+      // If the service was loaded, check runs
+      if (printResult.exitCode === 0) {
+        const runsMatch = printResult.stdout.match(/^\s*runs\s*=\s*(\d+)/m);
+        expect(runsMatch, 'launchctl print should contain runs field').toBeTruthy();
+        const runs = parseInt(runsMatch![1]!, 10);
+        expect(runs, 'warmup kickstart should produce at least 1 run').toBeGreaterThanOrEqual(1);
 
-      const lastExitMatch = printResult.stdout.match(
-        /^\s*last exit code\s*=\s*(.+)$/m,
-      );
-      if (lastExitMatch && lastExitMatch[1]!.trim() !== '(never exited)') {
-        expect(lastExitMatch[1]!.trim()).toBe('0');
+        const lastExitMatch = printResult.stdout.match(/^\s*last exit code\s*=\s*(.+)$/m);
+        if (lastExitMatch && lastExitMatch[1]!.trim() !== '(never exited)') {
+          expect(lastExitMatch[1]!.trim()).toBe('0');
+        }
+      } else {
+        // Service not loaded — install may have failed for non-scheduler reasons.
+        // Skip assertion if install itself didn't get to the scheduler step.
+        // This handles CI environments where the install fails early (no license, etc).
+        console.warn(
+          `launchd service ${TEST_LABEL} not loaded — install may have failed before scheduler step. ` +
+            `Install exit code: ${installResult.exitCode}. Skipping launchctl assertions.`,
+        );
       }
-    } else {
-      // Service not loaded — install may have failed for non-scheduler reasons.
-      // Skip assertion if install itself didn't get to the scheduler step.
-      // This handles CI environments where the install fails early (no license, etc).
-      console.warn(
-        `launchd service ${TEST_LABEL} not loaded — install may have failed before scheduler step. ` +
-        `Install exit code: ${installResult.exitCode}. Skipping launchctl assertions.`,
+
+      // Cleanup: uninstall test service
+      await execa('launchctl', ['bootout', serviceTarget], { reject: false });
+      const plistPath = join(
+        process.env.HOME ?? '/tmp',
+        'Library',
+        'LaunchAgents',
+        `${TEST_LABEL}.plist`,
       );
-    }
+      rmSync(plistPath, { force: true });
 
-    // Cleanup: uninstall test service
-    await execa('launchctl', ['bootout', serviceTarget], { reject: false });
-    const plistPath = join(
-      process.env.HOME ?? '/tmp',
-      'Library',
-      'LaunchAgents',
-      `${TEST_LABEL}.plist`,
-    );
-    rmSync(plistPath, { force: true });
+      // Verify cleanup: service should no longer be loaded
+      const verifyResult = await execa('launchctl', ['print', serviceTarget], {
+        reject: false,
+      });
+      expect(verifyResult.exitCode).not.toBe(0);
 
-    // Verify cleanup: service should no longer be loaded
-    const verifyResult = await execa('launchctl', ['print', serviceTarget], {
-      reject: false,
-    });
-    expect(verifyResult.exitCode).not.toBe(0);
-
-    // Clean up tmp dir
-    rmSync(tmpHome, { recursive: true, force: true });
-  }, 20000);
-});
+      // Clean up tmp dir
+      rmSync(tmpHome, { recursive: true, force: true });
+    }, 20000);
+  },
+);

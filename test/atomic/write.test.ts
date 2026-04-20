@@ -68,7 +68,6 @@ describe('writeFileAtomic', () => {
     const target = join(testDir, 'mode.txt');
     await writeFileAtomic(target, 'secret');
     const stat = await fs.stat(target);
-    // eslint-disable-next-line no-bitwise
     expect(stat.mode & 0o777).toBe(0o600);
   });
 });

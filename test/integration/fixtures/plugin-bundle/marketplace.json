@@ -1,1 +1,4 @@
-{ "name": "auto-sop", "plugins": [{ "name": "auto-sop", "source": { "source": "directory", "path": "." } }] }
+{
+  "name": "auto-sop",
+  "plugins": [{ "name": "auto-sop", "source": { "source": "directory", "path": "." } }]
+}

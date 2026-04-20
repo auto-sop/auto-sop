@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
-import { collectStatus, type CollectOptions, type StatusReport } from '../../src/status/collector.js';
+import { collectStatus, type CollectOptions } from '../../src/status/collector.js';
 import { HOOK_EVENTS, CLAUDE_SOP_HOOK_ID } from '../../src/installer/hook-entries.js';
 import { MANAGED_BEGIN, MANAGED_END } from '../../src/installer/managed-section.js';
 import type { SchedulerBackend, SchedulerStatus } from '../../src/scheduler/types.js';
@@ -93,12 +93,11 @@ describe('collectStatus', () => {
     await mkdirSafe(claudeDir);
     const hooks: Record<string, unknown[]> = {};
     for (const ev of HOOK_EVENTS) {
-      hooks[ev] = [{ hooks: [{ type: 'command', command: 'test', timeout: 10, id: CLAUDE_SOP_HOOK_ID }] }];
+      hooks[ev] = [
+        { hooks: [{ type: 'command', command: 'test', timeout: 10, id: CLAUDE_SOP_HOOK_ID }] },
+      ];
     }
-    await fs.writeFile(
-      path.join(claudeDir, 'settings.json'),
-      JSON.stringify({ hooks }),
-    );
+    await fs.writeFile(path.join(claudeDir, 'settings.json'), JSON.stringify({ hooks }));
 
     // CLAUDE.md with managed section
     await fs.writeFile(
@@ -135,12 +134,11 @@ describe('collectStatus', () => {
     const claudeDir = path.join(projectRoot, '.claude');
     await mkdirSafe(claudeDir);
     const hooks: Record<string, unknown[]> = {
-      UserPromptSubmit: [{ hooks: [{ type: 'command', command: 'test', timeout: 10, id: CLAUDE_SOP_HOOK_ID }] }],
+      UserPromptSubmit: [
+        { hooks: [{ type: 'command', command: 'test', timeout: 10, id: CLAUDE_SOP_HOOK_ID }] },
+      ],
     };
-    await fs.writeFile(
-      path.join(claudeDir, 'settings.json'),
-      JSON.stringify({ hooks }),
-    );
+    await fs.writeFile(path.join(claudeDir, 'settings.json'), JSON.stringify({ hooks }));
 
     const report = await collectStatus(baseOpts());
 

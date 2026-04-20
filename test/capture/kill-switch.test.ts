@@ -13,48 +13,34 @@ describe('isCaptureDisabled', () => {
   // ── new canonical var: AUTO_SOP_CAPTURE_SUPPRESS ─────────
   describe('AUTO_SOP_CAPTURE_SUPPRESS (canonical)', () => {
     it('returns true when set to "1"', () => {
-      expect(
-        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: '1' }),
-      ).toBe(true);
+      expect(isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: '1' })).toBe(true);
     });
 
     it('returns false when set to "0"', () => {
-      expect(
-        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: '0' }),
-      ).toBe(false);
+      expect(isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: '0' })).toBe(false);
     });
 
     it('returns false when empty string', () => {
-      expect(
-        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: '' }),
-      ).toBe(false);
+      expect(isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: '' })).toBe(false);
     });
 
     it('returns false when "true" (only literal "1" counts)', () => {
-      expect(
-        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: 'true' }),
-      ).toBe(false);
+      expect(isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: 'true' })).toBe(false);
     });
 
     it('returns false when undefined', () => {
-      expect(
-        isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: undefined }),
-      ).toBe(false);
+      expect(isCaptureDisabled({ AUTO_SOP_CAPTURE_SUPPRESS: undefined })).toBe(false);
     });
   });
 
   // ── deprecated var: CLAUDE_SOP_CAPTURE_SUPPRESS (backward compat) ─────────
   describe('CLAUDE_SOP_CAPTURE_SUPPRESS (deprecated, backward compat)', () => {
     it('returns true when set to "1"', () => {
-      expect(
-        isCaptureDisabled({ CLAUDE_SOP_CAPTURE_SUPPRESS: '1' }),
-      ).toBe(true);
+      expect(isCaptureDisabled({ CLAUDE_SOP_CAPTURE_SUPPRESS: '1' })).toBe(true);
     });
 
     it('returns false when set to "0"', () => {
-      expect(
-        isCaptureDisabled({ CLAUDE_SOP_CAPTURE_SUPPRESS: '0' }),
-      ).toBe(false);
+      expect(isCaptureDisabled({ CLAUDE_SOP_CAPTURE_SUPPRESS: '0' })).toBe(false);
     });
   });
 
@@ -64,9 +50,7 @@ describe('isCaptureDisabled', () => {
 
     beforeEach(() => {
       _resetDeprecationWarnedForTests();
-      stderrSpy = vi
-        .spyOn(process.stderr, 'write')
-        .mockImplementation(() => true);
+      stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     });
 
     afterEach(() => {
@@ -119,9 +103,7 @@ describe('isCaptureDisabled', () => {
 
     beforeEach(() => {
       _resetDeprecationWarnedForTests();
-      stderrSpy = vi
-        .spyOn(process.stderr, 'write')
-        .mockImplementation(() => true);
+      stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     });
 
     afterEach(() => {

@@ -9,9 +9,7 @@ import { Command } from 'commander';
 
 describe('learn-now verb: flag registration', () => {
   it('registers learn-now command with expected flags', async () => {
-    const { registerLearnNowVerb } = await import(
-      '../../../src/cli/verbs/learn-now.js'
-    );
+    const { registerLearnNowVerb } = await import('../../../src/cli/verbs/learn-now.js');
 
     const program = new Command();
     registerLearnNowVerb(program);
@@ -27,9 +25,7 @@ describe('learn-now verb: flag registration', () => {
   });
 
   it('learn-now description mentions learner', async () => {
-    const { registerLearnNowVerb } = await import(
-      '../../../src/cli/verbs/learn-now.js'
-    );
+    const { registerLearnNowVerb } = await import('../../../src/cli/verbs/learn-now.js');
 
     const program = new Command();
     registerLearnNowVerb(program);
@@ -41,9 +37,7 @@ describe('learn-now verb: flag registration', () => {
 
 describe('learn-now verb: help output', () => {
   it('--help includes all flag names', async () => {
-    const { registerLearnNowVerb } = await import(
-      '../../../src/cli/verbs/learn-now.js'
-    );
+    const { registerLearnNowVerb } = await import('../../../src/cli/verbs/learn-now.js');
 
     const program = new Command().exitOverride();
     registerLearnNowVerb(program);
@@ -60,9 +54,7 @@ describe('learn-now verb: help output', () => {
 
 describe('recap --run deprecation', () => {
   it('recap still registers --run flag (backward compat)', async () => {
-    const { registerRecapVerb } = await import(
-      '../../../src/cli/verbs/recap.js'
-    );
+    const { registerRecapVerb } = await import('../../../src/cli/verbs/recap.js');
 
     const program = new Command();
     registerRecapVerb(program);
@@ -77,9 +69,7 @@ describe('recap --run deprecation', () => {
 
 describe('shared learner-spawn module', () => {
   it('findLearnerCjs returns null when no learner exists', async () => {
-    const { findLearnerCjs } = await import(
-      '../../../src/cli/shared/learner-spawn.js'
-    );
+    const { findLearnerCjs } = await import('../../../src/cli/shared/learner-spawn.js');
     // In test env, learner.cjs likely doesn't exist at the expected paths
     // (unless installed). This just verifies the function doesn't throw.
     const result = findLearnerCjs();
@@ -87,9 +77,7 @@ describe('shared learner-spawn module', () => {
   });
 
   it('recapLogPath returns expected path shape', async () => {
-    const { recapLogPath } = await import(
-      '../../../src/cli/shared/learner-spawn.js'
-    );
+    const { recapLogPath } = await import('../../../src/cli/shared/learner-spawn.js');
     const p = recapLogPath('/fake/home');
     expect(p).toContain('.auto-sop');
     expect(p).toContain('recap.log');
@@ -97,9 +85,7 @@ describe('shared learner-spawn module', () => {
   });
 
   it('runLearner returns valid result shape', async () => {
-    const { runLearner } = await import(
-      '../../../src/cli/shared/learner-spawn.js'
-    );
+    const { runLearner } = await import('../../../src/cli/shared/learner-spawn.js');
     // Verify the function signature and return type without actually
     // spawning the learner (which may time out in CI/dev).
     expect(typeof runLearner).toBe('function');

@@ -30,8 +30,7 @@ export async function stripManagedSection(
   try {
     text = await fs.readFile(claudeMdPath, 'utf8');
   } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT')
-      return { removed: null };
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { removed: null };
     throw e;
   }
 
@@ -44,8 +43,7 @@ export async function stripManagedSection(
     endIdx = text.indexOf(LEGACY_MANAGED_END);
     activeEnd = LEGACY_MANAGED_END;
   }
-  if (beginIdx === -1 || endIdx === -1 || endIdx < beginIdx)
-    return { removed: null };
+  if (beginIdx === -1 || endIdx === -1 || endIdx < beginIdx) return { removed: null };
 
   const afterEnd = endIdx + activeEnd.length;
   const removed = text.slice(beginIdx + MANAGED_BEGIN.length, endIdx);

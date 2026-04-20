@@ -28,7 +28,8 @@ export const DirectiveProposal = z.object({
     .min(10, 'rule_text must be at least 10 chars')
     .max(500, 'rule_text must be at most 500 chars')
     .refine(
-      (s) => !/<!--\s*auto-sop:managed-section:(begin|end)/i.test(s) && !/<!--\s*GENERATED/i.test(s),
+      (s) =>
+        !/<!--\s*auto-sop:managed-section:(begin|end)/i.test(s) && !/<!--\s*GENERATED/i.test(s),
       'rule_text must not contain managed-section markers',
     ),
   evidence: z.object({
@@ -46,11 +47,7 @@ export const DirectiveProposal = z.object({
     // bound (128 chars) well above nanoid's 21 so we never reject the
     // capture pipeline's own output.
     turn_ids: z
-      .array(
-        z
-          .string()
-          .regex(/^[A-Za-z0-9_-]{1,128}$/, 'turn_id must be nanoid-safe'),
-      )
+      .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/, 'turn_id must be nanoid-safe'))
       .min(1),
     pattern: z.string().min(1),
     occurrence_count: z.number().int().min(3),

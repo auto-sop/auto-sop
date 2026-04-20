@@ -27,10 +27,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { execa } from 'execa';
-import {
-  DirectiveProposal,
-  type DirectiveProposalType,
-} from './directive-schema.js';
+import { DirectiveProposal, type DirectiveProposalType } from './directive-schema.js';
 import { serializeTurnsForLlm } from './llm-serializer.js';
 import { buildAnalysisPrompt } from './llm-prompt.js';
 import type { TurnData } from './turn-loader.js';
@@ -100,35 +97,26 @@ export async function runLlmAnalysis(
   //      case for tests); otherwise they read prompt.md / response.md
   //      / files-changed.txt off disk.
   const serialized = serializeTurnsForLlm(turns, projectName);
-  const prompt = buildAnalysisPrompt(
-    serialized,
-    projectName,
-    sessionCount,
-    turns.length,
-  );
+  const prompt = buildAnalysisPrompt(serialized, projectName, sessionCount, turns.length);
 
   // 5. Spawn `claude -p`. `reject: false` suppresses execa's own throw —
   //    we always inspect the result object directly instead. The variable
   //    type is left inferred so TS picks the call-site-narrowed Result.
   let result;
   try {
-    result = await execa(
-      'claude',
-      ['-p', '--output-format', 'json', '--max-turns', '1'],
-      {
-        input: prompt,
-        timeout: options?.timeout ?? DEFAULT_TIMEOUT_MS,
-        env: {
-          ...process.env,
-          // Recursion guard: tells our own Phase-2 capture (if it
-          // somehow runs inside this child) that the parent is the
-          // learner and to skip recording its own turns.
-          AUTO_SOP_CAPTURE_SUPPRESS: '1',
-          CLAUDE_SOP_CAPTURE_SUPPRESS: '1',
-        },
-        reject: false,
+    result = await execa('claude', ['-p', '--output-format', 'json', '--max-turns', '1'], {
+      input: prompt,
+      timeout: options?.timeout ?? DEFAULT_TIMEOUT_MS,
+      env: {
+        ...process.env,
+        // Recursion guard: tells our own Phase-2 capture (if it
+        // somehow runs inside this child) that the parent is the
+        // learner and to skip recording its own turns.
+        AUTO_SOP_CAPTURE_SUPPRESS: '1',
+        CLAUDE_SOP_CAPTURE_SUPPRESS: '1',
       },
-    );
+      reject: false,
+    });
   } catch {
     return makeEmptyResult('spawn_failed', Date.now() - start);
   }
@@ -178,9 +166,7 @@ export async function runLlmAnalysis(
   //    silently fail safeParse() and the feature would be non-functional
   //    in production. Candidate values take precedence over defaults.
   const innerObj = inner as Record<string, unknown>;
-  const candidates: unknown[] = Array.isArray(innerObj.directives)
-    ? innerObj.directives
-    : [];
+  const candidates: unknown[] = Array.isArray(innerObj.directives) ? innerObj.directives : [];
   const nowIso = new Date().toISOString();
   const proposals: DirectiveProposalType[] = [];
   for (const candidate of candidates) {
@@ -197,16 +183,11 @@ export async function runLlmAnalysis(
 
   return {
     proposals,
-    summary:
-      typeof innerObj.summary === 'string' ? innerObj.summary : '',
+    summary: typeof innerObj.summary === 'string' ? innerObj.summary : '',
     turnsAnalyzed:
-      typeof innerObj.turns_analyzed === 'number'
-        ? innerObj.turns_analyzed
-        : turns.length,
+      typeof innerObj.turns_analyzed === 'number' ? innerObj.turns_analyzed : turns.length,
     patternsBelowThreshold:
-      typeof innerObj.patterns_below_threshold === 'number'
-        ? innerObj.patterns_below_threshold
-        : 0,
+      typeof innerObj.patterns_below_threshold === 'number' ? innerObj.patterns_below_threshold : 0,
     durationMs,
     error: null,
   };
@@ -214,10 +195,7 @@ export async function runLlmAnalysis(
 
 // ── Internals ──────────────────────────────────────────────
 
-function makeEmptyResult(
-  error: string | null,
-  durationMs: number,
-): LlmAnalysisResult {
+function makeEmptyResult(error: string | null, durationMs: number): LlmAnalysisResult {
   return {
     proposals: [],
     summary: '',

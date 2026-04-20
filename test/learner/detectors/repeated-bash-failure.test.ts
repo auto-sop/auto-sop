@@ -80,9 +80,7 @@ describe('repeated-bash-failure detector', () => {
       makeTurn('t4', 's4', '2026-04-14T13:00:00Z', [
         { command: 'npm run build', success: true, exitCode: 0 },
       ]),
-      makeTurn('t5', 's5', '2026-04-14T14:00:00Z', [
-        { command: 'ls', success: true, exitCode: 0 },
-      ]),
+      makeTurn('t5', 's5', '2026-04-14T14:00:00Z', [{ command: 'ls', success: true, exitCode: 0 }]),
     ];
 
     const proposals = repeatedBashFailureDetector.detect(turns);
@@ -104,9 +102,7 @@ describe('repeated-bash-failure detector', () => {
       makeTurn('t3', 's3', '2026-04-14T12:00:00Z', [
         { command: 'npm run build', success: true, exitCode: 0 },
       ]),
-      makeTurn('t4', 's4', '2026-04-14T13:00:00Z', [
-        { command: 'ls', success: true, exitCode: 0 },
-      ]),
+      makeTurn('t4', 's4', '2026-04-14T13:00:00Z', [{ command: 'ls', success: true, exitCode: 0 }]),
       makeTurn('t5', 's5', '2026-04-14T14:00:00Z', [
         { command: 'echo ok', success: true, exitCode: 0 },
       ]),

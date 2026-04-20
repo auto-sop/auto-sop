@@ -73,21 +73,9 @@ describe('turn-loader', () => {
   });
 
   it('returns 3 TurnData objects sorted ascending by finalized_at', () => {
-    seedTurn(
-      'turn-b',
-      validMeta('turn-b', '2026-04-14T11:00:00.000Z'),
-      [],
-    );
-    seedTurn(
-      'turn-a',
-      validMeta('turn-a', '2026-04-14T10:00:00.000Z'),
-      [],
-    );
-    seedTurn(
-      'turn-c',
-      validMeta('turn-c', '2026-04-14T12:00:00.000Z'),
-      [],
-    );
+    seedTurn('turn-b', validMeta('turn-b', '2026-04-14T11:00:00.000Z'), []);
+    seedTurn('turn-a', validMeta('turn-a', '2026-04-14T10:00:00.000Z'), []);
+    seedTurn('turn-c', validMeta('turn-c', '2026-04-14T12:00:00.000Z'), []);
 
     const result = loadTurnsForDetection(capturesDir);
     expect(result).toHaveLength(3);
@@ -123,11 +111,7 @@ describe('turn-loader', () => {
       t: '2026-04-14T10:00:01.000Z',
     });
 
-    seedTurn(
-      'turn-1',
-      validMeta('turn-1', '2026-04-14T10:00:00.000Z'),
-      [pre, garbage, post],
-    );
+    seedTurn('turn-1', validMeta('turn-1', '2026-04-14T10:00:00.000Z'), [pre, garbage, post]);
 
     const result = loadTurnsForDetection(capturesDir);
     expect(result).toHaveLength(1);
@@ -138,16 +122,8 @@ describe('turn-loader', () => {
   });
 
   it('.pending directories are skipped', () => {
-    seedTurn(
-      'turn-final',
-      validMeta('turn-final', '2026-04-14T10:00:00.000Z'),
-      [],
-    );
-    seedTurn(
-      'turn-pending.pending',
-      validMeta('turn-pending', '2026-04-14T11:00:00.000Z'),
-      [],
-    );
+    seedTurn('turn-final', validMeta('turn-final', '2026-04-14T10:00:00.000Z'), []);
+    seedTurn('turn-pending.pending', validMeta('turn-pending', '2026-04-14T11:00:00.000Z'), []);
 
     const result = loadTurnsForDetection(capturesDir);
     expect(result).toHaveLength(1);
@@ -156,11 +132,7 @@ describe('turn-loader', () => {
 
   it('maxTurns=2 with 5 turns → returns 2 most-recent in ascending order', () => {
     for (let i = 0; i < 5; i++) {
-      seedTurn(
-        `turn-${i}`,
-        validMeta(`turn-${i}`, `2026-04-14T1${i}:00:00.000Z`),
-        [],
-      );
+      seedTurn(`turn-${i}`, validMeta(`turn-${i}`, `2026-04-14T1${i}:00:00.000Z`), []);
     }
     const result = loadTurnsForDetection(capturesDir, 2);
     expect(result).toHaveLength(2);
@@ -185,11 +157,7 @@ describe('turn-loader', () => {
       t: '2026-04-14T10:00:01.000Z',
     });
 
-    seedTurn(
-      'turn-1',
-      validMeta('turn-1', '2026-04-14T10:00:00.000Z'),
-      [pre, post],
-    );
+    seedTurn('turn-1', validMeta('turn-1', '2026-04-14T10:00:00.000Z'), [pre, post]);
 
     const result = loadTurnsForDetection(capturesDir);
     const postCall = result[0]!.tool_calls.find((c) => c.event === 'post');
@@ -203,11 +171,7 @@ describe('turn-loader', () => {
 
   it('missing meta.json skips entire turn', () => {
     seedTurn('turn-bad', null, []);
-    seedTurn(
-      'turn-good',
-      validMeta('turn-good', '2026-04-14T10:00:00.000Z'),
-      [],
-    );
+    seedTurn('turn-good', validMeta('turn-good', '2026-04-14T10:00:00.000Z'), []);
 
     const result = loadTurnsForDetection(capturesDir);
     expect(result).toHaveLength(1);
@@ -216,11 +180,7 @@ describe('turn-loader', () => {
 
   it('malformed meta.json skips entire turn', () => {
     seedTurn('turn-bad', 'NOT VALID JSON', []);
-    seedTurn(
-      'turn-good',
-      validMeta('turn-good', '2026-04-14T10:00:00.000Z'),
-      [],
-    );
+    seedTurn('turn-good', validMeta('turn-good', '2026-04-14T10:00:00.000Z'), []);
 
     const result = loadTurnsForDetection(capturesDir);
     expect(result).toHaveLength(1);
@@ -233,11 +193,7 @@ describe('turn-loader', () => {
       { schema_version: 1, agent: 'main' }, // no turn_id/session_id/finalized_at
       [],
     );
-    seedTurn(
-      'turn-ok',
-      validMeta('turn-ok', '2026-04-14T10:00:00.000Z'),
-      [],
-    );
+    seedTurn('turn-ok', validMeta('turn-ok', '2026-04-14T10:00:00.000Z'), []);
 
     const result = loadTurnsForDetection(capturesDir);
     expect(result).toHaveLength(1);
@@ -260,11 +216,7 @@ describe('turn-loader', () => {
       t: '2026-04-14T10:00:01.000Z',
     });
 
-    seedTurn(
-      'turn-1',
-      validMeta('turn-1', '2026-04-14T10:00:00.000Z'),
-      [pre, post],
-    );
+    seedTurn('turn-1', validMeta('turn-1', '2026-04-14T10:00:00.000Z'), [pre, post]);
 
     const result = loadTurnsForDetection(capturesDir);
     const postCall = result[0]!.tool_calls.find((c) => c.event === 'post');
@@ -280,11 +232,7 @@ describe('turn-loader', () => {
       t: '2026-04-14T10:00:00.000Z',
     });
 
-    seedTurn(
-      'turn-1',
-      validMeta('turn-1', '2026-04-14T10:00:00.000Z'),
-      ['', pre, '', ''],
-    );
+    seedTurn('turn-1', validMeta('turn-1', '2026-04-14T10:00:00.000Z'), ['', pre, '', '']);
 
     const result = loadTurnsForDetection(capturesDir);
     expect(result[0]!.tool_calls).toHaveLength(1);

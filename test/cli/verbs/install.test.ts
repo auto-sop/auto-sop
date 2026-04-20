@@ -75,14 +75,7 @@ describe('install verb', () => {
   it('--json mode emits JSON output', async () => {
     mockRunInstall.mockResolvedValueOnce(cannedResult());
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'install',
-      '--license',
-      'abc',
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'install', '--license', 'abc']);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
@@ -93,17 +86,9 @@ describe('install verb', () => {
   });
 
   it('PreconditionError maps to exit code 3', async () => {
-    mockRunInstall.mockRejectedValueOnce(
-      new PreconditionError('another install is in progress'),
-    );
+    mockRunInstall.mockRejectedValueOnce(new PreconditionError('another install is in progress'));
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'install',
-      '--license',
-      'abc',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'install', '--license', 'abc']);
 
     expect(code).toBe(3);
     const stderrOutput = stderrChunks.join('');
@@ -111,17 +96,9 @@ describe('install verb', () => {
   });
 
   it('human output shows install complete message', async () => {
-    mockRunInstall.mockResolvedValueOnce(
-      cannedResult({ warnings: ['test warning'] }),
-    );
+    mockRunInstall.mockResolvedValueOnce(cannedResult({ warnings: ['test warning'] }));
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'install',
-      '--license',
-      'abc',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'install', '--license', 'abc']);
 
     expect(code).toBe(0);
     const stdout = stdoutChunks.join('');

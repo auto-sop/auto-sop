@@ -2,19 +2,14 @@ import { execa } from 'execa';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../atomic/write.js';
-import type {
-  SchedulerBackend,
-  SchedulerInstallOpts,
-  SchedulerStatus,
-} from './types.js';
+import type { SchedulerBackend, SchedulerInstallOpts, SchedulerStatus } from './types.js';
 
 /** Allow label override for integration tests to avoid colliding with the real install. */
-const LABEL =
-  process.env.AUTO_SOP_LABEL?.startsWith('com.auto-sop.learner')
-    ? process.env.AUTO_SOP_LABEL
-    : process.env.CLAUDE_SOP_LABEL?.startsWith('com.claude-sop.learner')
-      ? process.env.CLAUDE_SOP_LABEL
-      : 'com.auto-sop.learner';
+const LABEL = process.env.AUTO_SOP_LABEL?.startsWith('com.auto-sop.learner')
+  ? process.env.AUTO_SOP_LABEL
+  : process.env.CLAUDE_SOP_LABEL?.startsWith('com.claude-sop.learner')
+    ? process.env.CLAUDE_SOP_LABEL
+    : 'com.auto-sop.learner';
 
 /** Legacy label for cleanup during uninstall. */
 const LEGACY_LABEL = 'com.claude-sop.learner';
@@ -126,11 +121,9 @@ export const macosLaunchd: SchedulerBackend = {
     await writeFileAtomic(plist, content);
 
     // Step 3: Bootstrap the new version into the user GUI domain
-    const bootstrapResult = await execa(
-      'launchctl',
-      ['bootstrap', domainTarget, plist],
-      { reject: false },
-    );
+    const bootstrapResult = await execa('launchctl', ['bootstrap', domainTarget, plist], {
+      reject: false,
+    });
     if (bootstrapResult.exitCode !== 0) {
       // Fallback to legacy load -w for ancient macOS (pre-10.10)
       await execa('launchctl', ['load', '-w', plist], { reject: false });
@@ -146,19 +139,12 @@ export const macosLaunchd: SchedulerBackend = {
     });
   },
 
-  async uninstall(opts: {
-    homeDir: string;
-    user: string;
-  }): Promise<{ warnings: string[] }> {
+  async uninstall(opts: { homeDir: string; user: string }): Promise<{ warnings: string[] }> {
     const warnings: string[] = [];
     const uid = getPosixUid();
 
     // Uninstall current label
-    const r = await execa(
-      'launchctl',
-      ['bootout', `gui/${uid}/${LABEL}`],
-      { reject: false },
-    );
+    const r = await execa('launchctl', ['bootout', `gui/${uid}/${LABEL}`], { reject: false });
     if (r.exitCode !== 0 && r.stderr) {
       warnings.push(r.stderr);
     }
@@ -166,21 +152,14 @@ export const macosLaunchd: SchedulerBackend = {
 
     // Also clean up legacy label if different
     if (LABEL !== LEGACY_LABEL) {
-      await execa(
-        'launchctl',
-        ['bootout', `gui/${uid}/${LEGACY_LABEL}`],
-        { reject: false },
-      );
+      await execa('launchctl', ['bootout', `gui/${uid}/${LEGACY_LABEL}`], { reject: false });
       await fs.rm(legacyPlistPath(opts.homeDir), { force: true });
     }
 
     return { warnings };
   },
 
-  async status(opts: {
-    homeDir: string;
-    user: string;
-  }): Promise<SchedulerStatus> {
+  async status(opts: { homeDir: string; user: string }): Promise<SchedulerStatus> {
     const plist = plistPath(opts.homeDir);
     let installed = false;
     try {
@@ -193,11 +172,7 @@ export const macosLaunchd: SchedulerBackend = {
     let lastExitCode: number | null = null;
     let raw = '';
     const uid = getPosixUid();
-    const r = await execa(
-      'launchctl',
-      ['print', `gui/${uid}/${LABEL}`],
-      { reject: false },
-    );
+    const r = await execa('launchctl', ['print', `gui/${uid}/${LABEL}`], { reject: false });
     if (r.exitCode === 0) {
       raw = r.stdout;
       const m = /last exit code\s*=\s*(\d+)/i.exec(raw);

@@ -4,7 +4,7 @@ Here is what the markers look like:
 
 ```html
 <!-- auto-sop:managed-section:begin v2 -->
-  your directives here
+your directives here
 <!-- auto-sop:managed-section:end-legacy -->
 ```
 

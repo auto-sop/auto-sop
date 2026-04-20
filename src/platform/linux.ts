@@ -24,4 +24,8 @@ export const linuxAdapter: PlatformAdapter = {
   tickScriptExtension() {
     return '.sh';
   },
+
+  async restrictFileAccess(filePath: string) {
+    await fs.chmod(filePath, 0o600);
+  },
 };

@@ -28,9 +28,7 @@ describe('registerMarketplace', () => {
     });
     const text = await fs.readFile(settingsPath, 'utf8');
     const parsed = parse(text);
-    expect(parsed.extraKnownMarketplaces['auto-sop'].source.path).toBe(
-      mpDir,
-    );
+    expect(parsed.extraKnownMarketplaces['auto-sop'].source.path).toBe(mpDir);
   });
 
   it('rejects non-absolute marketplace path', async () => {

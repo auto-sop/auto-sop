@@ -3,15 +3,8 @@
  * Creates a tmpHome with 1 fake project + 3 fake turns, simulates the
  * learner tick logic, and asserts CLAUDE.md is created/updated correctly.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-  mkdtempSync,
-  rmSync,
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  existsSync,
-} from 'node:fs';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { writeManagedSection, readManagedSection } from '../../src/managed-section/editor.js';
@@ -83,8 +76,7 @@ describe('directive-integration', () => {
     // B4: main.ts derives this from the cursor's post-update
     // `last_finalized_at`; here we mirror the same intent with a
     // stable default so the rendered body is data-anchored.
-    const newestTurnFinalizedAt =
-      opts?.newestTurnFinalizedAt ?? '2026-04-14T22:20:00Z';
+    const newestTurnFinalizedAt = opts?.newestTurnFinalizedAt ?? '2026-04-14T22:20:00Z';
 
     const recap: PerProjectRecap = {
       v: 1,
@@ -121,7 +113,7 @@ describe('directive-integration', () => {
       recap.directive_written = writeResult.verdict;
       recap.directive_bytes = writeResult.bytesAfter;
       recap.directive_backup = writeResult.backupPath !== null;
-    } catch (err) {
+    } catch {
       recap.directive_written = 'error';
     }
 
@@ -213,10 +205,7 @@ describe('directive-integration', () => {
 
   it('records error when editor throws (e.g., malformed markers)', () => {
     // Create CLAUDE.md with begin marker but no end marker → MalformedMarkersError
-    writeFileSync(
-      join(tmpProject, 'CLAUDE.md'),
-      `# My Project\n\n${BEGIN_MARKER}\nsome content\n`,
-    );
+    writeFileSync(join(tmpProject, 'CLAUDE.md'), `# My Project\n\n${BEGIN_MARKER}\nsome content\n`);
 
     seedTurn('turn-001', 'main', '2026-04-14T20:00:00Z');
 

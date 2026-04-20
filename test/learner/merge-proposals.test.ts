@@ -21,15 +21,12 @@ import {
 } from '../../src/learner/merge-proposals.js';
 import type { DirectiveProposalType } from '../../src/learner/directive-schema.js';
 
-function makeProposal(
-  overrides: Partial<DirectiveProposalType> = {},
-): DirectiveProposalType {
+function makeProposal(overrides: Partial<DirectiveProposalType> = {}): DirectiveProposalType {
   return {
     id: 'det-default-0000',
     detector: 'rule-detector',
     severity: 'warning',
-    rule_text:
-      'Rule text long enough to pass the Zod schema validation layer.',
+    rule_text: 'Rule text long enough to pass the Zod schema validation layer.',
     evidence: {
       session_ids: ['s1', 's2', 's3'],
       turn_ids: ['t1', 't2', 't3'],
@@ -85,8 +82,7 @@ describe('mergeProposals', () => {
       makeProposal({
         id: sharedId,
         detector: 'repeated-bash-failure',
-        rule_text:
-          'Generic rule-based text covering `npm test` repeated failure.',
+        rule_text: 'Generic rule-based text covering `npm test` repeated failure.',
       }),
     ];
     const llm = [

@@ -11,22 +11,10 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
-import {
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-  readFileSync,
-  existsSync,
-  mkdirSync,
-} from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { nanoid } from 'nanoid';
-import {
-  runInstall,
-  type InstallOptions,
-  type InstallResult,
-} from '../../src/installer/orchestrator.js';
+import { runInstall, type InstallOptions } from '../../src/installer/orchestrator.js';
 import { runUninstall } from '../../src/installer/uninstall-orchestrator.js';
 import {
   saveHistory,
@@ -37,12 +25,7 @@ import {
   type DirectiveProposalLike,
 } from '../../src/managed-section/directive-history.js';
 import { readManagedSection } from '../../src/managed-section/editor.js';
-import {
-  BEGIN_MARKER,
-  END_MARKER,
-  GENERATED_COMMENT,
-  buildSectionBlock,
-} from '../../src/managed-section/markers.js';
+import { buildSectionBlock } from '../../src/managed-section/markers.js';
 import type { SchedulerBackend, SchedulerInstallOpts } from '../../src/scheduler/types.js';
 
 const FAKE_MACHINE_ID = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
@@ -51,7 +34,9 @@ function createStubBackend(): SchedulerBackend & { installCalls: SchedulerInstal
   const installCalls: SchedulerInstallOpts[] = [];
   return {
     name: 'launchd',
-    install: async (opts) => { installCalls.push(opts); },
+    install: async (opts) => {
+      installCalls.push(opts);
+    },
     uninstall: async () => ({ warnings: [] }),
     status: async () => ({
       backend: 'launchd',
@@ -64,9 +49,7 @@ function createStubBackend(): SchedulerBackend & { installCalls: SchedulerInstal
   };
 }
 
-function makeProposal(
-  overrides: Partial<DirectiveProposalLike> = {},
-): DirectiveProposalLike {
+function makeProposal(overrides: Partial<DirectiveProposalLike> = {}): DirectiveProposalLike {
   return {
     id: 'det-test-0000',
     rule_text: 'Default test directive text that is realistic and long enough.',
@@ -200,7 +183,10 @@ describe('I9: directive preservation', () => {
 
   it('graceful no-op when all directives are pruned', async () => {
     const proposals: DirectiveProposalLike[] = [
-      makeProposal({ id: 'det-pruned', rule_text: 'This directive was pruned and should not restore.' }),
+      makeProposal({
+        id: 'det-pruned',
+        rule_text: 'This directive was pruned and should not restore.',
+      }),
     ];
     const history = updateFromProposals(
       emptyHistory('2026-01-01T00:00:00.000Z'),
@@ -239,7 +225,7 @@ describe('I9: directive preservation', () => {
     expect(Object.keys(histBefore.entries)).toHaveLength(0);
 
     // Run uninstall
-    const result = await runUninstall({
+    await runUninstall({
       projectRoot,
       homeDir,
       purge: false,
@@ -252,8 +238,16 @@ describe('I9: directive preservation', () => {
     const histAfter = loadHistory(projectRoot);
     const activeEntries = Object.values(histAfter.entries).filter((e) => !e.pruned);
     expect(activeEntries.length).toBe(2);
-    expect(activeEntries.some((e) => e.rule_text === 'Always validate user input before database queries')).toBe(true);
-    expect(activeEntries.some((e) => e.rule_text === 'Use try-catch blocks around filesystem operations')).toBe(true);
+    expect(
+      activeEntries.some(
+        (e) => e.rule_text === 'Always validate user input before database queries',
+      ),
+    ).toBe(true);
+    expect(
+      activeEntries.some(
+        (e) => e.rule_text === 'Use try-catch blocks around filesystem operations',
+      ),
+    ).toBe(true);
   });
 
   it('uninstall skips defensive backup when history already has active entries', async () => {

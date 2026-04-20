@@ -65,6 +65,7 @@ import { promises as fs } from 'node:fs';
 const mockCollectStatus = vi.mocked(collectStatus);
 const mockStat = vi.mocked(fs.stat);
 const mockExeca = vi.mocked(execa);
+type ExecaResult = Awaited<ReturnType<typeof execa>>;
 
 function healthyReport(): StatusReport {
   return {
@@ -72,13 +73,7 @@ function healthyReport(): StatusReport {
     installedVersion: '2.0.0',
     hooks: {
       wiringState: 'present',
-      eventsCovered: [
-        'UserPromptSubmit',
-        'Stop',
-        'SubagentStop',
-        'PreToolUse',
-        'PostToolUse',
-      ],
+      eventsCovered: ['UserPromptSubmit', 'Stop', 'SubagentStop', 'PreToolUse', 'PostToolUse'],
       settingsPath: '/tmp/proj/.claude/settings.json',
     },
     scheduler: {
@@ -128,13 +123,7 @@ describe('doctor verb', () => {
   it('all checks pass → exit 0', async () => {
     mockCollectStatus.mockResolvedValueOnce(healthyReport());
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'doctor', '--project', '/tmp/proj']);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
@@ -142,22 +131,14 @@ describe('doctor verb', () => {
   });
 
   it('one check fails → exit 3 (PreconditionError)', async () => {
-    mockCollectStatus.mockResolvedValueOnce(
-      healthyReport(),
-    );
+    mockCollectStatus.mockResolvedValueOnce(healthyReport());
     // Override: not installed
     const report = healthyReport();
     report.installedVersion = null;
     mockCollectStatus.mockReset();
     mockCollectStatus.mockResolvedValueOnce(report);
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'doctor', '--project', '/tmp/proj']);
 
     expect(code).toBe(3);
     const stderrOutput = stderrChunks.join('');
@@ -171,14 +152,7 @@ describe('doctor verb', () => {
     report.hooks.eventsCovered = ['UserPromptSubmit'];
     mockCollectStatus.mockResolvedValueOnce(report);
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'doctor', '--project', '/tmp/proj']);
 
     expect(code).toBe(3);
     // stdout has two JSON lines: doctor emit + PreconditionError emit
@@ -187,23 +161,14 @@ describe('doctor verb', () => {
     expect(parsed.ok).toBe(false);
     expect(parsed.verb).toBe('doctor');
     expect(parsed.checks).toBeInstanceOf(Array);
-    const hookCheck = parsed.checks.find(
-      (c: { name: string }) => c.name === 'hooks wired',
-    );
+    const hookCheck = parsed.checks.find((c: { name: string }) => c.name === 'hooks wired');
     expect(hookCheck.ok).toBe(false);
   });
 
   it('JSON mode emits ok:true when all checks pass', async () => {
     mockCollectStatus.mockResolvedValueOnce(healthyReport());
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'doctor', '--project', '/tmp/proj']);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
@@ -217,13 +182,7 @@ describe('doctor verb', () => {
     report.paused = true;
     mockCollectStatus.mockResolvedValueOnce(report);
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'doctor', '--project', '/tmp/proj']);
 
     expect(code).toBe(3);
     const stderrOutput = stderrChunks.join('');
@@ -235,21 +194,12 @@ describe('doctor verb', () => {
     report.license = { status: 'expired', daysRemaining: -1 };
     mockCollectStatus.mockResolvedValueOnce(report);
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'doctor', '--project', '/tmp/proj']);
 
     expect(code).toBe(3);
     const lines = stdoutChunks.join('').trim().split('\n');
     const parsed = JSON.parse(lines[0]);
-    const licCheck = parsed.checks.find(
-      (c: { name: string }) => c.name === 'license not expired',
-    );
+    const licCheck = parsed.checks.find((c: { name: string }) => c.name === 'license not expired');
     expect(licCheck.ok).toBe(false);
   });
 
@@ -261,14 +211,7 @@ describe('doctor verb', () => {
 
     mockCollectStatus.mockResolvedValueOnce(healthyReport());
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'doctor', '--project', '/tmp/proj']);
 
     // The scrubber check should fail but the vi.doMock may not work
     // for dynamic imports in the same way. Verify at minimum the
@@ -291,21 +234,12 @@ describe('doctor verb', () => {
     report.directives = { count: 0, sectionPresent: false };
     mockCollectStatus.mockResolvedValueOnce(report);
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'doctor', '--project', '/tmp/proj']);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
     const parsed = JSON.parse(output);
-    const msCheck = parsed.checks.find(
-      (c: { name: string }) => c.name === 'managed section',
-    );
+    const msCheck = parsed.checks.find((c: { name: string }) => c.name === 'managed section');
     expect(msCheck.ok).toBe(true);
   });
 
@@ -322,21 +256,17 @@ describe('doctor verb', () => {
       exitCode: 113,
       stdout: '',
       stderr: 'Could not find service',
-    } as any);
+    } as unknown as ExecaResult);
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'doctor', '--project', '/tmp/proj']);
 
     expect(code).toBe(3);
     const stderrOutput = stderrChunks.join('');
     expect(stderrOutput).toContain('installed');
     expect(stderrOutput).toContain('hooks wired');
-    expect(stderrOutput).toContain('scheduler effective');
+    if (process.platform === 'darwin') {
+      expect(stderrOutput).toContain('scheduler effective');
+    }
     expect(stderrOutput).toContain('license configured');
   });
 });
@@ -372,19 +302,10 @@ describe.skipIf(!isMacOS)('scheduler effective check — verdict branches', () =
 
   /** Helper: run doctor in JSON mode and return the scheduler effective check */
   async function runDoctorAndGetSchedulerCheck() {
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'doctor',
-      '--project',
-      '/tmp/proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'doctor', '--project', '/tmp/proj']);
     const lines = stdoutChunks.join('').trim().split('\n');
     const parsed = JSON.parse(lines[0]!);
-    const check = parsed.checks.find(
-      (c: { name: string }) => c.name === 'scheduler effective',
-    );
+    const check = parsed.checks.find((c: { name: string }) => c.name === 'scheduler effective');
     return { code, check };
   }
 
@@ -394,7 +315,7 @@ describe.skipIf(!isMacOS)('scheduler effective check — verdict branches', () =
       exitCode: 113,
       stdout: '',
       stderr: 'Could not find service "gui/501/com.auto-sop.learner"',
-    } as any);
+    } as unknown as ExecaResult);
 
     const { check } = await runDoctorAndGetSchedulerCheck();
     expect(check.ok).toBe(false);
@@ -407,7 +328,7 @@ describe.skipIf(!isMacOS)('scheduler effective check — verdict branches', () =
       exitCode: 0,
       stdout: 'some garbage output with no known fields',
       stderr: '',
-    } as any);
+    } as unknown as ExecaResult);
 
     const { check } = await runDoctorAndGetSchedulerCheck();
     expect(check.ok).toBe(false);
@@ -425,11 +346,11 @@ describe.skipIf(!isMacOS)('scheduler effective check — verdict branches', () =
         '  run interval = 3600 seconds',
       ].join('\n'),
       stderr: '',
-    } as any);
+    } as unknown as ExecaResult);
     // version.txt modified 10 min ago
     mockStat.mockResolvedValueOnce({
       mtimeMs: Date.now() - 10 * 60000,
-    } as any);
+    } as unknown as ExecaResult);
 
     const { check } = await runDoctorAndGetSchedulerCheck();
     expect(check.ok).toBe(true);
@@ -447,11 +368,11 @@ describe.skipIf(!isMacOS)('scheduler effective check — verdict branches', () =
         '  run interval = 3600 seconds',
       ].join('\n'),
       stderr: '',
-    } as any);
+    } as unknown as ExecaResult);
     // version.txt modified 120 min ago
     mockStat.mockResolvedValueOnce({
       mtimeMs: Date.now() - 120 * 60000,
-    } as any);
+    } as unknown as ExecaResult);
 
     const { check } = await runDoctorAndGetSchedulerCheck();
     expect(check.ok).toBe(false);
@@ -462,13 +383,9 @@ describe.skipIf(!isMacOS)('scheduler effective check — verdict branches', () =
     mockCollectStatus.mockResolvedValueOnce(healthyReport());
     mockExeca.mockResolvedValueOnce({
       exitCode: 0,
-      stdout: [
-        '  state = not running',
-        '  runs = 5',
-        '  last exit code = 0',
-      ].join('\n'),
+      stdout: ['  state = not running', '  runs = 5', '  last exit code = 0'].join('\n'),
       stderr: '',
-    } as any);
+    } as unknown as ExecaResult);
 
     const { check } = await runDoctorAndGetSchedulerCheck();
     expect(check.ok).toBe(true);
@@ -479,13 +396,9 @@ describe.skipIf(!isMacOS)('scheduler effective check — verdict branches', () =
     mockCollectStatus.mockResolvedValueOnce(healthyReport());
     mockExeca.mockResolvedValueOnce({
       exitCode: 0,
-      stdout: [
-        '  state = not running',
-        '  runs = 3',
-        '  last exit code = 127',
-      ].join('\n'),
+      stdout: ['  state = not running', '  runs = 3', '  last exit code = 127'].join('\n'),
       stderr: '',
-    } as any);
+    } as unknown as ExecaResult);
 
     const { check } = await runDoctorAndGetSchedulerCheck();
     expect(check.ok).toBe(false);
@@ -496,13 +409,11 @@ describe.skipIf(!isMacOS)('scheduler effective check — verdict branches', () =
     mockCollectStatus.mockResolvedValueOnce(healthyReport());
     mockExeca.mockResolvedValueOnce({
       exitCode: 0,
-      stdout: [
-        '  state = not running',
-        '  runs = 0',
-        '  last exit code = (never exited)',
-      ].join('\n'),
+      stdout: ['  state = not running', '  runs = 0', '  last exit code = (never exited)'].join(
+        '\n',
+      ),
       stderr: '',
-    } as any);
+    } as unknown as ExecaResult);
     // version.txt does not exist
     mockStat.mockRejectedValueOnce(new Error('ENOENT'));
 

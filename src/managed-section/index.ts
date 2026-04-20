@@ -26,12 +26,7 @@ export {
 export type { MarkerLocation } from './markers.js';
 
 // E1 — hash store for drift detection
-export {
-  readLastHash,
-  writeLastHash,
-  clearLastHash,
-  sha256,
-} from './hash-store.js';
+export { readLastHash, writeLastHash, clearLastHash, sha256 } from './hash-store.js';
 
 export type { HashRecord } from './hash-store.js';
 

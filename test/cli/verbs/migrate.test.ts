@@ -60,17 +60,7 @@ vi.mock('../../../src/scheduler/index.js', () => ({
 }));
 
 // Helpers to configure filesystem mock state
-function dirExists(path: string): void {
-  mockStat.mockImplementation((p: string) => {
-    if (p === path) return Promise.resolve({ isDirectory: () => true });
-    return Promise.reject(new Error('ENOENT'));
-  });
-}
-
-function setupFs(opts: {
-  dirsExist?: string[];
-  filesExist?: Record<string, string>;
-}) {
+function setupFs(opts: { dirsExist?: string[]; filesExist?: Record<string, string> }) {
   const dirs = new Set(opts.dirsExist ?? []);
   const files = opts.filesExist ?? {};
 
@@ -152,10 +142,7 @@ describe('migrate verb', () => {
     const code = await runCli(['node', 'auto-sop', 'migrate', '--json']);
     expect(code).toBe(0);
 
-    expect(mockRename).toHaveBeenCalledWith(
-      '/mock-home/.claude-sop',
-      '/mock-home/.auto-sop',
-    );
+    expect(mockRename).toHaveBeenCalledWith('/mock-home/.claude-sop', '/mock-home/.auto-sop');
 
     const output = JSON.parse(stdoutChunks.join(''));
     const homeStep = output.steps.find((s: { step: string }) => s.step === 'move-home');

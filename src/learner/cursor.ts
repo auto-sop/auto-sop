@@ -70,10 +70,7 @@ export function writeCursor(stateDir: string, cursor: LearnerCursor): void {
  * Acquire cursor lock, run fn with read/write access, release lock.
  * Returns null if lock can't be acquired within ~2s (fail-open for overlapping ticks).
  */
-export function withCursorLock<T>(
-  stateDir: string,
-  fn: () => T,
-): T | null {
+export function withCursorLock<T>(stateDir: string, fn: () => T): T | null {
   mkdirSync(stateDir, { recursive: true });
 
   const lockPath = cursorLockPath(stateDir);

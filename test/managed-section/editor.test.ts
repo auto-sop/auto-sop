@@ -1,12 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  existsSync,
-  statSync,
-  readdirSync,
-} from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -40,8 +33,7 @@ describe('ManagedSectionEditor', () => {
   });
 
   const claudeMd = () => join(projectRoot, 'CLAUDE.md');
-  const backupPath = () =>
-    join(projectRoot, '.auto-sop', 'state', 'CLAUDE.md.backup');
+  const backupPath = () => join(projectRoot, '.auto-sop', 'state', 'CLAUDE.md.backup');
 
   // ─── 1. Create from scratch ─────────────────────────
 
@@ -67,14 +59,9 @@ describe('ManagedSectionEditor', () => {
 
   it('updates existing managed section, preserves surrounding content', () => {
     const userContent = '# My Project\n\nUser rules here.\n\n';
-    const initialSection = [
-      BEGIN_MARKER,
-      GENERATED_COMMENT,
-      '',
-      'Old body',
-      '',
-      END_MARKER,
-    ].join('\n');
+    const initialSection = [BEGIN_MARKER, GENERATED_COMMENT, '', 'Old body', '', END_MARKER].join(
+      '\n',
+    );
     writeFileSync(claudeMd(), userContent + initialSection + '\n');
 
     const result = writeManagedSection({
@@ -293,14 +280,9 @@ describe('ManagedSectionEditor', () => {
 
   it('removeManagedSection removes section and preserves surrounding content', () => {
     const userContent = '# My Project\n\nUser content.\n\n';
-    const section = [
-      BEGIN_MARKER,
-      GENERATED_COMMENT,
-      '',
-      'managed body',
-      '',
-      END_MARKER,
-    ].join('\n');
+    const section = [BEGIN_MARKER, GENERATED_COMMENT, '', 'managed body', '', END_MARKER].join(
+      '\n',
+    );
     writeFileSync(claudeMd(), userContent + section + '\n');
 
     removeManagedSection(projectRoot);
@@ -372,14 +354,7 @@ describe('ManagedSectionEditor', () => {
   // ─── 19. Section at exact end of file (no trailing newline) ───
 
   it('handles section at end of file with no trailing newline', () => {
-    const section = [
-      BEGIN_MARKER,
-      GENERATED_COMMENT,
-      '',
-      'body here',
-      '',
-      END_MARKER,
-    ].join('\n');
+    const section = [BEGIN_MARKER, GENERATED_COMMENT, '', 'body here', '', END_MARKER].join('\n');
     // No trailing newline
     writeFileSync(claudeMd(), '# Top\n\n' + section);
 

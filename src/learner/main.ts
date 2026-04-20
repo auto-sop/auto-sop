@@ -6,8 +6,8 @@
  * ~/.auto-sop/logs/errors.log as one-line JSON, then process exits 0.
  * No non-zero exit path anywhere.
  */
-import { existsSync, mkdirSync, appendFileSync, writeFileSync, unlinkSync, statSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
+import { existsSync, mkdirSync, appendFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { lockSync, unlockSync, checkSync } from 'proper-lockfile';
 import { readRegistry, validateProjectRoot } from './project-registry.js';
@@ -29,10 +29,7 @@ import {
   countBashFailureCandidates,
   countEditFailureCandidates,
 } from './detectors/index.js';
-import {
-  DirectiveProposal,
-  type DirectiveProposalType,
-} from './directive-schema.js';
+import { DirectiveProposal, type DirectiveProposalType } from './directive-schema.js';
 import { runLlmAnalysis } from './llm-mode.js';
 import { mergeProposalsWithDedup } from './merge-proposals.js';
 
@@ -66,10 +63,7 @@ const MAX_TURNS_FIRST_RUN = 500;
  * the exact shape without spinning up a full learner tick. Pure —
  * depends only on arguments + Date.now().
  */
-export function buildHardTimeoutSummary(
-  tickId: string,
-  tickStart: number,
-): TickSummary {
+export function buildHardTimeoutSummary(tickId: string, tickStart: number): TickSummary {
   return {
     v: 1,
     t: new Date().toISOString(),
@@ -148,11 +142,12 @@ function logError(kind: string, err: unknown, home?: string): void {
   try {
     const logDir = join(home ?? homedir(), '.auto-sop', 'logs');
     mkdirSync(logDir, { recursive: true });
-    const line = JSON.stringify({
-      t: new Date().toISOString(),
-      kind,
-      err: err instanceof Error ? err.message : String(err),
-    }) + '\n';
+    const line =
+      JSON.stringify({
+        t: new Date().toISOString(),
+        kind,
+        err: err instanceof Error ? err.message : String(err),
+      }) + '\n';
     appendFileSync(join(logDir, 'errors.log'), line, { mode: 0o600 });
   } catch {
     // Error logging must never itself throw
@@ -235,11 +230,7 @@ export async function main(): Promise<void> {
     // Best-effort: log + write a partial recap summary so observers
     // can distinguish "learner crashed" from "learner was killed by
     // the watchdog after running too long".
-    logError(
-      'learner_hard_timeout',
-      `learner tick exceeded ${HARD_TIMEOUT_MS}ms budget`,
-      home,
-    );
+    logError('learner_hard_timeout', `learner tick exceeded ${HARD_TIMEOUT_MS}ms budget`, home);
     try {
       appendRecap(buildHardTimeoutSummary(tickId, tickStart), home);
     } catch (err) {
@@ -345,16 +336,18 @@ export async function runLearnerTick(
           finalization_failures_new: 0, // not tracked yet
           skipped_poison: scan.skipped_poison,
           oldest_new_turn_at: scan.turns.length > 0 ? scan.turns[0]!.finalized_at : null,
-          newest_new_turn_at: scan.turns.length > 0 ? scan.turns[scan.turns.length - 1]!.finalized_at : null,
+          newest_new_turn_at:
+            scan.turns.length > 0 ? scan.turns[scan.turns.length - 1]!.finalized_at : null,
           duration_ms: Date.now() - projectStart,
           llm_mode: false,
         };
 
         // Update cursor
         const newCursor = {
-          last_finalized_at: scan.turns.length > 0
-            ? scan.turns[scan.turns.length - 1]!.finalized_at
-            : cursor.last_finalized_at,
+          last_finalized_at:
+            scan.turns.length > 0
+              ? scan.turns[scan.turns.length - 1]!.finalized_at
+              : cursor.last_finalized_at,
           total_turns_seen: cursor.total_turns_seen + scan.turns.length,
           last_tick_id: tickId,
           updated_at: now,
@@ -443,8 +436,7 @@ export async function runLearnerTick(
       let candidateCount = 0;
       try {
         candidateCount =
-          countBashFailureCandidates(turnData) +
-          countEditFailureCandidates(turnData);
+          countBashFailureCandidates(turnData) + countEditFailureCandidates(turnData);
       } catch (err) {
         logError('candidate_count_failed', err, home);
       }
@@ -509,12 +501,10 @@ export async function runLearnerTick(
           // prompt accurately reports "N turns from M sessions" rather than
           // treating every turn as its own session.
           const sessionCount = new Set(turnData.map((t) => t.session_id)).size;
-          llmResult = await runLlmAnalysis(
-            turnData,
-            project.slug,
-            sessionCount,
-            { offline: isOffline, timeout: LLM_SPAWN_TIMEOUT_MS },
-          );
+          llmResult = await runLlmAnalysis(turnData, project.slug, sessionCount, {
+            offline: isOffline,
+            timeout: LLM_SPAWN_TIMEOUT_MS,
+          });
           if (llmResult.error !== null && !isOffline) {
             logError('learner_llm_error', llmResult.error, home);
           }
@@ -527,10 +517,7 @@ export async function runLearnerTick(
       // Merge rule-based + LLM proposals. On LLM failure, llmResult.proposals
       // is empty so the merger degrades gracefully to rule-only output.
       // E4: capture semantic-dedup count so it surfaces in the recap.
-      const mergeResult = mergeProposalsWithDedup(
-        ruleProposals,
-        llmResult.proposals,
-      );
+      const mergeResult = mergeProposalsWithDedup(ruleProposals, llmResult.proposals);
       const mergedProposals = mergeResult.proposals;
       result.merge_deduped_count = mergeResult.dedupedCount;
 
@@ -556,8 +543,7 @@ export async function runLearnerTick(
             config: getDirectiveConfig(),
           });
           activeEntries = hist.active;
-          result.directives_pruned_count =
-            mergedProposals.length - hist.active.length;
+          result.directives_pruned_count = mergedProposals.length - hist.active.length;
         } catch (err) {
           // History failure is non-fatal — fall back to rendering the
           // merged proposals directly so we don't silently drop a tick.
@@ -571,8 +557,10 @@ export async function runLearnerTick(
       // (git-busy or error path) we pass mergedProposals directly.
       // V20: uses buildRenderProposals which synthesizes from history
       // when no matching mergedProposal exists (fixes zero-turn restore bug).
-      const renderProposals: DirectiveProposalType[] =
-        buildRenderProposals(activeEntries, mergedProposals);
+      const renderProposals: DirectiveProposalType[] = buildRenderProposals(
+        activeEntries,
+        mergedProposals,
+      );
 
       try {
         const directiveContent = buildDirectiveBody(
@@ -584,9 +572,7 @@ export async function runLearnerTick(
           // Only render the AI analysis line when the LLM actually ran
           // AND produced a summary. Suppress on fallback so stale
           // context doesn't bleed across ticks.
-          !isOffline && llmResult.error === null
-            ? llmResult.summary
-            : undefined,
+          !isOffline && llmResult.error === null ? llmResult.summary : undefined,
           // B4: data-anchored timestamp — identical scan inputs yield
           // byte-identical bodies, so the managed-section editor
           // reports verdict='unchanged' when nothing new has happened.
@@ -595,7 +581,9 @@ export async function runLearnerTick(
         const writeResult = writeManagedSection({
           projectRoot: validRoot,
           content: directiveContent,
-          dryRun: process.env.AUTO_SOP_LEARNER_DRY_RUN === '1' || process.env.CLAUDE_SOP_LEARNER_DRY_RUN === '1',
+          dryRun:
+            process.env.AUTO_SOP_LEARNER_DRY_RUN === '1' ||
+            process.env.CLAUDE_SOP_LEARNER_DRY_RUN === '1',
           // Forward structured editor events
           // (managed_section_drift_detected / managed_section_skip_git_state)
           // into the learner's existing errors.log.
@@ -624,9 +612,7 @@ export async function runLearnerTick(
       // and the cap. Computed as "rendered items whose id came from the
       // LLM set".
       const llmIds = new Set(llmResult.proposals.map((p) => p.id));
-      result.llm_directives_accepted = renderProposals.filter((p) =>
-        llmIds.has(p.id),
-      ).length;
+      result.llm_directives_accepted = renderProposals.filter((p) => llmIds.has(p.id)).length;
       result.llm_directives_rejected =
         llmResult.proposals.length - (result.llm_directives_accepted ?? 0);
       result.llm_error = llmResult.error;
@@ -696,7 +682,8 @@ if (process.env.VITEST !== 'true') {
       mkdirSync(logDir, { recursive: true });
       appendFileSync(
         join(logDir, 'errors.log'),
-        JSON.stringify({ t: new Date().toISOString(), kind: 'learner_fatal', err: String(err) }) + '\n',
+        JSON.stringify({ t: new Date().toISOString(), kind: 'learner_fatal', err: String(err) }) +
+          '\n',
         { mode: 0o600 },
       );
     } catch {

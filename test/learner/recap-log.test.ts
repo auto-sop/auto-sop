@@ -1,8 +1,23 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, mkdirSync, writeFileSync, statSync, existsSync } from 'node:fs';
+import {
+  mkdtempSync,
+  rmSync,
+  readFileSync,
+  mkdirSync,
+  statSync,
+  existsSync,
+  openSync,
+  writeSync,
+  closeSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { appendRecap, recapLogPath, type PerProjectRecap, type TickSummary } from '../../src/learner/recap-log.js';
+import {
+  appendRecap,
+  recapLogPath,
+  type PerProjectRecap,
+  type TickSummary,
+} from '../../src/learner/recap-log.js';
 
 describe('recap-log', () => {
   let tmpHome: string;
@@ -81,11 +96,11 @@ describe('recap-log', () => {
 
     // Create file > 10MB
     const chunk = 'x'.repeat(1024) + '\n';
-    const fd = require('node:fs').openSync(logPath, 'w');
+    const fd = openSync(logPath, 'w');
     for (let i = 0; i < 11 * 1024; i++) {
-      require('node:fs').writeSync(fd, chunk);
+      writeSync(fd, chunk);
     }
-    require('node:fs').closeSync(fd);
+    closeSync(fd);
 
     const sizeBefore = statSync(logPath).size;
     expect(sizeBefore).toBeGreaterThan(10_000_000);

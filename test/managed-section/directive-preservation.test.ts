@@ -10,13 +10,7 @@
  *   - extractDirectivesFromBody handles empty body
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-  existsSync,
-  mkdirSync,
-} from 'node:fs';
+import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -27,7 +21,6 @@ import {
   saveHistory,
   emptyHistory,
   updateFromProposals,
-  type DirectiveHistoryEntry,
   type DirectiveProposalLike,
 } from '../../src/managed-section/directive-history.js';
 
@@ -35,9 +28,7 @@ function makeTmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'auto-sop-i9-'));
 }
 
-function makeProposal(
-  overrides: Partial<DirectiveProposalLike> = {},
-): DirectiveProposalLike {
+function makeProposal(overrides: Partial<DirectiveProposalLike> = {}): DirectiveProposalLike {
   return {
     id: 'det-test-0000',
     rule_text: 'Default rule text body long enough to pass min length check.',
@@ -142,9 +133,21 @@ describe('loadActiveDirectives', () => {
     const history = updateFromProposals(
       emptyHistory(),
       [
-        makeProposal({ id: 'det-info', severity: 'info', rule_text: 'Info directive that is long enough to pass.' }),
-        makeProposal({ id: 'det-error', severity: 'error', rule_text: 'Error directive that is long enough to pass.' }),
-        makeProposal({ id: 'det-warn', severity: 'warning', rule_text: 'Warning directive that is long enough.' }),
+        makeProposal({
+          id: 'det-info',
+          severity: 'info',
+          rule_text: 'Info directive that is long enough to pass.',
+        }),
+        makeProposal({
+          id: 'det-error',
+          severity: 'error',
+          rule_text: 'Error directive that is long enough to pass.',
+        }),
+        makeProposal({
+          id: 'det-warn',
+          severity: 'warning',
+          rule_text: 'Warning directive that is long enough.',
+        }),
       ],
       '2026-01-01T00:00:00.000Z',
     );

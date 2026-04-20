@@ -17,8 +17,12 @@ vi.mock('../../../src/path-resolver/identity.js', () => ({
 
 vi.mock('../../../src/path-resolver/git-runner.js', () => ({
   RealGitRunner: class {
-    async remoteOriginUrl() { return null; }
-    async toplevel() { return null; }
+    async remoteOriginUrl() {
+      return null;
+    }
+    async toplevel() {
+      return null;
+    }
   },
 }));
 
@@ -112,9 +116,7 @@ describe('uninstall verb', () => {
     const program = makeProgram();
     await program.parseAsync(['node', 'auto-sop', 'uninstall', '--purge']);
 
-    expect(mockRunUninstall).toHaveBeenCalledWith(
-      expect.objectContaining({ purge: true }),
-    );
+    expect(mockRunUninstall).toHaveBeenCalledWith(expect.objectContaining({ purge: true }));
   });
 
   it('--json mode emits JSON with ok: true when no warnings', async () => {

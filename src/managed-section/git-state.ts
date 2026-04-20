@@ -18,12 +18,7 @@ import { join, isAbsolute } from 'node:path';
 // Files/directories whose presence indicates an in-progress operation.
 // Sourced from the canonical names git uses for each operation type.
 const GIT_BUSY_DIRS = ['rebase-merge', 'rebase-apply'] as const;
-const GIT_BUSY_FILES = [
-  'MERGE_HEAD',
-  'CHERRY_PICK_HEAD',
-  'BISECT_LOG',
-  'REVERT_HEAD',
-] as const;
+const GIT_BUSY_FILES = ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'BISECT_LOG', 'REVERT_HEAD'] as const;
 
 function assertNoTraversal(projectRoot: string): void {
   if (!isAbsolute(projectRoot)) {

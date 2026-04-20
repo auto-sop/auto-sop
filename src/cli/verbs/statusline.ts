@@ -56,11 +56,7 @@ function getProjectRoot(opts: { project?: string }): string {
       const input = readFileSync('/dev/stdin', 'utf8');
       if (input.trim().length > 0) {
         const parsed: unknown = JSON.parse(input);
-        if (
-          typeof parsed === 'object' &&
-          parsed !== null &&
-          'workspace' in parsed
-        ) {
+        if (typeof parsed === 'object' && parsed !== null && 'workspace' in parsed) {
           const ws = (parsed as { workspace?: unknown }).workspace;
           if (
             typeof ws === 'object' &&
@@ -112,17 +108,13 @@ function detectHooks(projectRoot: string): boolean {
           !Array.isArray((entry as Record<string, unknown>).hooks)
         )
           continue;
-        for (const hook of (entry as Record<string, unknown>)
-          .hooks as unknown[]) {
+        for (const hook of (entry as Record<string, unknown>).hooks as unknown[]) {
           if (
             typeof hook === 'object' &&
             hook !== null &&
             typeof (hook as Record<string, unknown>).command === 'string' &&
-            (((hook as Record<string, unknown>).command as string).includes(
-              'auto-sop',
-            ) || ((hook as Record<string, unknown>).command as string).includes(
-              'claude-sop',
-            ))
+            (((hook as Record<string, unknown>).command as string).includes('auto-sop') ||
+              ((hook as Record<string, unknown>).command as string).includes('claude-sop'))
           ) {
             return true;
           }

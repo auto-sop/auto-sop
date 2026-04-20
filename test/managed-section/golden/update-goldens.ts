@@ -39,10 +39,7 @@ function loadInput(name: string): string | null {
 
 function main(): void {
   if (process.env['GOLDEN_UPDATE'] !== '1') {
-    // eslint-disable-next-line no-console
-    console.error(
-      'Refusing to regenerate golden expected outputs without GOLDEN_UPDATE=1.',
-    );
+    console.error('Refusing to regenerate golden expected outputs without GOLDEN_UPDATE=1.');
     process.exit(1);
   }
 
@@ -52,10 +49,7 @@ function main(): void {
     const bytes = Buffer.from(rendered, 'utf-8');
     const target = join(here, `${fx.name}.expected.md`);
     writeFileSync(target, bytes);
-    // eslint-disable-next-line no-console
-    console.log(
-      `wrote ${fx.name}.expected.md (${bytes.length} bytes) — ${fx.describe}`,
-    );
+    console.log(`wrote ${fx.name}.expected.md (${bytes.length} bytes) — ${fx.describe}`);
   }
 }
 

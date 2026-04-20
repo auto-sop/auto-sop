@@ -3,7 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('execa', () => ({ execa: vi.fn() }));
 
 import { execa } from 'execa';
-import { windowsTaskScheduler, parseCsvLine, TASK_NAME } from '../../src/scheduler/windows-task-scheduler.js';
+import {
+  windowsTaskScheduler,
+  parseCsvLine,
+  TASK_NAME,
+} from '../../src/scheduler/windows-task-scheduler.js';
 
 const mockExeca = vi.mocked(execa);
 
@@ -31,9 +35,12 @@ describe('windowsTaskScheduler', () => {
 
       expect(mockExeca).toHaveBeenCalledWith('schtasks', [
         '/Create',
-        '/TN', 'auto-sop-learner',
-        '/SC', 'HOURLY',
-        '/TR', expect.stringContaining('tick.cmd'),
+        '/TN',
+        'auto-sop-learner',
+        '/SC',
+        'HOURLY',
+        '/TR',
+        expect.stringContaining('tick.cmd'),
         '/F',
       ]);
     });
@@ -52,13 +59,16 @@ describe('windowsTaskScheduler', () => {
   describe('uninstall', () => {
     it('calls schtasks /Delete and returns no warnings on success', async () => {
       mockExeca.mockResolvedValueOnce({ exitCode: 0, stderr: '' } as never);
-      const result = await windowsTaskScheduler.uninstall({ homeDir: 'C:\\Users\\alice', user: 'alice' });
+      const result = await windowsTaskScheduler.uninstall({
+        homeDir: 'C:\\Users\\alice',
+        user: 'alice',
+      });
 
-      expect(mockExeca).toHaveBeenCalledWith('schtasks', [
-        '/Delete',
-        '/TN', 'auto-sop-learner',
-        '/F',
-      ], { reject: false });
+      expect(mockExeca).toHaveBeenCalledWith(
+        'schtasks',
+        ['/Delete', '/TN', 'auto-sop-learner', '/F'],
+        { reject: false },
+      );
       expect(result.warnings).toHaveLength(0);
     });
 
@@ -67,7 +77,10 @@ describe('windowsTaskScheduler', () => {
         exitCode: 1,
         stderr: 'ERROR: The system cannot find the file specified.',
       } as never);
-      const result = await windowsTaskScheduler.uninstall({ homeDir: 'C:\\Users\\alice', user: 'alice' });
+      const result = await windowsTaskScheduler.uninstall({
+        homeDir: 'C:\\Users\\alice',
+        user: 'alice',
+      });
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0]).toContain('cannot find');
     });
@@ -76,7 +89,10 @@ describe('windowsTaskScheduler', () => {
   describe('status', () => {
     it('returns installed=false when schtasks /Query fails', async () => {
       mockExeca.mockResolvedValueOnce({ exitCode: 1, stdout: '', stderr: '' } as never);
-      const result = await windowsTaskScheduler.status({ homeDir: 'C:\\Users\\alice', user: 'alice' });
+      const result = await windowsTaskScheduler.status({
+        homeDir: 'C:\\Users\\alice',
+        user: 'alice',
+      });
       expect(result.installed).toBe(false);
       expect(result.backend).toBe('task-scheduler');
     });
@@ -92,7 +108,10 @@ describe('windowsTaskScheduler', () => {
         stdout: csvOutput,
       } as never);
 
-      const result = await windowsTaskScheduler.status({ homeDir: 'C:\\Users\\alice', user: 'alice' });
+      const result = await windowsTaskScheduler.status({
+        homeDir: 'C:\\Users\\alice',
+        user: 'alice',
+      });
       expect(result.installed).toBe(true);
       expect(result.backend).toBe('task-scheduler');
       expect(result.lastExitCode).toBe(0);
@@ -111,7 +130,10 @@ describe('windowsTaskScheduler', () => {
         stdout: csvOutput,
       } as never);
 
-      const result = await windowsTaskScheduler.status({ homeDir: 'C:\\Users\\alice', user: 'alice' });
+      const result = await windowsTaskScheduler.status({
+        homeDir: 'C:\\Users\\alice',
+        user: 'alice',
+      });
       expect(result.installed).toBe(true);
       expect(result.lastTickAt).toBeNull();
       expect(result.lastExitCode).toBe(267011);
@@ -142,10 +164,7 @@ describe('windowsTaskScheduler', () => {
     });
 
     it('handles escaped double-quotes inside quoted fields', () => {
-      expect(parseCsvLine('"say ""hello""",done')).toEqual([
-        'say "hello"',
-        'done',
-      ]);
+      expect(parseCsvLine('"say ""hello""",done')).toEqual(['say "hello"', 'done']);
     });
 
     it('parses real schtasks CSV header line', () => {

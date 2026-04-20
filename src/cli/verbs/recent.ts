@@ -17,7 +17,7 @@ import type { Command } from 'commander';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import pc from 'picocolors';
-import { renderTable } from '../output/human.js';
+
 import { emit } from '../output/json.js';
 import { scanNewTurns, type TurnSummary } from '../../learner/turn-scanner.js';
 
@@ -64,12 +64,8 @@ function validateProjectPath(input: string): string | null {
 // ── Turn display ───────────────────────────────────────────
 
 function formatTurnRow(turn: TurnSummary): string[] {
-  const time = turn.finalized_at
-    ? new Date(turn.finalized_at).toLocaleTimeString()
-    : '-';
-  const sessionShort = turn.turn_id.length > 8
-    ? turn.turn_id.slice(0, 8)
-    : turn.turn_id;
+  const time = turn.finalized_at ? new Date(turn.finalized_at).toLocaleTimeString() : '-';
+  const sessionShort = turn.turn_id.length > 8 ? turn.turn_id.slice(0, 8) : turn.turn_id;
 
   return [
     time,
@@ -94,9 +90,7 @@ function printTurnsTable(turns: TurnSummary[]): void {
   });
 
   // Print header
-  const headerLine = headers
-    .map((h, i) => pc.dim(h.padEnd(maxLens[i]!)))
-    .join('  ');
+  const headerLine = headers.map((h, i) => pc.dim(h.padEnd(maxLens[i]!))).join('  ');
   process.stdout.write(headerLine + '\n');
   process.stdout.write(pc.dim('─'.repeat(headerLine.length)) + '\n');
 
@@ -132,9 +126,7 @@ export function registerRecentVerb(program: Command): void {
       const projectInput = opts.project ?? process.cwd();
       const projectPath = validateProjectPath(projectInput);
       if (!projectPath) {
-        process.stderr.write(
-          pc.red(`error: project directory not found: ${projectInput}\n`),
-        );
+        process.stderr.write(pc.red(`error: project directory not found: ${projectInput}\n`));
         process.exitCode = 2;
         return;
       }
@@ -185,9 +177,7 @@ export function registerRecentVerb(program: Command): void {
 
       // Human output
       if (scanResult.turns.length === 0) {
-        process.stdout.write(
-          pc.dim(`(no turns in the last ${opts.since})\n`),
-        );
+        process.stdout.write(pc.dim(`(no turns in the last ${opts.since})\n`));
         return;
       }
 

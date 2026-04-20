@@ -6,3 +6,4 @@ coverage
 .planning/*.tmp
 *.tgz
 homebrew-tap/
+.auto-sop/

@@ -149,11 +149,7 @@ function renderTurn(turn: TurnData, opts: SerializationOptions): string {
 
   const prompt = readAndTruncate(turnDir, 'prompt.md', opts.maxPromptChars);
   const response = readAndTruncate(turnDir, 'response.md', opts.maxResponseChars);
-  const filesChanged = readAndTruncate(
-    turnDir,
-    'files-changed.txt',
-    FILES_CHANGED_CAP_CHARS,
-  );
+  const filesChanged = readAndTruncate(turnDir, 'files-changed.txt', FILES_CHANGED_CAP_CHARS);
   const tools = renderToolCalls(turn.tool_calls, opts.maxToolInputChars);
 
   return (
@@ -191,10 +187,7 @@ function renderToolCalls(calls: ToolCall[], maxInputChars: number): string {
   return `\n${lines.join('\n')}`;
 }
 
-function summarizeInput(
-  input: Record<string, unknown> | undefined,
-  maxChars: number,
-): string {
+function summarizeInput(input: Record<string, unknown> | undefined, maxChars: number): string {
   if (!input) return '(no input)';
   const entries = Object.entries(input);
   if (entries.length === 0) return '(empty input)';
@@ -214,11 +207,7 @@ function safeStringify(v: unknown): string {
   }
 }
 
-function readAndTruncate(
-  turnDir: string | undefined,
-  fileName: string,
-  maxChars: number,
-): string {
+function readAndTruncate(turnDir: string | undefined, fileName: string, maxChars: number): string {
   if (!turnDir) return '[not available]';
   try {
     const raw = readFileSync(join(turnDir, fileName), 'utf8');

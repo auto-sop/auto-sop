@@ -29,12 +29,12 @@ import {
   fsyncSync,
   closeSync,
   unlinkSync,
-  chmodSync,
 } from 'node:fs';
 import path from 'node:path';
 import pc from 'picocolors';
 import { emit } from '../output/json.js';
 import { clearLastHash } from '../../managed-section/hash-store.js';
+import { getPlatform } from '../../platform/index.js';
 
 /** Format an ISO timestamp as `YYYY-MM-DD HH:MM:SS` in local time. */
 function formatLocal(iso: Date): string {
@@ -81,12 +81,7 @@ export function registerRevertVerb(program: Command): void {
       }
 
       const claudeMdPath = path.join(projectRoot, 'CLAUDE.md');
-      const backupPath = path.join(
-        projectRoot,
-        '.auto-sop',
-        'state',
-        'CLAUDE.md.backup',
-      );
+      const backupPath = path.join(projectRoot, '.auto-sop', 'state', 'CLAUDE.md.backup');
 
       // 1. Existence + emptiness check — treat a zero-byte file as "no backup".
       let backupStat: ReturnType<typeof statSync> | null = null;
@@ -125,9 +120,7 @@ export function registerRevertVerb(program: Command): void {
             error: (err as Error).message,
           });
         } else {
-          process.stderr.write(
-            pc.red(`\u2717 Failed to read backup: ${(err as Error).message}\n`),
-          );
+          process.stderr.write(pc.red(`\u2717 Failed to read backup: ${(err as Error).message}\n`));
         }
         process.exitCode = 1;
         return;
@@ -152,17 +145,14 @@ export function registerRevertVerb(program: Command): void {
             });
           } else {
             process.stderr.write(
-              pc.red(
-                `\u2717 Failed to read CLAUDE.md: ${(err as Error).message}\n`,
-              ),
+              pc.red(`\u2717 Failed to read CLAUDE.md: ${(err as Error).message}\n`),
             );
           }
           process.exitCode = 1;
           return;
         }
       }
-      const currentLines =
-        currentContent === null ? 0 : countLines(currentContent);
+      const currentLines = currentContent === null ? 0 : countLines(currentContent);
 
       // 3. Dry-run: report what would happen, touch nothing.
       if (opts.dryRun === true) {
@@ -206,7 +196,7 @@ export function registerRevertVerb(program: Command): void {
         renameSync(tmpPath, claudeMdPath);
         // Re-assert mode in case umask softened it on some FS's.
         try {
-          chmodSync(claudeMdPath, 0o644);
+          getPlatform().chmodSync(claudeMdPath, 0o644);
         } catch {
           // best-effort
         }
@@ -226,9 +216,7 @@ export function registerRevertVerb(program: Command): void {
             error: (err as Error).message,
           });
         } else {
-          process.stderr.write(
-            pc.red(`\u2717 Restore failed: ${(err as Error).message}\n`),
-          );
+          process.stderr.write(pc.red(`\u2717 Restore failed: ${(err as Error).message}\n`));
         }
         process.exitCode = 1;
         return;
@@ -244,9 +232,7 @@ export function registerRevertVerb(program: Command): void {
         // manually remove the hash file if drift-abort surfaces later.
         if (!jsonMode) {
           process.stderr.write(
-            pc.yellow(
-              `warning: failed to clear hash store: ${(err as Error).message}\n`,
-            ),
+            pc.yellow(`warning: failed to clear hash store: ${(err as Error).message}\n`),
           );
         }
       }
@@ -261,9 +247,7 @@ export function registerRevertVerb(program: Command): void {
         });
       } else {
         process.stdout.write(
-          pc.green(
-            `\u2713 Reverted CLAUDE.md from backup (taken ${backupTakenAtLabel})\n`,
-          ),
+          pc.green(`\u2713 Reverted CLAUDE.md from backup (taken ${backupTakenAtLabel})\n`),
         );
       }
     });

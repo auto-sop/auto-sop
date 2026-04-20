@@ -4,20 +4,12 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { nanoid } from 'nanoid';
-import {
-  runUninstall,
-  type UninstallOptions,
-} from '../../src/installer/uninstall-orchestrator.js';
-import {
-  MANAGED_BEGIN,
-  MANAGED_END,
-} from '../../src/installer/managed-section.js';
+import { runUninstall, type UninstallOptions } from '../../src/installer/uninstall-orchestrator.js';
+import { MANAGED_BEGIN, MANAGED_END } from '../../src/installer/managed-section.js';
 import { CLAUDE_SOP_HOOK_ID } from '../../src/installer/hook-entries.js';
 import type { SchedulerBackend } from '../../src/scheduler/types.js';
 
-function stubBackend(
-  overrides: Partial<SchedulerBackend> = {},
-): SchedulerBackend {
+function stubBackend(overrides: Partial<SchedulerBackend> = {}): SchedulerBackend {
   return {
     name: 'launchd',
     install: async () => {},
@@ -62,9 +54,7 @@ function settingsWithClaudeSopHooks(extraUserHook = false): string {
   };
   if (extraUserHook) {
     (hooks.UserPromptSubmit as unknown[]).unshift({
-      hooks: [
-        { type: 'command', command: '/usr/bin/my-hook', timeout: 5, id: 'my-custom' },
-      ],
+      hooks: [{ type: 'command', command: '/usr/bin/my-hook', timeout: 5, id: 'my-custom' }],
     });
   }
   return JSON.stringify({ hooks }, null, 2);
@@ -112,9 +102,7 @@ describe('runUninstall', () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  function baseOpts(
-    overrides: Partial<UninstallOptions> = {},
-  ): UninstallOptions {
+  function baseOpts(overrides: Partial<UninstallOptions> = {}): UninstallOptions {
     return {
       projectRoot,
       homeDir,
@@ -131,10 +119,7 @@ describe('runUninstall', () => {
     // settings.json with auto-sop hooks + a user hook
     const settingsDir = join(projectRoot, '.claude');
     await fs.mkdir(settingsDir, { recursive: true });
-    await fs.writeFile(
-      join(settingsDir, 'settings.json'),
-      settingsWithClaudeSopHooks(true),
-    );
+    await fs.writeFile(join(settingsDir, 'settings.json'), settingsWithClaudeSopHooks(true));
 
     // CLAUDE.md with managed section
     const managedContent = '\nsome managed rules\n';
@@ -152,10 +137,7 @@ describe('runUninstall', () => {
     await fs.writeFile(join(homeDir, '.auto-sop', 'secrets.enc'), 'enc');
 
     // version.txt
-    await fs.writeFile(
-      join(homeDir, '.auto-sop', 'version.txt'),
-      '1.0.0',
-    );
+    await fs.writeFile(join(homeDir, '.auto-sop', 'version.txt'), '1.0.0');
 
     // marketplace bundle
     const mktDir = join(homeDir, '.auto-sop', 'marketplace', 'auto-sop');
@@ -184,10 +166,7 @@ describe('runUninstall', () => {
 
     // settings.json no longer has auto-sop entries
     const settings = JSON.parse(
-      await fs.readFile(
-        join(projectRoot, '.claude', 'settings.json'),
-        'utf8',
-      ),
+      await fs.readFile(join(projectRoot, '.claude', 'settings.json'), 'utf8'),
     );
     // User hook still present
     expect(settings.hooks.UserPromptSubmit).toHaveLength(1);
@@ -196,29 +175,18 @@ describe('runUninstall', () => {
     expect(settings.hooks.Stop).toBeUndefined();
 
     // CLAUDE.md has no markers; user content preserved
-    const claudeMd = await fs.readFile(
-      join(projectRoot, 'CLAUDE.md'),
-      'utf8',
-    );
+    const claudeMd = await fs.readFile(join(projectRoot, 'CLAUDE.md'), 'utf8');
     expect(claudeMd).not.toContain(MANAGED_BEGIN);
     expect(claudeMd).not.toContain(MANAGED_END);
     expect(claudeMd).toContain('# User rules');
     expect(claudeMd).toContain('More user content');
 
     // tick.sh, secrets.enc, version.txt, marketplace bundle gone
+    await expect(fs.access(join(homeDir, '.auto-sop', 'bin', 'tick.sh'))).rejects.toThrow();
+    await expect(fs.access(join(homeDir, '.auto-sop', 'secrets.enc'))).rejects.toThrow();
+    await expect(fs.access(join(homeDir, '.auto-sop', 'version.txt'))).rejects.toThrow();
     await expect(
-      fs.access(join(homeDir, '.auto-sop', 'bin', 'tick.sh')),
-    ).rejects.toThrow();
-    await expect(
-      fs.access(join(homeDir, '.auto-sop', 'secrets.enc')),
-    ).rejects.toThrow();
-    await expect(
-      fs.access(join(homeDir, '.auto-sop', 'version.txt')),
-    ).rejects.toThrow();
-    await expect(
-      fs.access(
-        join(homeDir, '.auto-sop', 'marketplace', 'auto-sop', 'plugin.json'),
-      ),
+      fs.access(join(homeDir, '.auto-sop', 'marketplace', 'auto-sop', 'plugin.json')),
     ).rejects.toThrow();
 
     // Captures preserved (not purged)
@@ -237,14 +205,7 @@ describe('runUninstall', () => {
 
     // Backup path set
     expect(result.backupPath).toBe(
-      join(
-        homeDir,
-        '.claude',
-        'sop',
-        projectHash12,
-        'managed-history',
-        `uninstall-${fixedNow}.md`,
-      ),
+      join(homeDir, '.claude', 'sop', projectHash12, 'managed-history', `uninstall-${fixedNow}.md`),
     );
     const backupContent = await fs.readFile(result.backupPath!, 'utf8');
     expect(backupContent).toContain('some managed rules');
@@ -259,14 +220,10 @@ describe('runUninstall', () => {
     expect(result.steps).toHaveLength(12);
 
     // Captures wiped
-    await expect(
-      fs.access(join(projectRoot, '.auto-sop', 'captures')),
-    ).rejects.toThrow();
+    await expect(fs.access(join(projectRoot, '.auto-sop', 'captures'))).rejects.toThrow();
 
     // Global sop dir wiped (including backup — --purge implies nuke everything)
-    await expect(
-      fs.access(join(homeDir, '.claude', 'sop', projectHash12)),
-    ).rejects.toThrow();
+    await expect(fs.access(join(homeDir, '.claude', 'sop', projectHash12))).rejects.toThrow();
   });
 
   it('scheduler uninstall with warnings — warnings collected, step still ok', async () => {
@@ -274,14 +231,10 @@ describe('runUninstall', () => {
     const backend = stubBackend({
       uninstall: async () => ({ warnings: ['plist not loaded'] }),
     });
-    const result = await runUninstall(
-      baseOpts({ schedulerBackend: backend }),
-    );
+    const result = await runUninstall(baseOpts({ schedulerBackend: backend }));
 
     // The scheduler step itself is 'ok' (the backend returned, didn't throw)
-    const schedulerStep = result.steps.find(
-      (s) => s.step === 'scheduler-uninstall',
-    );
+    const schedulerStep = result.steps.find((s) => s.step === 'scheduler-uninstall');
     expect(schedulerStep?.outcome).toBe('ok');
     // But the warning is collected
     expect(result.warnings).toContain('scheduler: plist not loaded');
@@ -294,23 +247,15 @@ describe('runUninstall', () => {
         throw new Error('launchctl failed');
       },
     });
-    const result = await runUninstall(
-      baseOpts({ schedulerBackend: backend }),
-    );
+    const result = await runUninstall(baseOpts({ schedulerBackend: backend }));
 
-    const schedulerStep = result.steps.find(
-      (s) => s.step === 'scheduler-uninstall',
-    );
+    const schedulerStep = result.steps.find((s) => s.step === 'scheduler-uninstall');
     expect(schedulerStep?.outcome).toBe('warning');
-    expect(result.warnings.some((w) => w.includes('launchctl failed'))).toBe(
-      true,
-    );
+    expect(result.warnings.some((w) => w.includes('launchctl failed'))).toBe(true);
 
     // Other steps still executed
     expect(result.steps.length).toBeGreaterThanOrEqual(8);
-    const tickStep = result.steps.find(
-      (s) => s.step === 'remove-tick-script',
-    );
+    const tickStep = result.steps.find((s) => s.step === 'remove-tick-script');
     expect(tickStep?.outcome).toBe('ok');
   });
 
@@ -335,16 +280,11 @@ describe('runUninstall', () => {
 
     const result = await runUninstall(baseOpts());
 
-    const afterText = await fs.readFile(
-      join(settingsDir, 'settings.json'),
-      'utf8',
-    );
+    const afterText = await fs.readFile(join(settingsDir, 'settings.json'), 'utf8');
     const afterHash = createHash('sha256').update(afterText).digest('hex');
     expect(afterHash).toBe(originalHash);
 
-    const hookStep = result.steps.find(
-      (s) => s.step === 'strip-project-hooks',
-    );
+    const hookStep = result.steps.find((s) => s.step === 'strip-project-hooks');
     expect(hookStep?.outcome).toBe('ok');
   });
 });

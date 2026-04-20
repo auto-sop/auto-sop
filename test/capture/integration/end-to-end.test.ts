@@ -28,13 +28,7 @@ import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Writable } from 'node:stream';
 
-import {
-  runScenario,
-  waitForQuiescence,
-  walkDir,
-  walkDirs,
-  type ScenarioRun,
-} from './run-scenario.js';
+import { runScenario, walkDir, walkDirs, type ScenarioRun } from './run-scenario.js';
 
 // ── Fixture paths ──────────────────────────────────────────────────────
 const FIXTURES_DIR = resolve(__dirname, 'fixtures/sessions');
@@ -42,10 +36,7 @@ const fixture = (name: string) => join(FIXTURES_DIR, name);
 
 // ── Secret patterns from the baseline scrubber rules ──────────────────
 // These patterns are used in the scrub audit to verify no secrets leak.
-const SECRET_PATTERNS: RegExp[] = [
-  /sk-ant-[A-Za-z0-9_\-]{20,}/g,
-  /AKIA[0-9A-Z]{16}/g,
-];
+const SECRET_PATTERNS: RegExp[] = [/sk-ant-[A-Za-z0-9_-]{20,}/g, /AKIA[0-9A-Z]{16}/g];
 
 // ── Shared temp root ──────────────────────────────────────────────────
 let sharedTmpRoot: string;
@@ -70,6 +61,24 @@ function listFinalizedTurnDirs(captureDir: string): string[] {
       !name.endsWith('.pending') &&
       name !== 'yarim-kalan' &&
       statSync(join(captureDir, name)).isDirectory(),
+  );
+}
+
+/** Poll until the expected number of finalized turn dirs appear, or timeout. */
+async function waitForDirs(
+  captureDir: string,
+  expected: number,
+  timeoutMs = 10_000,
+): Promise<string[]> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const dirs = listFinalizedTurnDirs(captureDir);
+    if (dirs.length >= expected) return dirs;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const final = listFinalizedTurnDirs(captureDir);
+  throw new Error(
+    `waitForDirs timed out after ${timeoutMs}ms. Expected ${expected} dirs, got ${final.length}.`,
   );
 }
 
@@ -142,9 +151,7 @@ describe('main-only', () => {
           assert: (r) => {
             if (!existsSync(r.captureDir)) return; // captures dir might not exist yet
             const entries = readdirSync(r.captureDir);
-            const finalized = entries.filter(
-              (n) => !n.endsWith('.pending') && n !== 'yarim-kalan',
-            );
+            const finalized = entries.filter((n) => !n.endsWith('.pending') && n !== 'yarim-kalan');
             expect(
               finalized.length,
               'W2: No finalized dirs should exist while turn is in-flight',
@@ -164,7 +171,13 @@ describe('main-only', () => {
   it('turn dir contains 5 required files', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
     const turnDir = join(run.captureDir, dirs[0]);
-    const required = ['prompt.md', 'response.md', 'tool-calls.jsonl', 'files-changed.txt', 'meta.json'];
+    const required = [
+      'prompt.md',
+      'response.md',
+      'tool-calls.jsonl',
+      'files-changed.txt',
+      'meta.json',
+    ];
     for (const f of required) {
       expect(existsSync(join(turnDir, f)), `Missing: ${f}`).toBe(true);
     }
@@ -198,7 +211,10 @@ describe('main-only', () => {
     const entries = readdirSync(run.captureDir);
     const pending = entries.filter((n) => n.endsWith('.pending'));
     const finalized = entries.filter(
-      (n) => !n.endsWith('.pending') && n !== 'yarim-kalan' && statSync(join(run.captureDir, n)).isDirectory(),
+      (n) =>
+        !n.endsWith('.pending') &&
+        n !== 'yarim-kalan' &&
+        statSync(join(run.captureDir, n)).isDirectory(),
     );
     expect(pending.length).toBe(0);
     expect(finalized.length).toBe(1);
@@ -217,6 +233,8 @@ describe('main-with-subagent', () => {
       fixturePath: fixture('main-with-subagent.jsonl'),
       tmpRoot,
     });
+    // Wait for both turn dirs to finalize before tests run
+    await waitForDirs(run.captureDir, 2);
   }, 180_000);
 
   it('produces two finalized turn dirs (main + subagent)', () => {
@@ -224,7 +242,7 @@ describe('main-with-subagent', () => {
     expect(dirs.length).toBe(2);
   });
 
-  it('bidirectional linking: parent→child and child→parent (CAPT-04)', { retry: 2 }, () => {
+  it('bidirectional linking: parent→child and child→parent (CAPT-04)', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
     const metas = dirs.map((d) => readMeta(join(run.captureDir, d)));
 
@@ -241,7 +259,7 @@ describe('main-with-subagent', () => {
     expect(childMeta!.subagent_type).toBe('code-reviewer');
   });
 
-  it('dual representation: main has Task tool-call, subagent has own tool-calls (CAPT-09)', { retry: 2 }, () => {
+  it('dual representation: main has Task tool-call, subagent has own tool-calls (CAPT-09)', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
     const metas = dirs.map((d) => ({ dir: d, meta: readMeta(join(run.captureDir, d)) }));
 
@@ -512,7 +530,10 @@ describe('global mirror coverage', () => {
     expect(indexFiles.length).toBeGreaterThanOrEqual(1);
 
     const indexContent = readFileSync(indexFiles[0], 'utf8').trim();
-    const lines = indexContent.split('\n').filter((l) => l.length > 0).map((l) => JSON.parse(l));
+    const lines = indexContent
+      .split('\n')
+      .filter((l) => l.length > 0)
+      .map((l) => JSON.parse(l));
     expect(lines.length).toBeGreaterThanOrEqual(1);
 
     const entry = lines[0];

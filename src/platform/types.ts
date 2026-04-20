@@ -15,4 +15,7 @@ export interface PlatformAdapter {
 
   /** File extension for the tick wrapper script. */
   tickScriptExtension(): string;
+
+  /** Restrict file access to owner only. Uses chmod on POSIX, icacls on Windows. */
+  restrictFileAccess(filePath: string): Promise<void>;
 }

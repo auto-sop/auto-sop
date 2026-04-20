@@ -5,8 +5,7 @@ vi.mock('../../src/atomic/write.js', () => ({
   writeFileAtomic: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('node:fs', async (importOriginal) => {
-  const orig =
-    (await importOriginal()) as typeof import('node:fs');
+  const orig = (await importOriginal()) as typeof import('node:fs');
   return {
     ...orig,
     promises: {
@@ -23,6 +22,7 @@ import { writeFileAtomic } from '../../src/atomic/write.js';
 import { macosLaunchd, renderPlist } from '../../src/scheduler/macos-launchd.js';
 
 const mockExeca = vi.mocked(execa);
+type ExecaResult = Awaited<ReturnType<typeof execa>>;
 const mockWriteFileAtomic = vi.mocked(writeFileAtomic);
 const mockAccess = vi.mocked(fs.access);
 const mockRm = vi.mocked(fs.rm);
@@ -52,9 +52,7 @@ describe('renderPlist', () => {
     expect(plist).not.toContain('<key>StartInterval</key>');
     expect(plist).not.toContain('<key>RunAtLoad</key>');
     expect(plist).toContain('<string>/bin/sh</string>');
-    expect(plist).toContain(
-      '<string>/Users/alice/.auto-sop/bin/tick.sh</string>',
-    );
+    expect(plist).toContain('<string>/Users/alice/.auto-sop/bin/tick.sh</string>');
     expect(plist).toContain('<string>Background</string>');
     expect(plist).toContain('CLAUDE_SOP_CAPTURE_SUPPRESS');
     expect(plist).toContain('CLAUDE_SOP_LEARNER'); // legacy, backward compat
@@ -81,7 +79,7 @@ describe('macosLaunchd', () => {
       ...process,
       getuid: () => TEST_UID,
     });
-    mockExeca.mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' } as any);
+    mockExeca.mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult);
   });
 
   describe('install', () => {
@@ -91,9 +89,7 @@ describe('macosLaunchd', () => {
       // writeFileAtomic called with plist path and StartCalendarInterval
       expect(mockWriteFileAtomic).toHaveBeenCalledOnce();
       const [plistPath, content] = mockWriteFileAtomic.mock.calls[0]!;
-      expect(plistPath).toBe(
-        '/Users/alice/Library/LaunchAgents/com.auto-sop.learner.plist',
-      );
+      expect(plistPath).toBe('/Users/alice/Library/LaunchAgents/com.auto-sop.learner.plist');
       expect(content).toContain('<key>StartCalendarInterval</key>');
       expect(content).not.toContain('<key>StartInterval</key>');
 
@@ -136,12 +132,16 @@ describe('macosLaunchd', () => {
     it('falls back to load -w when bootstrap fails', async () => {
       // bootstrap returns non-zero on first call
       mockExeca
-        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // legacy bootout
-        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // bootout
-        .mockResolvedValueOnce({ exitCode: 113, stdout: '', stderr: 'bootstrap unsupported' } as any) // bootstrap fails
-        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // load -w fallback
-        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // enable
-        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any); // kickstart
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult) // legacy bootout
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult) // bootout
+        .mockResolvedValueOnce({
+          exitCode: 113,
+          stdout: '',
+          stderr: 'bootstrap unsupported',
+        } as unknown as ExecaResult) // bootstrap fails
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult) // load -w fallback
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult) // enable
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult); // kickstart
 
       await macosLaunchd.install(baseOpts);
 
@@ -157,11 +157,15 @@ describe('macosLaunchd', () => {
 
     it('bootout failure does not abort install (idempotent fresh install)', async () => {
       mockExeca
-        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // legacy bootout
-        .mockResolvedValueOnce({ exitCode: 3, stdout: '', stderr: 'not loaded' } as any) // bootout fails
-        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // bootstrap
-        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any) // enable
-        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as any); // kickstart
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult) // legacy bootout
+        .mockResolvedValueOnce({
+          exitCode: 3,
+          stdout: '',
+          stderr: 'not loaded',
+        } as unknown as ExecaResult) // bootout fails
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult) // bootstrap
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult) // enable
+        .mockResolvedValueOnce({ exitCode: 0, stdout: '', stderr: '' } as unknown as ExecaResult); // kickstart
 
       // Should not throw
       await macosLaunchd.install(baseOpts);
@@ -194,7 +198,7 @@ describe('macosLaunchd', () => {
         exitCode: 3,
         stdout: '',
         stderr: 'not loaded',
-      } as any);
+      } as unknown as ExecaResult);
 
       const result = await macosLaunchd.uninstall({
         homeDir: '/Users/alice',
@@ -210,7 +214,7 @@ describe('macosLaunchd', () => {
       mockExeca.mockResolvedValueOnce({
         exitCode: 0,
         stdout: 'last exit code = 0',
-      } as any);
+      } as unknown as ExecaResult);
 
       const s = await macosLaunchd.status({
         homeDir: '/Users/alice',
@@ -226,7 +230,7 @@ describe('macosLaunchd', () => {
       mockExeca.mockResolvedValueOnce({
         exitCode: 113,
         stdout: '',
-      } as any);
+      } as unknown as ExecaResult);
 
       const s = await macosLaunchd.status({
         homeDir: '/Users/alice',

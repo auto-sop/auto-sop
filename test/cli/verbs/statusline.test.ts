@@ -110,13 +110,7 @@ describe('statusline verb', () => {
   it('detects auto-sop hooks in real Claude Code settings.json structure (v11 regression)', async () => {
     setupProjectWithFixture(tmpDir, 'real-settings-installed.json');
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:on]');
@@ -125,13 +119,7 @@ describe('statusline verb', () => {
   it('does not match when non-auto-sop hooks present', async () => {
     setupProjectWithFixture(tmpDir, 'real-settings-not-installed.json');
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:off]');
@@ -140,13 +128,7 @@ describe('statusline verb', () => {
   it('does not match when hooks object is empty', async () => {
     setupProjectWithFixture(tmpDir, 'real-settings-empty-hooks.json');
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:off]');
@@ -155,13 +137,7 @@ describe('statusline verb', () => {
   it('does not match when hooks key missing entirely', async () => {
     setupProjectWithFixture(tmpDir, 'real-settings-no-hooks-key.json');
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:off]');
@@ -170,13 +146,7 @@ describe('statusline verb', () => {
   it('returns [sop:off] on malformed JSON', async () => {
     setupProjectWithRaw(tmpDir, '{not valid json');
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:off]');
@@ -184,13 +154,7 @@ describe('statusline verb', () => {
 
   it('returns [sop:off] when settings.json is absent', async () => {
     // tmpDir exists but no .claude/ at all
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:off]');
@@ -199,13 +163,7 @@ describe('statusline verb', () => {
   it('returns [sop:off] when .claude/ directory is missing', async () => {
     const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'statusline-noclaudedr-'));
     try {
-      const code = await runCli([
-        'node',
-        'auto-sop',
-        'statusline',
-        '--project',
-        emptyDir,
-      ]);
+      const code = await runCli(['node', 'auto-sop', 'statusline', '--project', emptyDir]);
 
       expect(code).toBe(0);
       expect(stdoutChunks.join('')).toBe('[sop:off]');
@@ -236,13 +194,7 @@ describe('statusline verb', () => {
       }),
     );
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:on]');
@@ -293,13 +245,7 @@ describe('statusline verb', () => {
       }),
     );
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:on]');
@@ -344,13 +290,7 @@ describe('statusline verb', () => {
       }),
     );
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:off]');
@@ -359,13 +299,7 @@ describe('statusline verb', () => {
   it('prints [sop:off] when settings.json is an array (not object)', async () => {
     setupProjectWithRaw(tmpDir, '[]');
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     expect(stdoutChunks.join('')).toBe('[sop:off]');
@@ -376,14 +310,7 @@ describe('statusline verb', () => {
   it('--json outputs structured JSON without exposing settings', async () => {
     setupProjectWithFixture(tmpDir, 'real-settings-installed.json');
 
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
@@ -397,14 +324,7 @@ describe('statusline verb', () => {
   });
 
   it('--json outputs on:false for missing project', async () => {
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      '--json',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', '--json', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
@@ -413,13 +333,7 @@ describe('statusline verb', () => {
   });
 
   it('no trailing newline in plain output', async () => {
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'statusline',
-      '--project',
-      tmpDir,
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
@@ -437,13 +351,7 @@ describe('statusline verb', () => {
     for (let i = 0; i < 10; i++) {
       stdoutChunks = [];
       const start = performance.now();
-      const code = await runCli([
-        'node',
-        'auto-sop',
-        'statusline',
-        '--project',
-        tmpDir,
-      ]);
+      const code = await runCli(['node', 'auto-sop', 'statusline', '--project', tmpDir]);
       const elapsed = performance.now() - start;
       durations.push(elapsed);
       expect(code).toBe(0);
@@ -527,21 +435,18 @@ describe('statusline stdin JSON (B5 regression)', () => {
     },
   );
 
-  it.runIf(fs.existsSync(SRC_CLI))(
-    'stdin with empty input → falls back to cwd',
-    async () => {
-      const { execFileSync } = await import('node:child_process');
-      // Run from a directory with no hooks installed → expect [sop:off]
-      const out = execFileSync(process.execPath, [CLI, 'statusline'], {
-        input: '',
-        encoding: 'utf8',
-        env: spawnEnv,
-        cwd: tmpDir,
-        timeout: 5000,
-      });
-      expect(out).toBe('[sop:off]');
-    },
-  );
+  it.runIf(fs.existsSync(SRC_CLI))('stdin with empty input → falls back to cwd', async () => {
+    const { execFileSync } = await import('node:child_process');
+    // Run from a directory with no hooks installed → expect [sop:off]
+    const out = execFileSync(process.execPath, [CLI, 'statusline'], {
+      input: '',
+      encoding: 'utf8',
+      env: spawnEnv,
+      cwd: tmpDir,
+      timeout: 5000,
+    });
+    expect(out).toBe('[sop:off]');
+  });
 
   it.runIf(fs.existsSync(SRC_CLI))(
     'stdin with malformed JSON → falls back to cwd, does not crash',
@@ -563,28 +468,19 @@ describe('statusline stdin JSON (B5 regression)', () => {
     async () => {
       // stdin points at a project with installed hooks, but --project points
       // at an empty tmp dir → --project wins → [sop:off].
-      const projectWithHooks = fs.mkdtempSync(
-        path.join(os.tmpdir(), 'statusline-hooks-'),
-      );
+      const projectWithHooks = fs.mkdtempSync(path.join(os.tmpdir(), 'statusline-hooks-'));
       try {
-        setupProjectWithFixture(
-          projectWithHooks,
-          'real-settings-installed.json',
-        );
+        setupProjectWithFixture(projectWithHooks, 'real-settings-installed.json');
         const { execFileSync } = await import('node:child_process');
         const payload = JSON.stringify({
           workspace: { current_dir: projectWithHooks },
         });
-        const out = execFileSync(
-          process.execPath,
-          [CLI, 'statusline', '--project', tmpDir],
-          {
-            input: payload,
-            encoding: 'utf8',
-            env: spawnEnv,
-            timeout: 5000,
-          },
-        );
+        const out = execFileSync(process.execPath, [CLI, 'statusline', '--project', tmpDir], {
+          input: payload,
+          encoding: 'utf8',
+          env: spawnEnv,
+          timeout: 5000,
+        });
         expect(out).toBe('[sop:off]');
       } finally {
         fs.rmSync(projectWithHooks, { recursive: true, force: true });
@@ -600,16 +496,12 @@ describe('statusline stdin JSON (B5 regression)', () => {
       const payload = JSON.stringify({
         workspace: { current_dir: tmpDir },
       });
-      const out = execFileSync(
-        process.execPath,
-        [CLI, '--json', 'statusline'],
-        {
-          input: payload,
-          encoding: 'utf8',
-          env: spawnEnv,
-          timeout: 5000,
-        },
-      );
+      const out = execFileSync(process.execPath, [CLI, '--json', 'statusline'], {
+        input: payload,
+        encoding: 'utf8',
+        env: spawnEnv,
+        timeout: 5000,
+      });
       const parsed = JSON.parse(out);
       expect(parsed.on).toBe(true);
       expect(parsed.project_root).toBe(tmpDir);
@@ -636,13 +528,7 @@ describe('install verb tip line', () => {
   });
 
   it('install output contains statusline tip', async () => {
-    const code = await runCli([
-      'node',
-      'auto-sop',
-      'install',
-      '--project',
-      '/tmp/fake-proj',
-    ]);
+    const code = await runCli(['node', 'auto-sop', 'install', '--project', '/tmp/fake-proj']);
 
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
