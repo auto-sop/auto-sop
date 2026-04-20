@@ -14,6 +14,7 @@ import {
 } from '~/capture/writer/turn-dir.js';
 import { startMeta, writeMeta, readMeta, finalizeMeta, updateMeta } from '~/capture/writer/meta.js';
 import type { HookPayloadType } from '~/capture/events.js';
+import { isWindows } from '../../setup/platform.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
@@ -66,8 +67,10 @@ describe('turn-dir', () => {
       const stat = statSync(dir);
       expect(stat.isDirectory()).toBe(true);
       // Check 0700 perms (on macOS/Linux)
-      const mode = stat.mode & 0o777;
-      expect(mode).toBe(0o700);
+      if (!isWindows) {
+        const mode = stat.mode & 0o777;
+        expect(mode).toBe(0o700);
+      }
     });
 
     it('names the dir as ts-agent-filehash-turnId.pending', () => {
@@ -172,8 +175,10 @@ describe('turn-dir', () => {
       setCurrentTurn(stateDir, 'test-session', { turnDir: '/a', turnId: 'b' });
       const markerPath = join(stateDir, 'current-turn-test-session.json');
       const stat = statSync(markerPath);
-      const mode = stat.mode & 0o777;
-      expect(mode).toBe(0o600);
+      if (!isWindows) {
+        const mode = stat.mode & 0o777;
+        expect(mode).toBe(0o600);
+      }
     });
   });
 });
@@ -277,7 +282,9 @@ describe('meta', () => {
 
       writeMeta(turnDir, meta);
       const stat = statSync(join(turnDir, 'meta.json'));
-      expect(stat.mode & 0o777).toBe(0o600);
+      if (!isWindows) {
+        expect(stat.mode & 0o777).toBe(0o600);
+      }
     });
   });
 

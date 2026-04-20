@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import { maybeOffloadLarge, LARGE_OUTPUT_THRESHOLD } from '~/capture/writer/large-outputs.js';
 import { createScrubber, Scrubber } from '~/scrubber/index.js';
+import { isWindows } from '../../setup/platform.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
@@ -77,7 +78,9 @@ describe('large-outputs', () => {
     await maybeOffloadLarge(turnDir, 'tu-dir', 'out', content, scrubber);
 
     const dirStat = statSync(join(turnDir, 'large-outputs'));
-    expect(dirStat.mode & 0o777).toBe(0o700);
+    if (!isWindows) {
+      expect(dirStat.mode & 0o777).toBe(0o700);
+    }
   });
 
   it('creates gzipped file with mode 0600', async () => {
@@ -85,7 +88,9 @@ describe('large-outputs', () => {
     const result = await maybeOffloadLarge(turnDir, 'tu-perm', 'out', content, scrubber);
 
     const fileStat = statSync(join(turnDir, result.ref!));
-    expect(fileStat.mode & 0o777).toBe(0o600);
+    if (!isWindows) {
+      expect(fileStat.mode & 0o777).toBe(0o600);
+    }
   });
 
   it('accepts Buffer input', async () => {

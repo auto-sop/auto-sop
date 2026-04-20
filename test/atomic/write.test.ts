@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { nanoid } from 'nanoid';
 import { writeFileAtomic } from '../../src/atomic/write.js';
+import { isWindows } from '../setup/platform.js';
 
 describe('writeFileAtomic', () => {
   let testDir: string;
@@ -68,6 +69,8 @@ describe('writeFileAtomic', () => {
     const target = join(testDir, 'mode.txt');
     await writeFileAtomic(target, 'secret');
     const stat = await fs.stat(target);
-    expect(stat.mode & 0o777).toBe(0o600);
+    if (!isWindows) {
+      expect(stat.mode & 0o777).toBe(0o600);
+    }
   });
 });

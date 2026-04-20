@@ -9,6 +9,7 @@ import {
   extractLastAssistantMessage,
 } from '~/capture/writer/prompt-response.js';
 import { createScrubber, Scrubber } from '~/scrubber/index.js';
+import { isWindows } from '../../setup/platform.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
@@ -45,7 +46,9 @@ describe('prompt-response', () => {
 
       writePromptMd(turnDir, 'hello', scrubber);
       const stat = statSync(join(turnDir, 'prompt.md'));
-      expect(stat.mode & 0o777).toBe(0o600);
+      if (!isWindows) {
+        expect(stat.mode & 0o777).toBe(0o600);
+      }
     });
 
     it('writes via temp+rename (no .tmp remains)', () => {
@@ -87,7 +90,9 @@ describe('prompt-response', () => {
 
       writeResponseMd(turnDir, 'response text', scrubber);
       const stat = statSync(join(turnDir, 'response.md'));
-      expect(stat.mode & 0o777).toBe(0o600);
+      if (!isWindows) {
+        expect(stat.mode & 0o777).toBe(0o600);
+      }
     });
   });
 });

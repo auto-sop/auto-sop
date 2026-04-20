@@ -7,6 +7,7 @@ import { getPlatform } from '../../src/platform/index.js';
 import { darwinAdapter } from '../../src/platform/darwin.js';
 import { linuxAdapter } from '../../src/platform/linux.js';
 import { win32Adapter } from '../../src/platform/win32.js';
+import { isWindows } from '../setup/platform.js';
 
 describe('getPlatform()', () => {
   it('returns darwin adapter for "darwin"', () => {
@@ -49,6 +50,7 @@ describe('darwinAdapter', () => {
   });
 
   it('chmod sets file mode', async () => {
+    if (isWindows) return; // POSIX file mode bits not meaningful on Windows
     const dir = join(tmpdir(), `plat-test-${nanoid(6)}`);
     await fs.mkdir(dir, { recursive: true });
     const f = join(dir, 'test.txt');
@@ -60,6 +62,7 @@ describe('darwinAdapter', () => {
   });
 
   it('chmodSync sets file mode', async () => {
+    if (isWindows) return; // POSIX file mode bits not meaningful on Windows
     const dir = join(tmpdir(), `plat-test-${nanoid(6)}`);
     await fs.mkdir(dir, { recursive: true });
     const f = join(dir, 'test2.txt');

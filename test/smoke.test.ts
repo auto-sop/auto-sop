@@ -24,6 +24,7 @@ import { execSync } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { isWindows } from './setup/platform.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = resolve(ROOT, 'dist/cli.js');
@@ -136,7 +137,7 @@ describe('smoke: learner stub', () => {
   });
 });
 
-describe('smoke: shell-mode execution (shebang)', () => {
+describe.skipIf(isWindows)('smoke: shell-mode execution (shebang)', () => {
   it('shim runs via sh -c without syntax errors', async () => {
     const payload = JSON.stringify({
       hook_type: 'UserPromptSubmit',
@@ -195,6 +196,7 @@ describe('smoke: shebang and exec bit', () => {
     });
 
     it(`${name} has exec bit set`, () => {
+      if (isWindows) return; // Windows does not support POSIX file mode bits
       const st = statSync(filePath);
       expect(st.mode & 0o111).not.toBe(0);
     });
@@ -309,17 +311,21 @@ describe('smoke: isolated end-to-end capture pipeline', () => {
     });
 
     // Spawn the shim from the ISOLATED bundle dir (not from repo tree)
-    const result = await execa('sh', ['-c', `"${shimPath}"`], {
-      input: payload,
-      reject: false,
-      env: {
-        HOME: tmpRoot,
-        PATH: process.env.PATH,
-        NODE_OPTIONS: '',
+    const result = await execa(
+      isWindows ? 'node' : 'sh',
+      isWindows ? [shimPath] : ['-c', `"${shimPath}"`],
+      {
+        input: payload,
+        reject: false,
+        env: {
+          HOME: tmpRoot,
+          PATH: process.env.PATH,
+          NODE_OPTIONS: '',
+        },
+        cwd: tmpRoot,
+        timeout: 5000,
       },
-      cwd: tmpRoot,
-      timeout: 5000,
-    });
+    );
 
     // Shim must exit 0 and not crash
     expect(result.exitCode).toBe(0);
@@ -1492,7 +1498,7 @@ describe('smoke: managed section end-to-end (isolated)', () => {
 // and the recap-log fields added in Wave 3 (llm_mode, llm_fallback,
 // llm_error, llm_directives_accepted). Each test uses its own tmpHome
 // so cross-test PATH leakage cannot contaminate results.
-describe('smoke: LLM-driven directive generation (isolated)', () => {
+describe.skipIf(isWindows)('smoke: LLM-driven directive generation (isolated)', () => {
   const tmpDirs: string[] = [];
 
   afterAll(() => {
@@ -1983,3 +1989,38 @@ describe.skipIf(process.platform !== 'darwin')(
     }, 20000);
   },
 );
+
+// ── Windows-specific smoke tests ─────────────────────────────
+describe.skipIf(!isWindows)('smoke: Windows-specific', () => {
+  it('dist/cli.cjs exists after build', () => {
+    const cliCjs = resolve(ROOT, 'dist/cli.cjs');
+    expect(existsSync(cliCjs)).toBe(true);
+  });
+
+  it('CLI --version exits 0', async () => {
+    const result = await execa('node', [CLI, '--version'], { reject: false });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
+  it('CLI status runs without crash', async () => {
+    const tmp = mkdtempSync(resolve(tmpdir(), 'auto-sop-win-smoke-'));
+    try {
+      const result = await execa('node', [CLI, 'status', '--json'], {
+        cwd: tmp,
+        reject: false,
+        env: { HOME: tmp, USERPROFILE: tmp },
+      });
+      // exit 0 (installed) or 3 (not installed) are both acceptable
+      expect([0, 3]).toContain(result.exitCode);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('getPlatform() returns win32 adapter with task-scheduler backend', async () => {
+    const { getPlatform } = await import('../src/platform/index.js');
+    const adapter = getPlatform('win32');
+    expect(adapter.schedulerBackendName()).toBe('task-scheduler');
+  });
+});

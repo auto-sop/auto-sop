@@ -10,6 +10,7 @@ import {
   DEFAULT_CAP_BYTES,
   PAUSE_RATIO,
 } from '~/capture/writer/disk-budget.js';
+import { isWindows } from '../../setup/platform.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
@@ -112,8 +113,10 @@ describe('disk-budget.ts', () => {
       const flagPath = join(tmpBase, 'paused.flag');
       enforceDiskBudget(capturesDir, flagPath, 1000);
 
-      const mode = statSync(flagPath).mode & 0o777;
-      expect(mode).toBe(0o600);
+      if (!isWindows) {
+        const mode = statSync(flagPath).mode & 0o777;
+        expect(mode).toBe(0o600);
+      }
     });
 
     it('returns already paused when flag pre-exists (justPaused=false)', () => {

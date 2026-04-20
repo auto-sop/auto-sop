@@ -10,6 +10,7 @@ import {
 } from '~/capture/writer/tool-calls.js';
 import type { PreToolLine, PostToolLine } from '~/capture/writer/tool-calls.js';
 import { createScrubber, Scrubber } from '~/scrubber/index.js';
+import { isWindows } from '../../setup/platform.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
@@ -40,7 +41,9 @@ describe('tool-calls', () => {
 
       const jsonlPath = join(turnDir, TOOL_CALLS_JSONL);
       const stat = statSync(jsonlPath);
-      expect(stat.mode & 0o777).toBe(0o600);
+      if (!isWindows) {
+        expect(stat.mode & 0o777).toBe(0o600);
+      }
 
       const content = readFileSync(jsonlPath, 'utf8');
       const parsed = JSON.parse(content.trim());

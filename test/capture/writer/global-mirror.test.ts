@@ -10,6 +10,7 @@ import {
   migrateGlobalDirOnMove,
   type GlobalIndexLine,
 } from '~/capture/writer/global-mirror.js';
+import { isWindows } from '../../setup/platform.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-gm-test-${randomUUID()}`);
@@ -94,14 +95,18 @@ describe('appendGlobalIndexLine', () => {
   it('creates index file with mode 0600', () => {
     appendGlobalIndexLine(paths, '/project', makeMeta(), '/dir', noDevArmy);
     const indexPath = join(paths.globalProjectDir, 'index.jsonl');
-    const mode = statSync(indexPath).mode & 0o777;
-    expect(mode).toBe(0o600);
+    if (!isWindows) {
+      const mode = statSync(indexPath).mode & 0o777;
+      expect(mode).toBe(0o600);
+    }
   });
 
   it('creates target dir with mode 0700', () => {
     appendGlobalIndexLine(paths, '/project', makeMeta(), '/dir', noDevArmy);
-    const dirMode = statSync(paths.globalProjectDir).mode & 0o777;
-    expect(dirMode).toBe(0o700);
+    if (!isWindows) {
+      const dirMode = statSync(paths.globalProjectDir).mode & 0o777;
+      expect(dirMode).toBe(0o700);
+    }
   });
 
   it('appends multiple lines to the same file', () => {

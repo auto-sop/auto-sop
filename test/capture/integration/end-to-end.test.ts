@@ -29,6 +29,7 @@ import { pipeline } from 'node:stream/promises';
 import { Writable } from 'node:stream';
 
 import { runScenario, walkDir, walkDirs, type ScenarioRun } from './run-scenario.js';
+import { isWindows } from '../../setup/platform.js';
 
 // ── Fixture paths ──────────────────────────────────────────────────────
 const FIXTURES_DIR = resolve(__dirname, 'fixtures/sessions');
@@ -424,6 +425,7 @@ describe('secret-scrub', () => {
   });
 
   it('file permissions: 0600 for files, 0700 for dirs (CAPT-02)', () => {
+    if (isWindows) return;
     const dirs = listFinalizedTurnDirs(run.captureDir);
     const turnDir = join(run.captureDir, dirs[0]);
 

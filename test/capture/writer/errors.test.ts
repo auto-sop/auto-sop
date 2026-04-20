@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { logError, ERRORS_CAP_BYTES, initErrorWriter } from '~/capture/writer/errors.js';
+import { isWindows } from '../../setup/platform.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
@@ -51,8 +52,10 @@ describe('errors.ts', () => {
         { kind: 'test', turn_id: null, err: 'x' },
       );
 
-      const projectMode = statSync(projectErrors).mode & 0o777;
-      expect(projectMode).toBe(0o600);
+      if (!isWindows) {
+        const projectMode = statSync(projectErrors).mode & 0o777;
+        expect(projectMode).toBe(0o600);
+      }
     });
 
     it('creates parent directories with mode 0700', () => {
@@ -62,8 +65,10 @@ describe('errors.ts', () => {
         { kind: 'test', turn_id: null, err: 'x' },
       );
 
-      const parentMode = statSync(join(tmpBase, 'deep', 'nested')).mode & 0o777;
-      expect(parentMode).toBe(0o700);
+      if (!isWindows) {
+        const parentMode = statSync(join(tmpBase, 'deep', 'nested')).mode & 0o777;
+        expect(parentMode).toBe(0o700);
+      }
     });
   });
 

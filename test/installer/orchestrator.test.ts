@@ -10,6 +10,7 @@ import { readSecrets } from '../../src/license/storage.js';
 import { CLAUDE_SOP_HOOK_ID, HOOK_EVENTS } from '../../src/installer/hook-entries.js';
 import type { SchedulerBackend, SchedulerInstallOpts } from '../../src/scheduler/types.js';
 import { PreconditionError } from '../../src/cli/errors.js';
+import { isWindows } from '../setup/platform.js';
 
 const FAKE_MACHINE_ID = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
 
@@ -127,7 +128,9 @@ describe('runInstall orchestrator', () => {
     // tick.sh exists and is executable
     const tickPath = join(homeDir, '.auto-sop', 'bin', 'tick.sh');
     const tickStat = await fs.stat(tickPath);
-    expect(tickStat.mode & 0o755).toBe(0o755);
+    if (!isWindows) {
+      expect(tickStat.mode & 0o755).toBe(0o755);
+    }
     const tickContent = await fs.readFile(tickPath, 'utf8');
     expect(tickContent).toContain(process.execPath);
 

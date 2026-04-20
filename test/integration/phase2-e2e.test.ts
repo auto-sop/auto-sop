@@ -39,6 +39,7 @@ import { collectStatus } from '../../src/status/collector.js';
 import { HOOK_EVENTS, CLAUDE_SOP_HOOK_ID } from '../../src/installer/hook-entries.js';
 import { MANAGED_BEGIN, MANAGED_END } from '../../src/installer/managed-section.js';
 import { PreconditionError } from '../../src/cli/errors.js';
+import { isWindows } from '../setup/platform.js';
 
 describe('Phase 2 e2e — install → status → pause → resume → uninstall', () => {
   let tmp: Awaited<ReturnType<typeof makeTempHome>>;
@@ -206,7 +207,9 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     const tick = path.join(tmp.homeDir, '.auto-sop', 'bin', 'tick.sh');
     const st = await fs.stat(tick);
     expect(st.isFile()).toBe(true);
-    expect((st.mode & 0o111) !== 0).toBe(true); // executable bit set
+    if (!isWindows) {
+      expect((st.mode & 0o111) !== 0).toBe(true); // executable bit set
+    }
     const content = await fs.readFile(tick, 'utf8');
     // CRITICAL: flock must NOT be used as a command (macOS has no flock(1)).
     // The word "flock" may appear in comments explaining why it's absent,
@@ -220,7 +223,9 @@ describe('Phase 2 e2e — install → status → pause → resume → uninstall'
     // Legacy CLAUDE_SOP_LEARNER also still emitted for backward compat
     expect(content).toContain('CLAUDE_SOP_LEARNER=1');
     // Pure POSIX sh shebang
-    expect(content.split('\n')[0]).toBe('#!/bin/sh');
+    if (!isWindows) {
+      expect(content.split('\n')[0]).toBe('#!/bin/sh');
+    }
   });
 
   // ─── LIC-01 ───────────────────────────────────────────────────────────────

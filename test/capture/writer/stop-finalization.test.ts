@@ -14,6 +14,7 @@ import { createScrubber } from '~/scrubber/index.js';
 import type { HandlerContext } from '~/capture/writer/routes/types.js';
 import type { UserPromptSubmitPayload, StopPayload } from '~/capture/events.js';
 import { getCapturePaths } from '~/capture/paths.js';
+import { isWindows } from '../../setup/platform.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
@@ -212,15 +213,21 @@ describe('UserPromptSubmit → Stop lifecycle', () => {
 
     // Dir is 0700
     const dirStat = statSync(pendingDir);
-    expect(dirStat.mode & 0o777).toBe(0o700);
+    if (!isWindows) {
+      expect(dirStat.mode & 0o777).toBe(0o700);
+    }
 
     // prompt.md is 0600
     const fileStat = statSync(join(pendingDir, 'prompt.md'));
-    expect(fileStat.mode & 0o777).toBe(0o600);
+    if (!isWindows) {
+      expect(fileStat.mode & 0o777).toBe(0o600);
+    }
 
     // meta.json is 0600
     const metaStat = statSync(join(pendingDir, 'meta.json'));
-    expect(metaStat.mode & 0o777).toBe(0o600);
+    if (!isWindows) {
+      expect(metaStat.mode & 0o777).toBe(0o600);
+    }
   });
 
   it('readers see zero finalized dirs during .pending phase', () => {

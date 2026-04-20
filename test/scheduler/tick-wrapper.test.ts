@@ -8,6 +8,7 @@ import {
   renderTickScriptCmd,
   writeTickScript,
 } from '../../src/scheduler/tick-wrapper.js';
+import { isWindows } from '../setup/platform.js';
 
 const baseOpts = {
   homeDir: '/Users/alice',
@@ -154,7 +155,9 @@ describe('writeTickScript', () => {
 
     const stat = await fs.stat(scriptPath);
     // Check executable bits (owner+group+other execute)
-    expect(stat.mode & 0o755).toBe(0o755);
+    if (!isWindows) {
+      expect(stat.mode & 0o755).toBe(0o755);
+    }
 
     const content = await fs.readFile(scriptPath, 'utf8');
     expect(content).toBe(renderTickScript(baseOpts));

@@ -1,4 +1,5 @@
 import { installNoNetworkGuards, restoreNetworkGuards } from '../setup/no-network.js';
+import { isWindows } from '../setup/platform.js';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import {
   readProjectJson,
@@ -45,6 +46,7 @@ describe('project-json', () => {
     });
 
     it('writes file with mode 0600', async () => {
+      if (isWindows) return;
       const dir = join(testDir, '.auto-sop');
       await writeProjectJsonAtomic(dir, sampleIdentity);
 

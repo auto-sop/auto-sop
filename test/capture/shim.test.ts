@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, rmSync }
 import { join } from 'node:path';
 import { tmpdir, homedir } from 'node:os';
 import { spawnWriter } from '../../src/capture/shim/handoff.js';
+import { isWindows } from '../setup/platform.js';
 
 const SHIM_PATH = join(process.cwd(), 'dist', 'capture', 'shim.cjs');
 const FIXTURE_PAYLOAD = readFileSync(
@@ -84,9 +85,11 @@ describe('Capture Shim', () => {
       expect(written.equals(FIXTURE_PAYLOAD)).toBe(true);
 
       // File mode is 0600
-      const stats = statSync(join(TMP_DIR, files[0]!));
-      const mode = stats.mode & 0o777;
-      expect(mode).toBe(0o600);
+      if (!isWindows) {
+        const stats = statSync(join(TMP_DIR, files[0]!));
+        const mode = stats.mode & 0o777;
+        expect(mode).toBe(0o600);
+      }
 
       // Cleanup
       rmSync(fakeWriterDir, { recursive: true, force: true });

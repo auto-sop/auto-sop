@@ -8,6 +8,7 @@ import {
   clearLastHash,
   sha256,
 } from '../../src/managed-section/hash-store.js';
+import { isWindows } from '../setup/platform.js';
 
 function makeTmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'auto-sop-hash-store-'));
@@ -53,6 +54,7 @@ describe('hash-store', () => {
   });
 
   it('writes the hash file with restrictive (0600) permissions', () => {
+    if (isWindows) return;
     writeLastHash(projectRoot, sha256('payload'));
     const stats = statSync(hashPath());
     // No bits for group/other.
@@ -61,7 +63,7 @@ describe('hash-store', () => {
 
   it('APEX SEC-006: creates .auto-sop/state with user-only (0o700) mode', () => {
     // POSIX-only — on Windows, file-mode bits are not meaningful.
-    if (process.platform === 'win32') return;
+    if (isWindows) return;
     writeLastHash(projectRoot, sha256('payload'));
     const dirStat = statSync(join(projectRoot, '.auto-sop', 'state'));
     expect(dirStat.mode & 0o777).toBe(0o700);
