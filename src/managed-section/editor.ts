@@ -199,50 +199,101 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
   const markersPresent: WriteResult['markersPresent'] =
     markers !== null ? 'before_write' : 'after_write';
 
-  // 2a. E1 — Drift detection.
+  // 2a. E1 — Drift detection with auto-recovery (V27).
   //     If we've previously recorded a hash AND it no longer matches what's
   //     on disk, the user (or some other tool) edited the managed section
-  //     between writes. Snapshot the conflicting file, abort, do not write.
+  //     between writes. After 3 consecutive drifts, auto-repair: re-compute
+  //     hash from current file, write it, reset counter, and proceed.
   const stored = readLastHash(projectRoot);
   if (stored !== null) {
     const currentHash = computeManagedHash(current);
     if (currentHash !== stored.lastHash) {
-      let conflictPath: string | null = null;
-      // On dry-run we surface the drift in the recap but never touch disk —
-      // creating a backup file would violate the dry-run contract.
-      if (dryRun !== true && current !== null) {
-        const ts = new Date().toISOString().replace(/[:.]/g, '-');
-        const historyDir = join(projectRoot, '.auto-sop', 'state', 'managed-history');
-        try {
-          mkdirSync(historyDir, { recursive: true });
-        } catch {
-          // best-effort; if mkdir fails we still log and abort
+      const driftCount = (stored.consecutiveDrifts ?? 0) + 1;
+
+      // V27: Auto-recovery after 3 consecutive drifts.
+      //
+      // RATIONALE: A threshold of 3 balances safety vs. liveness. A single
+      // drift is likely a legitimate user hand-edit (abort is correct). Two
+      // consecutive drifts could still be manual edits across ticks. Three
+      // in a row strongly suggests a tool/process issue (e.g. another
+      // editor or formatter touching the file), not intentional hand-edits.
+      // At that point, staying wedged is worse than re-syncing: the learner
+      // would be permanently stuck until the user manually runs `repair`.
+      // The auto-repair re-computes the hash from the current file content
+      // (whatever is on disk IS the truth after 3 failed attempts) and
+      // resets the counter so normal writes resume.
+      if (driftCount >= 3 && dryRun !== true) {
+        const oldHash = stored.lastHash;
+        // Re-compute hash from the current file and persist it, resetting
+        // the drift counter so subsequent normal writes proceed.
+        if (currentHash.length > 0) {
+          writeLastHash(projectRoot, currentHash);
+        } else {
+          clearLastHash(projectRoot);
         }
-        conflictPath = join(historyDir, `conflict-${ts}.md`);
-        try {
-          writeFileSync(conflictPath, current, { mode: 0o600 });
-        } catch {
-          // If the snapshot write fails, we still abort the main write —
-          // losing the snapshot is preferable to clobbering the user.
-          conflictPath = null;
+        // Conspicuous log: auto-recovery is a significant event — make it
+        // visible so operators notice if it fires unexpectedly.
+        console.warn(
+          `[auto-sop] ⚠ Auto-repaired managed-section drift after ${driftCount} consecutive aborts (project: ${projectRoot})`,
+        );
+        if (logger) {
+          logger('managed_section_drift_auto_repaired', {
+            projectRoot,
+            oldHash,
+            newHash: currentHash,
+            consecutiveDrifts: driftCount,
+          });
         }
+        // Fall through to the normal write path below
+      } else {
+        // Increment consecutiveDrifts in the hash store so the next tick
+        // knows how many drifts have occurred in a row.
+        if (dryRun !== true) {
+          try {
+            writeLastHash(projectRoot, stored.lastHash, driftCount);
+          } catch {
+            // best-effort — don't block the abort path
+          }
+        }
+
+        let conflictPath: string | null = null;
+        // On dry-run we surface the drift in the recap but never touch disk —
+        // creating a backup file would violate the dry-run contract.
+        if (dryRun !== true && current !== null) {
+          const ts = new Date().toISOString().replace(/[:.]/g, '-');
+          const historyDir = join(projectRoot, '.auto-sop', 'state', 'managed-history');
+          try {
+            mkdirSync(historyDir, { recursive: true });
+          } catch {
+            // best-effort; if mkdir fails we still log and abort
+          }
+          conflictPath = join(historyDir, `conflict-${ts}.md`);
+          try {
+            writeFileSync(conflictPath, current, { mode: 0o600 });
+          } catch {
+            // If the snapshot write fails, we still abort the main write —
+            // losing the snapshot is preferable to clobbering the user.
+            conflictPath = null;
+          }
+        }
+        if (logger) {
+          logger('managed_section_drift_detected', {
+            projectRoot,
+            conflictPath,
+            storedHash: stored.lastHash,
+            currentHash,
+            consecutiveDrifts: driftCount,
+          });
+        }
+        return {
+          verdict: 'drift_aborted',
+          claudeMdPath,
+          backupPath: conflictPath,
+          bytesBefore,
+          bytesAfter: 0,
+          markersPresent,
+        };
       }
-      if (logger) {
-        logger('managed_section_drift_detected', {
-          projectRoot,
-          conflictPath,
-          storedHash: stored.lastHash,
-          currentHash,
-        });
-      }
-      return {
-        verdict: 'drift_aborted',
-        claudeMdPath,
-        backupPath: conflictPath,
-        bytesBefore,
-        bytesAfter: 0,
-        markersPresent,
-      };
     }
   }
 

@@ -9,7 +9,7 @@
  *   <projectRoot>/.auto-sop/state/managed-section-hash.json
  *
  * Schema:
- *   { lastHash: string, updatedAt: string }
+ *   { lastHash: string, updatedAt: string, consecutiveDrifts?: number }
  *
  * File mode is 0600 — never world-readable.
  */
@@ -33,6 +33,7 @@ import { createHash } from 'node:crypto';
 export interface HashRecord {
   lastHash: string;
   updatedAt: string;
+  consecutiveDrifts?: number;
 }
 
 // ─── Path traversal guard ────────────────────────────────
@@ -119,7 +120,7 @@ export function readLastHash(projectRoot: string): HashRecord | null {
  * Atomicity: write to a sibling .tmp file, fsync, then rename. A crash mid-
  * write leaves either the previous record or no record — never a torn one.
  */
-export function writeLastHash(projectRoot: string, hash: string): void {
+export function writeLastHash(projectRoot: string, hash: string, consecutiveDrifts?: number): void {
   assertNoTraversal(projectRoot);
   if (typeof hash !== 'string' || hash.length === 0) {
     throw new Error('writeLastHash: hash must be a non-empty string');
@@ -136,6 +137,7 @@ export function writeLastHash(projectRoot: string, hash: string): void {
   const record: HashRecord = {
     lastHash: hash,
     updatedAt: new Date().toISOString(),
+    ...(consecutiveDrifts !== undefined && consecutiveDrifts > 0 ? { consecutiveDrifts } : {}),
   };
   const payload = JSON.stringify(record);
   const tmp = path + '.tmp';

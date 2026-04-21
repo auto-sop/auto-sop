@@ -136,6 +136,24 @@ export function buildRenderProposals(
   });
 }
 
+// ── Error serialization ──────────────────────────────────────
+
+/**
+ * Serialize an unknown error value into a human-readable string.
+ * Exported for testing (V27 fix #3 — tests must exercise the real function).
+ */
+export function serializeError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'object' && err !== null) {
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+}
+
 // ── Error logger (inline, fail-safe) ───────────────────────
 
 function logError(kind: string, err: unknown, home?: string): void {
@@ -146,7 +164,7 @@ function logError(kind: string, err: unknown, home?: string): void {
       JSON.stringify({
         t: new Date().toISOString(),
         kind,
-        err: err instanceof Error ? err.message : String(err),
+        err: serializeError(err),
       }) + '\n';
     appendFileSync(join(logDir, 'errors.log'), line, { mode: 0o600 });
   } catch {
