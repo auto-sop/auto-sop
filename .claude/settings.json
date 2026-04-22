@@ -1,0 +1,64 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ugurgokdere/.auto-sop/marketplace/auto-sop/shim.cjs",
+            "timeout": 10,
+            "id": "auto-sop"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ugurgokdere/.auto-sop/marketplace/auto-sop/shim.cjs",
+            "timeout": 10,
+            "id": "auto-sop"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ugurgokdere/.auto-sop/marketplace/auto-sop/shim.cjs",
+            "timeout": 10,
+            "id": "auto-sop"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ugurgokdere/.auto-sop/marketplace/auto-sop/shim.cjs",
+            "timeout": 10,
+            "id": "auto-sop"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ugurgokdere/.auto-sop/marketplace/auto-sop/shim.cjs",
+            "timeout": 10,
+            "id": "auto-sop"
+          }
+        ]
+      }
+    ]
+  }
+}

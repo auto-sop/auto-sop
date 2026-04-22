@@ -98,7 +98,7 @@ export async function runLearner(opts: LearnerOptions): Promise<LearnerResult> {
   let exitCode = 0;
   let spawnError: string | undefined;
   try {
-    await execa('node', [learnerPath], { env, timeout: 130_000 });
+    await execa('node', [learnerPath], { env, timeout: 620_000 });
   } catch (err) {
     exitCode = 1;
     spawnError = err instanceof Error ? err.message : String(err);

@@ -52,8 +52,10 @@ export const HARD_TIMEOUT_MS = 600_000; // 10 minutes
 /** Inner budget for the `claude -p` spawn itself. Bounded well below
  *  HARD_TIMEOUT_MS so the watchdog remains a true fallback, not the
  *  primary kill path. */
-export const LLM_SPAWN_TIMEOUT_MS = 120_000; // 2 minutes
+export const LLM_SPAWN_TIMEOUT_MS = 300_000; // 5 minutes
 const MAX_TURNS_FIRST_RUN = 500;
+/** Cap on turns sent to the LLM — keeps the prompt within context window limits. */
+const MAX_TURNS_FOR_LLM = 10;
 
 // ── Testable helpers ───────────────────────────────────────
 
@@ -515,11 +517,15 @@ export async function runLearnerTick(
         };
       } else {
         try {
-          // Count distinct sessions represented in the turn set so the LLM
-          // prompt accurately reports "N turns from M sessions" rather than
-          // treating every turn as its own session.
-          const sessionCount = new Set(turnData.map((t) => t.session_id)).size;
-          llmResult = await runLlmAnalysis(turnData, project.slug, sessionCount, {
+          // Cap turns sent to LLM to keep prompt within context limits.
+          // Rule-based detectors still see ALL turns — only LLM input is capped.
+          // Take the newest turns (tail) so the LLM sees the most recent patterns.
+          const llmTurns =
+            turnData.length > MAX_TURNS_FOR_LLM
+              ? turnData.slice(turnData.length - MAX_TURNS_FOR_LLM)
+              : turnData;
+          const sessionCount = new Set(llmTurns.map((t) => t.session_id)).size;
+          llmResult = await runLlmAnalysis(llmTurns, project.slug, sessionCount, {
             offline: isOffline,
             timeout: LLM_SPAWN_TIMEOUT_MS,
           });
