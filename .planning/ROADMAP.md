@@ -1,9 +1,9 @@
 # Roadmap: auto-sop
 
 **Created:** 2026-04-13
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-23
 **Depth:** standard
-**Phases:** 10 (restructured: publish AFTER SaaS + Metrics)
+**Phases:** 10 (restructured: Metrics before SaaS, publish after both)
 **Coverage:** 61/61 v1 requirements mapped
 
 ## Phases
@@ -14,17 +14,24 @@
 - [x] **Phase 3: Learner** — Rule-based detectors (N≥3 evidence) + LLM-driven directive generation via `claude -p`. _(v9 MVP batch, v13 detectors, v14 LLM ON, v17 learn-now + hard-kill → 100%)_
 - [x] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware CLAUDE.md writer, never clobbers user edits, revertible. _(v10-v11 light editor, v16 hardening → 100%)_
 - [x] **Phase 5: Inspection CLI + Packaging** — `recent`/`show`/`revert` verbs, npm publish pipeline, README badges, GitHub community files, Homebrew tap staging. _(v17-v22 → 100%)_
-- [~] **Phase 6: Native Windows** — Platform abstraction layer, Task Scheduler backend (schtasks), cross-platform tick script, .cmd shims, NTFS ACL, Windows CI matrix. _(v23 foundation done, v24-v25 remaining)_
-- [ ] **Phase 7: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-cloud/`.** CLI gains 1-project soft cap + feature-touch trial + encrypted sync. Free forever for solo, Pro $12/mo. _(→ v26-v30)_
-- [ ] **Phase 8: Metrics & Social Proof** — Directive-fire detection, token/time savings tracker, "errors prevented" counter, side-by-side proof on landing page (RTK format). Launch-critical — without metrics the landing page can't convert. _(→ v31-v33)_
-- [ ] **Phase 9: First Public Launch** — npm v0.1.0 publish, repo goes public, Node SEA binary, Homebrew tap live, landing page, demo GIF. Everything a developer sees on first contact must be professional + Pro upgrade path exists. _(→ v34)_
-- [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v35-v37)_
+- [x] **Phase 6: Native Windows + Hardening** — Platform abstraction layer, Task Scheduler backend, NTFS ACL, learner drift fix, incremental pattern memory. _(v23-v25 Windows, v26 site, v27 drift fix, v29 incremental patterns)_
+- [ ] **Phase 7: Metrics & Social Proof** — Directive-fire detection, token/time savings tracker, "errors prevented" counter, `auto-sop stats` CLI, side-by-side proof on landing page (RTK format). Launch-critical — without metrics the landing page can't convert. Pure CLI-side work, no cloud needed. _(→ v30-v32)_
+- [ ] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-cloud/`.** CLI gains 1-project soft cap + feature-touch trial + encrypted sync. Free forever for solo, Pro $12/mo. _(→ v33-v37)_
+- [ ] **Phase 9: First Public Launch** — npm v0.1.0 publish, repo goes public, Node SEA binary, Homebrew tap live, landing page with real metrics, demo GIF. Everything a developer sees on first contact must be professional + Pro upgrade path exists. _(→ v38)_
+- [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v39+)_
 
-### Reordering rationale (2026-04-19)
-1. **Windows before SaaS:** Selling a subscription to users whose OS is refused by the CLI is unacceptable.
-2. **Metrics before publish:** Without "47 errors prevented this month" stats, the landing page sells features not outcomes — and features don't convert.
-3. **Publish after everything:** Day-one users need the full experience — cross-platform CLI, Pro upgrade path, proof stats. No second chance at a first impression.
-4. **Smart Directive Targeting post-launch:** Useful feature but not needed for launch. Requires real-world usage patterns to design well.
+### Reordering rationale (2026-04-23)
+1. **Windows before Metrics:** Cross-platform must work before measuring outcomes.
+2. **Metrics before SaaS (SWAPPED):** Metrics are pure CLI-side work (no cloud infra). Landing page needs real numbers ("47 errors prevented") to convert — selling features without proof doesn't work. SaaS dashboard (M5 widget) can show metrics AFTER they exist, not before.
+3. **SaaS after Metrics:** Dashboard's value proposition IS the metrics. Build the data first, then the viewer.
+4. **Publish after everything:** Day-one users need full experience — cross-platform CLI, proof stats, Pro upgrade path.
+5. **Smart Directive Targeting post-launch:** Requires real-world usage patterns to design well.
+
+### Inserted work (between phases, not on original roadmap)
+- **v26** — Landing page website (`auto-sop-site/` repo, Next.js, purple brand, owl mascot)
+- **v27** — Learner drift fix (error serialization, repair CLI verb, auto-recovery)
+- **v28** — Vercel deploy + auto-sop.com domain (`auto-sop-site/` repo)
+- **v29** — Incremental pattern memory (LLM accumulates candidates across ticks)
 
 ### Key discovery: Recall gate NOT needed
 Claude Code natively reads `<project>/CLAUDE.md` into system context at session start. Directives written by the learner to the managed section are automatically visible to Claude in the next session. No separate recall-gate binary or UserPromptSubmit hook injection is required. This eliminates the R1 backlog item and simplifies the Phase 3→4 bridge.
@@ -140,7 +147,7 @@ A user pays $X/month for cloud dashboard → runs claude-sop install on their Wi
   5. CI green on `ubuntu-latest`, `macos-latest`, AND `windows-latest`. Smoke test includes install→capture→learner tick→managed section write→uninstall end-to-end.
 **Plans:** TBD (v20-v22)
 
-### Phase 7: SaaS Platform + Monetization (REVISED 2026-04-19 — Notion-style soft-gate freemium)
+### Phase 8: SaaS Platform + Monetization (was Phase 7, moved to Phase 8 on 2026-04-23 — Metrics first)
 **Goal:** Turn the plugin into a commercial open-core product with a web dashboard, encrypted cloud sync, and subscription billing — while keeping the entire local CLI free forever and all LLM analysis local (free via user's Claude Max).
 
 **Stack decision (confirmed):**
@@ -227,7 +234,7 @@ The CLI in this repo gains a thin `sync` module that talks to the cloud repo's p
   9. **F1-F5 backlog items** (project gate, trial state machine, soft gate UX, packs, cross-project) all green.
 **Plans:** TBD (v23-v27)
 
-### Phase 8: Smart Directive Targeting (RENUMBERED from Phase 7)
+### Phase 10: Smart Directive Targeting (post-launch)
 **Goal:** Prevent CLAUDE.md context bloat at scale by routing directives to the right surface — universal rules stay in CLAUDE.md (always in system prompt), context-specific rules become Claude Code Skills (on-demand, loaded only when relevant).
 
 **Problem this solves:**
@@ -259,7 +266,7 @@ LLM classifier tags each proposal's scope:
 
 _Design insight (2026-04-17): steering files grow unbounded and Claude Code's Skills mechanism is the right home for context-specific knowledge._
 
-### Phase 9: Metrics & Social Proof (NEW — added 2026-04-19, RTK-inspired)
+### Phase 7: Metrics & Social Proof (was Phase 9/8, promoted to Phase 7 on 2026-04-23 — before SaaS)
 **Goal:** Make auto-sop's value measurable and viral. Without concrete numbers ("47 errors prevented this month", "67% fewer tokens", "2.3 hours saved"), the landing page sells features instead of outcomes — and feature-list landing pages don't convert.
 
 **Inspiration — RTK AI:** Their landing page shows the killer comparison:
@@ -293,16 +300,14 @@ To produce these numbers we need (M-series backlog items):
 - **M5** Dashboard widget (Pro tier) — "This month: X errors prevented, Y tokens saved, Z hours of work redo avoided". Viral social-share button: "auto-sop saved me 47 errors this month → claim badge."
 - **M6** `auto-sop stats` CLI verb — local-only metric display, free tier (no cloud needed). Shows per-project savings.
 
-**Why Phase 9 not Phase 7:** SaaS dashboard (Phase 7) has to ship first so the M5 widget has somewhere to live. M3-M6 also benefit from real production user data — chicken-and-egg if launched too early.
-
-**Why Phase 8 (before launch):** Without these metrics, the landing page at launch (v34) can't convert. Metric infrastructure is launch-critical, not nice-to-have.
+**Why Phase 7 (before SaaS):** Metrics are pure CLI-side work — no cloud infra needed. M1-M4 and M6 are local-only. M5 (dashboard widget) moves to SaaS phase. The landing page needs real numbers to convert — build the data pipeline first, then the SaaS viewer. Also: metrics prove the product works, which de-risks the SaaS investment.
 
 **Planned versions:**
   - v31: M1 + M6 — directive-fire detection (heuristic) + `auto-sop stats` local CLI verb
   - v32: M2 + M3 — token/time savings tracker + "errors prevented" counter (requires hook integration with Claude Code)
   - v33: M4 + M5 — landing page side-by-side proof copy + Pro dashboard widget + viral share
 
-**Depends on:** Phase 7 (SaaS for M5 dashboard widget), accumulated production user data (1+ month of dogfood post-launch).
+**Depends on:** Phase 6 (working learner with incremental patterns). M5 (dashboard widget) deferred to Phase 8 (SaaS).
 
 **Success Criteria:**
   1. After 2 weeks of use, `auto-sop stats` shows non-zero "directives fired" count.
@@ -324,11 +329,17 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | 3. Learner | 3/3 | **COMPLETE** | v9, v13, v14, v17 |
 | 4. ManagedSectionEditor | 2/2 | **COMPLETE** | v10, v11, v16 |
 | 5. Inspection CLI + Packaging | 2/2 | **COMPLETE** | v17-v22 |
-| 6. Native Windows | 1/3 | In progress — v23 foundation done | v23-v25 |
-| 7. SaaS Platform + Monetization | 0/5 | Not started (separate repo `auto-sop-cloud`) | v26-v30 |
-| 8. Metrics & Social Proof | 0/3 | Not started — launch-critical | v31-v33 |
-| 9. First Public Launch | 0/1 | Not started — after SaaS + Metrics | v34 |
-| 10. Smart Directive Targeting | 0/3 | Not started — post-launch | v35-v37 |
+| 6. Native Windows + Hardening | 5/5 | **COMPLETE** | v23-v25 (Windows), v27 (drift fix), v29 (incremental patterns) |
+| 7. Metrics & Social Proof | 0/3 | **NEXT** — pure CLI work, no cloud needed | v30-v32 |
+| 8. SaaS Platform + Monetization | 0/5 | Not started (separate repo `auto-sop-cloud`) | v33-v37 |
+| 9. First Public Launch | 0/1 | Not started — after Metrics + SaaS | v38 |
+| 10. Smart Directive Targeting | 0/3 | Not started — post-launch | v39+ |
+
+### Parallel work (separate repo `auto-sop-site/`)
+| Plan | Status | Description |
+|------|--------|-------------|
+| v26 | **DONE** | Landing page website (Next.js, purple brand, owl mascot) |
+| v28 | Queued | Vercel deploy + auto-sop.com domain |
 
 ## Execution History
 
@@ -358,6 +369,12 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | v21 | `1d10cfb` | GitHub community files + CI fixes (TypeScript strict, flaky tests, Ubuntu platform) |
 | v22 | `abb6dff` | README badges + npm metadata + publish workflow hardening + Homebrew tap staging |
 | v23 | `29d71bd` | Native Windows foundation — platform abstraction + Task Scheduler + build fixes |
+| v24 | `f6a8517` | Windows chmod migration + CI fix sprint + NTFS permission helper |
+| v25 | — | Windows CI matrix (Phase 6 final step) |
+| v26 | `a2e82d7` | auto-sop.com landing page — purple brand, owl mascot, SEO-ready (`auto-sop-site/` repo) |
+| v27 | `0b9a956` | Learner drift fix — error serialization, repair CLI verb, auto-recovery after 3 drifts |
+| v28 | — | Vercel deploy + auto-sop.com domain (`auto-sop-site/` repo, queued) |
+| v29 | — | Incremental pattern memory — LLM accumulates candidates across ticks (in progress) |
 
 ## Remaining Backlog (39 items — 8 bugs move to v15, I1-I4 done in v13)
 
@@ -412,7 +429,7 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **WIN5** Verify `claude -p` binary support on Windows (LLM mode must work)
 - **WIN6** Docs: Windows-specific install section in README, troubleshooting guide
 
-### SaaS / monetization (v26-v30) — Phase 7
+### SaaS / monetization (v33-v37) — Phase 8
 - **S1** ~~License API backend (ed25519)~~ → REMOVED, replaced by Clerk JWT + Supabase RLS (simpler stack)
 - **S2** Clerk integration in `auto-sop-cloud` — Sign in/up flows, JWT verify
 - **S3** Trial state machine — 14 days OR feature-touch-triggered, no credit card, stored in `secrets.enc`
@@ -425,14 +442,14 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **S10** Dashboard app (`auto-sop-cloud/` repo, Next.js + Vercel)
 - **S11** CLI sync module (encrypted directive push to Supabase Edge Functions)
 
-### Freemium gating (v26-v30) — Phase 7 F-series
+### Freemium gating (v33-v37) — Phase 8 F-series
 - **F1** Project count enforcement — Free=1, Pro=∞. `auto-sop install` in 2nd project triggers trial prompt
 - **F2** Trial state machine — `secrets.enc` stores: `started_at`, `triggered_by` (e.g. "second_project_install"), `ended_at`. Tamper-resistant via existing secrets.enc encryption
 - **F3** Soft gate UX — clear messaging when at quota: "You're using 1/1 projects on Free. Upgrade to Pro for unlimited (no credit card on trial)." Existing project keeps working untouched
 - **F4** Curated directive packs — `~/.auto-sop/packs/<framework>.json` (e.g. `nextjs.json`, `rails.json`). Pulled from cloud on Pro tier. Free tier: only learns from own captures, no shared packs
 - **F5** Cross-project pattern detection — when Pro user has ≥2 projects, learner runs an additional "shared learnings" pass that finds patterns appearing in 2+ projects, surfaces as candidates for promotion to a directive pack
 
-### Metrics & Social Proof (v31-v33) — Phase 8 M-series
+### Metrics & Social Proof (v30-v32) — Phase 7 M-series
 - **M1** Directive-fire detection — UserPromptSubmit hook checks if active directives are relevant to current prompt. Heuristic match (keyword) for v31, LLM-based for v33
 - **M2** Token/time savings tracker — capture token usage from `claude -p --output-format json` responses. Compare sessions before/after directive existed
 - **M3** "Errors prevented this month" counter — for each Bash failure pattern that became a directive, count subsequent sessions where same command DIDN'T fail. Headline number for landing page
@@ -445,7 +462,7 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **D2** dispatch-task.sh stderr fix → formal commit + review
 - **D3** Agent-poll inbox watcher stability
 
-### Smart Directive Targeting (v35-v37) — Phase 10 (post-launch)
+### Smart Directive Targeting (v39+) — Phase 10 (post-launch)
 - **SD1** Scope classification field in DirectiveProposal Zod schema
 - **SD2** LLM prompt update — ask Claude to label each directive's scope
 - **SD3** Skill file generator (`~/.claude/skills/<project>-<skill>.md`)
@@ -479,4 +496,4 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 
 ---
 *Roadmap created: 2026-04-13*
-*Last updated: 2026-04-16 — v12 shipped, backlog assembled, recall gate eliminated*
+*Last updated: 2026-04-23 — Phases reordered: Metrics→7, SaaS→8. v23-v29 execution history added. Phase 6 complete.*

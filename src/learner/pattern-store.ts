@@ -181,7 +181,7 @@ export function graduateCandidates(candidates: PatternCandidate[]): {
           session_ids: c.session_ids,
           turn_ids: c.turn_ids,
           pattern: c.pattern,
-          occurrence_count: c.occurrence_count,
+          occurrence_count: Math.max(c.occurrence_count, distinctSessions),
           first_seen: c.first_seen,
         },
         created_at: nowIso,
