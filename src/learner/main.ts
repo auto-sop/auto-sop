@@ -40,6 +40,7 @@ import {
   type PatternCandidate,
 } from './pattern-store.js';
 import { mergeProposalsWithDedup } from './merge-proposals.js';
+import { compactFires, readFires } from '../capture/writer/directive-fire.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -388,6 +389,7 @@ export async function runLearnerTick(
         return {
           recap,
           newestTurnFinalizedAt: newCursor.last_finalized_at || null,
+          prevFinalizedAt: cursor.last_finalized_at || null,
         };
       });
 
@@ -398,6 +400,7 @@ export async function runLearnerTick(
 
       const result = lockResult.recap;
       const newestTurnFinalizedAt = lockResult.newestTurnFinalizedAt;
+      const prevFinalizedAt = lockResult.prevFinalizedAt;
 
       // PLAN-v14: LLM mode is DEFAULT ON. Opt-out via
       //   CLAUDE_SOP_LEARNER_MODE=offline
@@ -723,6 +726,27 @@ export async function runLearnerTick(
       result.llm_candidates_matched = llmCandidatesMatched;
       result.llm_candidates_graduated = llmCandidatesGraduated;
       result.llm_candidates_total = updatedCandidates.length;
+
+      // V30: Directive-fire compaction + recap fields
+      // Wrapped in try/catch — fire compaction failure must NEVER abort the tick.
+      try {
+        const compacted = compactFires(stateDir, 90);
+        if (compacted > 0) {
+          logError('directive_fire_compacted', { project: project.slug, removed: compacted }, home);
+        }
+        const allFires = readFires(stateDir);
+        result.directive_fires_total = allFires.length;
+        // Count fires since the previous tick's cursor timestamp (single read, filter in-memory)
+        result.directive_fires_new = prevFinalizedAt
+          ? allFires.filter((f) => f.t > prevFinalizedAt).length
+          : allFires.length;
+      } catch (err) {
+        // Note: compactFires and readFires are error-swallowing; this catch
+        // exists for unexpected synchronous throws only (e.g. type errors).
+        logError('directive_fire_compaction_failed', err, home);
+        result.directive_fires_new = 0;
+        result.directive_fires_total = 0;
+      }
 
       // Append per-project recap
       appendRecap(result, home);

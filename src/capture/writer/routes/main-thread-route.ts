@@ -11,6 +11,9 @@ import { writePromptMd, writeResponseMd, extractLastAssistantMessage } from '../
 import { writeFilesChanged } from '../files-changed.js';
 import { finalizeHooks } from './finalize-hooks.js';
 import { handleSubagentUserPromptSubmit } from './subagent-route.js';
+import { loadHistory } from '../../../managed-section/directive-history.js';
+import { detectDirectiveFires, appendFires } from '../directive-fire.js';
+import type { DirectiveInput } from '../directive-fire.js';
 
 export const handleUserPromptSubmit: Handler<UserPromptSubmitPayload> = (event, ctx): void => {
   // Delegate to subagent handler if agent_id is present
@@ -46,6 +49,34 @@ export const handleUserPromptSubmit: Handler<UserPromptSubmitPayload> = (event, 
   const { hitCount } = writePromptMd(pendingDir, event.prompt, ctx.scrubber);
   if (hitCount > 0) {
     updateMeta(pendingDir, { scrubber_hit_count: hitCount });
+  }
+
+  // ─── Directive-fire detection ───────────────────────────
+  // Records when a user prompt matches an active CLAUDE.md directive.
+  // Best-effort — MUST NEVER crash the writer or slow it noticeably.
+  if (process.env.AUTO_SOP_DISABLE_FIRE_DETECTION !== '1') {
+    try {
+      const history = loadHistory(ctx.projectRoot);
+      const directives: DirectiveInput[] = [];
+      for (const entry of Object.values(history.entries)) {
+        if (!entry.pruned && entry.rule_text.length > 0) {
+          directives.push({ id: entry.id, rule_text: entry.rule_text });
+        }
+      }
+      if (directives.length > 0) {
+        const fires = detectDirectiveFires(
+          event.prompt,
+          directives,
+          event.session_id,
+          ctx.projectId,
+        );
+        if (fires.length > 0) {
+          appendFires(ctx.paths.projectStateDir, fires);
+        }
+      }
+    } catch {
+      // Silently continue — fire detection is best-effort
+    }
   }
 
   setCurrentTurn(ctx.paths.projectStateDir, event.session_id, {

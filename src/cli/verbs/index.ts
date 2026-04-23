@@ -18,6 +18,7 @@ import { registerShowVerb } from './show.js';
 import { registerMigrateVerb } from './migrate.js';
 import { registerRepairVerb } from './repair.js';
 import { registerCandidatesVerb } from './candidates.js';
+import { registerStatsVerb } from './stats.js';
 
 export function registerVerbs(program: Command): void {
   // @@VERBS_REGISTER@@  <-- Wave 2 plans insert register calls here, one per verb
@@ -38,4 +39,5 @@ export function registerVerbs(program: Command): void {
   registerMigrateVerb(program);
   registerRepairVerb(program);
   registerCandidatesVerb(program);
+  registerStatsVerb(program);
 }

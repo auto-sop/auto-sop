@@ -93,6 +93,12 @@ export interface PerProjectRecap {
   /** Total candidates in the store after this tick (including graduated). */
   llm_candidates_total?: number;
 
+  // ── Directive-fire metrics (V30) ───────────────────────────
+  /** Count of directive fires recorded since the last learner tick. */
+  directive_fires_new?: number;
+  /** Total fire count in the store after compaction. */
+  directive_fires_total?: number;
+
   // ── LLM skip optimization (PLAN-v17 I8) ──────────────────
   /**
    * Optimization code indicating why the LLM was skipped this tick
