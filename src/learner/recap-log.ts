@@ -103,13 +103,14 @@ export interface PerProjectRecap {
   /**
    * Optimization code indicating why the LLM was skipped this tick
    * (not an error). Current values:
-   *   - 'no_new_turns' — scan.turns_new === 0 and CLAUDE_SOP_FORCE_LLM
-   *     was not set, so we short-circuited before spawning `claude -p`.
+   *   - 'no_new_turns' — scan.turns_new === 0.
+   *   - 'too_few_turns' — scan.turns_new > 0 but below MIN_TURNS_FOR_LLM
+   *     threshold (default 3). Rule-based detectors still ran.
    *   - 'just_restored' — directives were restored from a previous install
    *     (I9), so LLM analysis is skipped to prevent false-negative heuristic.
    * `undefined` when the LLM actually ran (or failed while running).
    */
-  llm_skipped?: 'no_new_turns' | 'just_restored' | null;
+  llm_skipped?: 'no_new_turns' | 'too_few_turns' | 'just_restored' | null;
 }
 
 export interface TickSummary {

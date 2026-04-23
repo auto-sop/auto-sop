@@ -176,16 +176,22 @@ describe('shouldSkipLlmForIdleTick', () => {
     expect(shouldSkipLlmForIdleTick(0, {})).toBe(true);
   });
 
-  it('returns false when turnsNew > 0 even if CLAUDE_SOP_FORCE_LLM is unset', () => {
-    expect(shouldSkipLlmForIdleTick(1, {})).toBe(false);
+  it('returns true when turnsNew is below MIN_TURNS_FOR_LLM threshold', () => {
+    expect(shouldSkipLlmForIdleTick(1, {})).toBe(true);
+    expect(shouldSkipLlmForIdleTick(2, {})).toBe(true);
+  });
+
+  it('returns false when turnsNew >= MIN_TURNS_FOR_LLM (3)', () => {
+    expect(shouldSkipLlmForIdleTick(3, {})).toBe(false);
     expect(shouldSkipLlmForIdleTick(5, {})).toBe(false);
   });
 
-  it('returns false when CLAUDE_SOP_FORCE_LLM="1" overrides the idle skip', () => {
+  it('returns false when CLAUDE_SOP_FORCE_LLM="1" overrides the threshold', () => {
     expect(shouldSkipLlmForIdleTick(0, { CLAUDE_SOP_FORCE_LLM: '1' })).toBe(false);
+    expect(shouldSkipLlmForIdleTick(1, { CLAUDE_SOP_FORCE_LLM: '1' })).toBe(false);
   });
 
-  it('returns false when both turnsNew > 0 and force flag is set', () => {
+  it('returns false when both turnsNew >= threshold and force flag is set', () => {
     expect(shouldSkipLlmForIdleTick(3, { CLAUDE_SOP_FORCE_LLM: '1' })).toBe(false);
   });
 

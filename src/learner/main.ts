@@ -92,8 +92,15 @@ export function buildHardTimeoutSummary(tickId: string, tickStart: number): Tick
 }
 
 /**
+ * Minimum new turns required before invoking the LLM. A single turn
+ * rarely yields cross-session patterns — spending tokens on it is
+ * wasteful. Rule-based detectors still run on every tick regardless.
+ */
+export const MIN_TURNS_FOR_LLM = 3;
+
+/**
  * (PLAN-v17 I8) Decide whether to skip the LLM for this tick because
- * no new turns arrived. Respects CLAUDE_SOP_FORCE_LLM=1 override.
+ * too few new turns arrived. Respects CLAUDE_SOP_FORCE_LLM=1 override.
  * Pure — environment is explicit, so tests don't have to mutate
  * process.env.
  */
@@ -101,7 +108,8 @@ export function shouldSkipLlmForIdleTick(
   turnsNew: number,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return turnsNew === 0 && env.AUTO_SOP_FORCE_LLM !== '1' && env.CLAUDE_SOP_FORCE_LLM !== '1';
+  if (env.AUTO_SOP_FORCE_LLM === '1' || env.CLAUDE_SOP_FORCE_LLM === '1') return false;
+  return turnsNew < MIN_TURNS_FOR_LLM;
 }
 
 /**
@@ -422,45 +430,52 @@ export async function runLearnerTick(
         process.env.AUTO_SOP_LEARNER_MODE === 'offline' ||
         process.env.CLAUDE_SOP_LEARNER_MODE === 'offline';
 
-      // Load turn data ONCE per project per tick (shared across all detectors)
+      // Load turn data ONCE per project per tick (shared across all detectors).
+      // Skip entirely when no new turns — avoids reading hundreds of turn
+      // dirs on idle ticks (pure I/O savings).
       let turnData: ReturnType<typeof loadTurnsForDetection> = [];
-      try {
-        turnData = loadTurnsForDetection(capturesDir, MAX_TURNS_FIRST_RUN);
-      } catch (err) {
-        logError('turn_loader_failed', err, home);
-        turnData = [];
+      if (result.turns_new > 0) {
+        try {
+          turnData = loadTurnsForDetection(capturesDir, MAX_TURNS_FIRST_RUN);
+        } catch (err) {
+          logError('turn_loader_failed', err, home);
+          turnData = [];
+        }
       }
 
       // Execute every detector inside try/catch — a crashing detector
       // must never abort the tick. Track run/fail counts for recap.
+      // Skip when no new turns (detectors can't find anything new).
       const ruleProposals: DirectiveProposalType[] = [];
       let detectorsRun = 0;
       let detectorsFailed = 0;
 
-      for (const detector of detectors) {
-        detectorsRun++;
-        try {
-          const raw = detector.detect(turnData);
-          for (const proposal of raw) {
-            const parsed = DirectiveProposal.safeParse(proposal);
-            if (parsed.success) {
-              ruleProposals.push(parsed.data);
-            } else {
-              logError(
-                'directive_schema_rejected',
-                {
-                  detector: detector.name,
-                  // Only log structured validation errors (not the
-                  // malformed proposal itself, which could be huge).
-                  issues: parsed.error.issues,
-                },
-                home,
-              );
+      if (turnData.length > 0) {
+        for (const detector of detectors) {
+          detectorsRun++;
+          try {
+            const raw = detector.detect(turnData);
+            for (const proposal of raw) {
+              const parsed = DirectiveProposal.safeParse(proposal);
+              if (parsed.success) {
+                ruleProposals.push(parsed.data);
+              } else {
+                logError(
+                  'directive_schema_rejected',
+                  {
+                    detector: detector.name,
+                    // Only log structured validation errors (not the
+                    // malformed proposal itself, which could be huge).
+                    issues: parsed.error.issues,
+                  },
+                  home,
+                );
+              }
             }
+          } catch (err) {
+            detectorsFailed++;
+            logError('detector_failed', { detector: detector.name, err: String(err) }, home);
           }
-        } catch (err) {
-          detectorsFailed++;
-          logError('detector_failed', { detector: detector.name, err: String(err) }, home);
         }
       }
 
@@ -519,8 +534,8 @@ export async function runLearnerTick(
         result.llm_skipped = 'just_restored';
         llmError = 'skipped_just_restored';
       } else if (shouldSkipLlmForIdleTick(result.turns_new)) {
-        result.llm_skipped = 'no_new_turns';
-        llmError = 'skipped_no_new_turns';
+        result.llm_skipped = result.turns_new === 0 ? 'no_new_turns' : 'too_few_turns';
+        llmError = result.turns_new === 0 ? 'skipped_no_new_turns' : 'skipped_too_few_turns';
       } else if (!isOffline) {
         // 4. Run incremental LLM analysis
         try {
