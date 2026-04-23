@@ -30,6 +30,9 @@ import { execa } from 'execa';
 import { DirectiveProposal, type DirectiveProposalType } from './directive-schema.js';
 import { serializeTurnsForLlm } from './llm-serializer.js';
 import { buildAnalysisPrompt } from './llm-prompt.js';
+import { buildIncrementalPrompt } from './llm-prompt-incremental.js';
+import { parseIncrementalResponse, type IncrementalParseResult } from './llm-response-incremental.js';
+import type { PatternCandidate } from './pattern-store.js';
 import type { TurnData } from './turn-loader.js';
 
 // ── Constants ──────────────────────────────────────────────
@@ -261,6 +264,95 @@ function extractInnerText(stdout: string): string | null {
 function stripMarkdownFences(s: string): string {
   const m = s.match(/^```(?:json)?\s*\n([\s\S]*?)\n```\s*$/);
   return m && m[1] !== undefined ? m[1].trim() : s;
+}
+
+// ── Incremental LLM analysis ──────────────────────────────
+
+export interface IncrementalLlmResult {
+  /** Parsed incremental response — new candidates and matched existing. */
+  parsed: IncrementalParseResult;
+  /** Free-form summary string the model returned (shortcut for parsed.summary). */
+  summary: string;
+  /** Wall-clock time spent in this call. 0 only when `offline:true`. */
+  durationMs: number;
+  /**
+   * `null` on success, otherwise a stable error code (same codes as
+   * runLlmAnalysis: `claude_not_found`, `timeout`, `claude_exit_<n>`,
+   * `json_parse_failed`, `spawn_failed`).
+   */
+  error: string | null;
+}
+
+/**
+ * Run the incremental LLM analysis pipeline for one project / one tick.
+ *
+ * Uses the incremental prompt (llm-prompt-incremental.ts) which asks
+ * the LLM to extract new pattern candidates and match existing ones
+ * against new turns — rather than finding fully-graduated directives
+ * in a single shot.
+ *
+ * Shares the same spawn logic as runLlmAnalysis (same env guards,
+ * timeout, reject:false).
+ *
+ * Never throws. On any failure the returned `IncrementalLlmResult`
+ * has `parsed: { newCandidates: [], matchedExisting: [] }` and a
+ * populated `error` field.
+ */
+export async function runIncrementalLlmAnalysis(
+  turns: TurnData[],
+  projectName: string,
+  existingCandidates: PatternCandidate[],
+  sessionId: string,
+  options?: { timeout?: number; offline?: boolean },
+): Promise<IncrementalLlmResult> {
+  const emptyParsed: IncrementalParseResult = { newCandidates: [], matchedExisting: [], summary: '' };
+
+  if (options?.offline === true) {
+    return { parsed: emptyParsed, summary: '', durationMs: 0, error: null };
+  }
+
+  const start = Date.now();
+
+  if (!isClaudeOnPath()) {
+    return { parsed: emptyParsed, summary: '', durationMs: Date.now() - start, error: 'claude_not_found' };
+  }
+
+  // Build incremental prompt
+  const serialized = serializeTurnsForLlm(turns, projectName);
+  const prompt = buildIncrementalPrompt(serialized, projectName, turns.length, existingCandidates);
+
+  // Spawn `claude -p` with same env guards as runLlmAnalysis
+  let result;
+  try {
+    result = await execa('claude', ['-p', '--output-format', 'json', '--max-turns', '1'], {
+      input: prompt,
+      timeout: options?.timeout ?? DEFAULT_TIMEOUT_MS,
+      env: {
+        ...process.env,
+        AUTO_SOP_CAPTURE_SUPPRESS: '1',
+        CLAUDE_SOP_CAPTURE_SUPPRESS: '1',
+      },
+      reject: false,
+    });
+  } catch {
+    return { parsed: emptyParsed, summary: '', durationMs: Date.now() - start, error: 'spawn_failed' };
+  }
+
+  const durationMs = Date.now() - start;
+
+  if (result.timedOut === true) {
+    return { parsed: emptyParsed, summary: '', durationMs, error: 'timeout' };
+  }
+
+  if (result.failed === true || (result.exitCode ?? 0) !== 0) {
+    const code = result.exitCode ?? -1;
+    return { parsed: emptyParsed, summary: '', durationMs, error: `claude_exit_${code}` };
+  }
+
+  const stdout = typeof result.stdout === 'string' ? result.stdout : '';
+  const parsed = parseIncrementalResponse(stdout, sessionId, turns);
+
+  return { parsed, summary: parsed.summary, durationMs, error: null };
 }
 
 // ── Legacy compatibility shim ──────────────────────────────

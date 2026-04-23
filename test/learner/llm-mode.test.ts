@@ -38,8 +38,10 @@ vi.mock('node:child_process', () => ({
 
 import { execa } from 'execa';
 import { spawnSync } from 'node:child_process';
-import { runLlmAnalysis } from '../../src/learner/llm-mode.js';
+import { runLlmAnalysis, runIncrementalLlmAnalysis } from '../../src/learner/llm-mode.js';
 import type { TurnData } from '../../src/learner/turn-loader.js';
+import type { PatternCandidate } from '../../src/learner/pattern-store.js';
+import { generateProposalId } from '../../src/learner/directive-schema.js';
 
 const mockedExeca = vi.mocked(execa);
 const mockedSpawnSync = vi.mocked(spawnSync);
@@ -405,5 +407,163 @@ describe('runLlmAnalysis', () => {
     expect(typeof result.durationMs).toBe('number');
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
     expect(result.error).toBe('claude_exit_1');
+  });
+});
+
+// ── runIncrementalLlmAnalysis ────────────────────────────
+
+function makeExistingCandidate(overrides: Partial<PatternCandidate> = {}): PatternCandidate {
+  const pattern = overrides.pattern ?? 'existing-pattern';
+  return {
+    id: overrides.id ?? generateProposalId('llm-inc', pattern),
+    pattern,
+    severity: 'warning',
+    rule_text: 'Always check exit codes before proceeding with the next step.',
+    session_ids: overrides.session_ids ?? ['s1'],
+    turn_ids: overrides.turn_ids ?? ['t1'],
+    occurrence_count: overrides.occurrence_count ?? 1,
+    first_seen: overrides.first_seen ?? '2026-04-01T00:00:00.000Z',
+    last_seen: overrides.last_seen ?? '2026-04-20T00:00:00.000Z',
+    graduated: overrides.graduated ?? false,
+    ...overrides,
+  };
+}
+
+function validIncrementalResponse(): unknown {
+  return {
+    new_candidates: [
+      {
+        pattern: 'missing npm install before test',
+        severity: 'warning',
+        rule_text: 'Always run npm install before running tests after pulling changes.',
+        turn_ids: ['t-0', 't-1'],
+        occurrence_count: 2,
+      },
+    ],
+    matched_existing: [
+      {
+        candidate_id: 'llm-inc-abc123def456',
+        turn_ids: ['t-2'],
+        additional_occurrences: 1,
+      },
+    ],
+    summary: 'Found one new pattern and one match.',
+  };
+}
+
+describe('runIncrementalLlmAnalysis', () => {
+  it('options.offline=true → returns immediately with no spawn', async () => {
+    const result = await runIncrementalLlmAnalysis(
+      fakeTurns(5),
+      'proj',
+      [],
+      'sess-001',
+      { offline: true },
+    );
+
+    expect(result.parsed.newCandidates).toEqual([]);
+    expect(result.parsed.matchedExisting).toEqual([]);
+    expect(result.durationMs).toBe(0);
+    expect(result.error).toBeNull();
+    expect(mockedExeca).not.toHaveBeenCalled();
+    expect(mockedSpawnSync).not.toHaveBeenCalled();
+  });
+
+  it('claude not on PATH → graceful empty result with claude_not_found', async () => {
+    mockedSpawnSync.mockReturnValue(whichReturn(false));
+
+    const result = await runIncrementalLlmAnalysis(
+      fakeTurns(5),
+      'proj',
+      [],
+      'sess-001',
+    );
+
+    expect(result.parsed.newCandidates).toEqual([]);
+    expect(result.parsed.matchedExisting).toEqual([]);
+    expect(result.error).toBe('claude_not_found');
+    expect(mockedExeca).not.toHaveBeenCalled();
+  });
+
+  it('valid incremental response → candidates parsed correctly', async () => {
+    const inner = validIncrementalResponse();
+    mockedExeca.mockResolvedValue(execaReturn({ stdout: wrapClaude(inner) }));
+
+    const existingCandidates = [makeExistingCandidate()];
+    const result = await runIncrementalLlmAnalysis(
+      fakeTurns(3),
+      'proj',
+      existingCandidates,
+      'sess-001',
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.parsed.newCandidates).toHaveLength(1);
+    expect(result.parsed.newCandidates[0]!.pattern).toBe('missing npm install before test');
+    expect(result.parsed.matchedExisting).toHaveLength(1);
+    expect(result.parsed.matchedExisting[0]!.candidateId).toBe('llm-inc-abc123def456');
+    expect(mockedExeca).toHaveBeenCalledTimes(1);
+  });
+
+  it('timeout → error field set, parsed empty', async () => {
+    mockedExeca.mockResolvedValue(
+      execaReturn({ failed: true, timedOut: true, exitCode: undefined }),
+    );
+
+    const result = await runIncrementalLlmAnalysis(fakeTurns(5), 'proj', [], 'sess');
+    expect(result.error).toBe('timeout');
+    expect(result.parsed.newCandidates).toEqual([]);
+    expect(result.parsed.matchedExisting).toEqual([]);
+  });
+
+  it('non-zero exit → error reflects the exit code', async () => {
+    mockedExeca.mockResolvedValue(execaReturn({ failed: true, exitCode: 3, stdout: '' }));
+
+    const result = await runIncrementalLlmAnalysis(fakeTurns(3), 'proj', [], 'sess');
+    expect(result.error).toBe('claude_exit_3');
+    expect(result.parsed.newCandidates).toEqual([]);
+  });
+
+  it('passes CLAUDE_SOP_CAPTURE_SUPPRESS=1 in spawned env', async () => {
+    mockedExeca.mockResolvedValue(
+      execaReturn({ stdout: wrapClaude({ new_candidates: [], matched_existing: [] }) }),
+    );
+
+    await runIncrementalLlmAnalysis(fakeTurns(2), 'proj', [], 'sess');
+
+    expect(mockedExeca).toHaveBeenCalledTimes(1);
+    const call = mockedExeca.mock.calls[0];
+    const opts = call?.[2] as { env?: Record<string, string> };
+    expect(opts?.env?.CLAUDE_SOP_CAPTURE_SUPPRESS).toBe('1');
+    expect(opts?.env?.AUTO_SOP_CAPTURE_SUPPRESS).toBe('1');
+  });
+
+  it('durationMs is populated even when the call errors out', async () => {
+    mockedExeca.mockResolvedValue(execaReturn({ failed: true, exitCode: 1 }));
+
+    const result = await runIncrementalLlmAnalysis(fakeTurns(2), 'proj', [], 'sess');
+    expect(typeof result.durationMs).toBe('number');
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    expect(result.error).toBe('claude_exit_1');
+  });
+
+  it('passes existing candidates to the prompt builder', async () => {
+    // When existing candidates are provided, they should be included in the
+    // prompt sent to claude. We verify by checking that execa was called
+    // with input that mentions the existing candidate pattern.
+    const existing = [
+      makeExistingCandidate({ pattern: 'unique-test-pattern-xyz' }),
+    ];
+    mockedExeca.mockResolvedValue(
+      execaReturn({ stdout: wrapClaude({ new_candidates: [], matched_existing: [] }) }),
+    );
+
+    await runIncrementalLlmAnalysis(fakeTurns(2), 'proj', existing, 'sess');
+
+    expect(mockedExeca).toHaveBeenCalledTimes(1);
+    const call = mockedExeca.mock.calls[0];
+    const opts = call?.[2] as { input?: string };
+    // The prompt should include the existing candidate's pattern
+    expect(opts?.input).toContain('unique-test-pattern-xyz');
   });
 });

@@ -83,6 +83,16 @@ export interface PerProjectRecap {
    *  — those are captured in `llm_skipped` instead. */
   llm_fallback?: boolean;
 
+  // ── Incremental candidate fields (PLAN-v29) ──────────────
+  /** Count of new pattern candidates extracted by the LLM this tick. */
+  llm_candidates_new?: number;
+  /** Count of existing candidates the LLM matched against new turns. */
+  llm_candidates_matched?: number;
+  /** Count of candidates that graduated to directives this tick. */
+  llm_candidates_graduated?: number;
+  /** Total candidates in the store after this tick (including graduated). */
+  llm_candidates_total?: number;
+
   // ── LLM skip optimization (PLAN-v17 I8) ──────────────────
   /**
    * Optimization code indicating why the LLM was skipped this tick

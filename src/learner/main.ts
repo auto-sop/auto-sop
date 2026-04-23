@@ -30,7 +30,15 @@ import {
   countEditFailureCandidates,
 } from './detectors/index.js';
 import { DirectiveProposal, type DirectiveProposalType } from './directive-schema.js';
-import { runLlmAnalysis } from './llm-mode.js';
+import { runIncrementalLlmAnalysis } from './llm-mode.js';
+import {
+  readCandidates,
+  writeCandidates,
+  mergeCandidateEvidence,
+  graduateCandidates,
+  pruneStaleCandidates,
+  type PatternCandidate,
+} from './pattern-store.js';
 import { mergeProposalsWithDedup } from './merge-proposals.js';
 
 // ── Constants ──────────────────────────────────────────────
@@ -55,7 +63,7 @@ export const HARD_TIMEOUT_MS = 600_000; // 10 minutes
 export const LLM_SPAWN_TIMEOUT_MS = 300_000; // 5 minutes
 const MAX_TURNS_FIRST_RUN = 500;
 /** Cap on turns sent to the LLM — keeps the prompt within context window limits. */
-const MAX_TURNS_FOR_LLM = 10;
+const MAX_TURNS_FOR_LLM = 5;
 
 // ── Testable helpers ───────────────────────────────────────
 
@@ -461,16 +469,33 @@ export async function runLearnerTick(
         logError('candidate_count_failed', err, home);
       }
 
-      // Run LLM analysis (unless offline). Fail-open: any error → empty
-      // result; we still write CLAUDE.md using just the rule-based output.
-      let llmResult: Awaited<ReturnType<typeof runLlmAnalysis>> = {
-        proposals: [],
-        summary: '',
-        turnsAnalyzed: 0,
-        patternsBelowThreshold: 0,
-        durationMs: 0,
-        error: null,
-      };
+      // ── V29: Incremental Pattern Memory pipeline ────────────
+      // Instead of a single-shot LLM analysis, we accumulate pattern
+      // candidates across ticks. Each tick: read existing candidates,
+      // prune stale, ask LLM for new/matched candidates, merge evidence,
+      // graduate candidates with 3+ sessions → directive proposals.
+
+      // 1. Read existing candidates from persistent store
+      let existingCandidates: PatternCandidate[] = [];
+      try {
+        existingCandidates = readCandidates(stateDir);
+      } catch (err) {
+        logError('pattern_store_read_failed', err, home);
+      }
+
+      // 2. Prune stale non-graduated candidates (> 30 days)
+      existingCandidates = pruneStaleCandidates(existingCandidates, 30);
+
+      // 3. Determine current session IDs from turn data
+      const currentSessionIds = [...new Set(turnData.map((t) => t.session_id))];
+      const primarySessionId = currentSessionIds.length > 0 ? currentSessionIds[0]! : 'unknown';
+
+      // Track LLM-level state for recap
+      let llmDurationMs = 0;
+      let llmError: string | null = null;
+      let llmSummary = '';
+      let llmCandidatesNew = 0;
+      let llmCandidatesMatched = 0;
 
       // (PLAN-v17 I9) Skip LLM when directives were just restored from
       // a previous install. The learner would otherwise see the old
@@ -486,62 +511,106 @@ export async function runLearnerTick(
         }
       })();
 
-      // (PLAN-v17 I8) Skip the LLM entirely when no new turns arrived
-      // this tick. `claude -p` takes 10–30s even for an empty prompt,
-      // so skipping idle ticks is a large wall-clock win. Override via
-      // AUTO_SOP_FORCE_LLM=1 (wired to `auto-sop learn-now --force-llm`
-      // in Wave 2).
       if (justRestored) {
         result.llm_skipped = 'just_restored';
-        llmResult = {
-          proposals: [],
-          summary: '',
-          turnsAnalyzed: 0,
-          patternsBelowThreshold: 0,
-          durationMs: 0,
-          error: 'skipped_just_restored',
-        };
+        llmError = 'skipped_just_restored';
       } else if (shouldSkipLlmForIdleTick(result.turns_new)) {
-        // Record the skip in the recap. `llm_error` stays 'skipped_no_new_turns'
-        // so structured log analysis can count skip events, but
-        // `llm_fallback` is explicitly cleared below because a skip is
-        // an optimization, not a failure.
         result.llm_skipped = 'no_new_turns';
-        llmResult = {
-          proposals: [],
-          summary: '',
-          turnsAnalyzed: 0,
-          patternsBelowThreshold: 0,
-          durationMs: 0,
-          error: 'skipped_no_new_turns',
-        };
-      } else {
+        llmError = 'skipped_no_new_turns';
+      } else if (!isOffline) {
+        // 4. Run incremental LLM analysis
         try {
-          // Cap turns sent to LLM to keep prompt within context limits.
-          // Rule-based detectors still see ALL turns — only LLM input is capped.
-          // Take the newest turns (tail) so the LLM sees the most recent patterns.
-          const llmTurns =
-            turnData.length > MAX_TURNS_FOR_LLM
-              ? turnData.slice(turnData.length - MAX_TURNS_FOR_LLM)
-              : turnData;
-          const sessionCount = new Set(llmTurns.map((t) => t.session_id)).size;
-          llmResult = await runLlmAnalysis(llmTurns, project.slug, sessionCount, {
-            offline: isOffline,
-            timeout: LLM_SPAWN_TIMEOUT_MS,
-          });
-          if (llmResult.error !== null && !isOffline) {
+          // Cap turns sent to LLM — safety valve for prompt size.
+          // Rule-based detectors still see ALL turns.
+          const llmTurns = turnData.slice(-MAX_TURNS_FOR_LLM);
+
+          const llmResult = await runIncrementalLlmAnalysis(
+            llmTurns,
+            project.slug,
+            existingCandidates,
+            primarySessionId,
+            { timeout: LLM_SPAWN_TIMEOUT_MS },
+          );
+          llmDurationMs = llmResult.durationMs;
+          llmError = llmResult.error;
+
+          if (llmResult.error !== null) {
             logError('learner_llm_error', llmResult.error, home);
+          } else {
+            // 5. For new candidates, populate session_ids with ALL
+            // sessions present in the current turn batch.
+            for (const nc of llmResult.parsed.newCandidates) {
+              nc.session_ids = currentSessionIds.length > 0 ? [...currentSessionIds] : [primarySessionId];
+            }
+
+            // 6. Merge new candidate evidence into existing store
+            existingCandidates = mergeCandidateEvidence(
+              existingCandidates,
+              llmResult.parsed.newCandidates,
+            );
+
+            // 7. Apply matched_existing updates — add session + turn evidence
+            for (const match of llmResult.parsed.matchedExisting) {
+              const target = existingCandidates.find((c) => c.id === match.candidateId);
+              if (target) {
+                // Union session_ids
+                const sessionSet = new Set(target.session_ids);
+                for (const sid of currentSessionIds) sessionSet.add(sid);
+                target.session_ids = [...sessionSet];
+                // Union turn_ids
+                const turnSet = new Set(target.turn_ids);
+                for (const tid of match.turnIds) turnSet.add(tid);
+                target.turn_ids = [...turnSet];
+                // Add occurrences
+                target.occurrence_count += match.additionalOccurrences;
+                // Update last_seen
+                const nowIso = new Date().toISOString();
+                if (nowIso > target.last_seen) target.last_seen = nowIso;
+              }
+            }
+
+            llmSummary = llmResult.summary;
+            llmCandidatesNew = llmResult.parsed.newCandidates.length;
+            llmCandidatesMatched = llmResult.parsed.matchedExisting.length;
           }
         } catch (err) {
-          // runLlmAnalysis is documented never to throw, but guard anyway.
+          // runIncrementalLlmAnalysis is documented never to throw, but guard anyway.
           logError('learner_llm_error', err, home);
         }
       }
+      // When offline: skip the LLM call but still run graduation below
 
-      // Merge rule-based + LLM proposals. On LLM failure, llmResult.proposals
-      // is empty so the merger degrades gracefully to rule-only output.
-      // E4: capture semantic-dedup count so it surfaces in the recap.
-      const mergeResult = mergeProposalsWithDedup(ruleProposals, llmResult.proposals);
+      // 8. Graduate candidates with 3+ distinct sessions
+      const { graduated: graduatedProposals, updated: updatedCandidates } =
+        graduateCandidates(existingCandidates);
+      const llmCandidatesGraduated = graduatedProposals.length;
+
+      // 9. Write updated candidates back to persistent store
+      try {
+        writeCandidates(stateDir, updatedCandidates);
+      } catch (err) {
+        logError('pattern_store_write_failed', err, home);
+      }
+
+      // 10. Validate graduated candidates through the same Zod safeParse
+      // gate used for ruleProposals — prevents managed-section marker
+      // injection from crafted LLM responses (SEC-001).
+      const validGraduated: DirectiveProposalType[] = [];
+      for (const p of graduatedProposals) {
+        const parsed = DirectiveProposal.safeParse(p);
+        if (parsed.success) {
+          validGraduated.push(parsed.data);
+        } else {
+          logError(
+            'graduated_candidate_schema_rejected',
+            { id: (p as Record<string, unknown>).id, issues: parsed.error.issues },
+            home,
+          );
+        }
+      }
+
+      // 11. Feed validated graduated directives into the existing merge pipeline.
+      const mergeResult = mergeProposalsWithDedup(ruleProposals, validGraduated);
       const mergedProposals = mergeResult.proposals;
       result.merge_deduped_count = mergeResult.dedupedCount;
 
@@ -596,7 +665,7 @@ export async function runLearnerTick(
           // Only render the AI analysis line when the LLM actually ran
           // AND produced a summary. Suppress on fallback so stale
           // context doesn't bleed across ticks.
-          !isOffline && llmResult.error === null ? llmResult.summary : undefined,
+          !isOffline && llmError === null ? llmSummary : undefined,
           // B4: data-anchored timestamp — identical scan inputs yield
           // byte-identical bodies, so the managed-section editor
           // reports verdict='unchanged' when nothing new has happened.
@@ -629,25 +698,31 @@ export async function runLearnerTick(
       // Populate LLM-mode fields on the per-project recap so
       // `auto-sop recap` can surface what happened.
       result.llm_mode = !isOffline;
-      result.llm_duration_ms = llmResult.durationMs;
-      result.llm_directives_proposed = llmResult.proposals.length;
+      result.llm_duration_ms = llmDurationMs;
+      result.llm_directives_proposed = graduatedProposals.length;
       // The number of LLM proposals that actually landed in the managed
       // section — i.e. survived id dedup, semantic dedup, history TTL,
       // and the cap. Computed as "rendered items whose id came from the
-      // LLM set".
-      const llmIds = new Set(llmResult.proposals.map((p) => p.id));
+      // graduated set".
+      const llmIds = new Set(graduatedProposals.map((p) => p.id));
       result.llm_directives_accepted = renderProposals.filter((p) => llmIds.has(p.id)).length;
       result.llm_directives_rejected =
-        llmResult.proposals.length - (result.llm_directives_accepted ?? 0);
-      result.llm_error = llmResult.error;
+        graduatedProposals.length - (result.llm_directives_accepted ?? 0);
+      result.llm_error = llmError;
       // (PLAN-v17 I8) A deliberate skip is NOT a fallback — it's an
       // optimization. The skip reason lives in `llm_skipped`; clearing
       // `llm_fallback` prevents dashboards from treating an idle tick
       // as a regression.
       result.llm_fallback =
-        llmResult.error !== null &&
-        llmResult.error !== 'skipped_no_new_turns' &&
-        llmResult.error !== 'skipped_just_restored';
+        llmError !== null &&
+        llmError !== 'skipped_no_new_turns' &&
+        llmError !== 'skipped_just_restored';
+
+      // V29: Incremental candidate recap fields
+      result.llm_candidates_new = llmCandidatesNew;
+      result.llm_candidates_matched = llmCandidatesMatched;
+      result.llm_candidates_graduated = llmCandidatesGraduated;
+      result.llm_candidates_total = updatedCandidates.length;
 
       // Append per-project recap
       appendRecap(result, home);
