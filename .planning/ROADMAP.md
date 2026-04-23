@@ -457,6 +457,10 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **M5** Pro dashboard widget — monthly trend graph + viral social-share button: "auto-sop saved me 47 errors this month → tweet badge"
 - **M6** `auto-sop stats` CLI verb — local-only metric display, free tier (no cloud needed). Shows per-project savings
 
+### Known bugs (fix when convenient)
+- **BUG-C1** `auto-sop status` shows "last tick: never" and "directives: 0" even when learner cursor is advancing and CLAUDE.md has active directives. The status verb reads `scheduler.lastTickAt` and `learner.lastRunAt` fields that the tick script never writes to. Actual batch pipeline works correctly — recap log, cursors, and directive generation all function. Display-only issue.
+- **BUG-S1** **Session inflation from Dev Army agents.** Each subagent (ARCHITECT, YODA, APEX, PRISM, etc.) creates its own `session_id`, so a single 20-minute dev-army run on wrbeautiful-shopify-theme produced 21 sessions from 25 turns. The 3-session graduation threshold is trivially met in one sitting, causing the LLM to graduate all candidates immediately. Real impact: wrbeautiful got 10 directives from what was effectively 1 user work session. Fix options: (a) deduplicate by parent session / transcript_path root, (b) time-window grouping (sessions within same hour = 1 observation), (c) only count `main` agent type sessions toward threshold. This is a **quality issue, not a crash** — directives generated are still valid, but the "evidence: 3 sessions" claim is misleading.
+
 ### dev-army improvements (parallel)
 - **D1** Commander default to dispatch-and-wait.sh
 - **D2** dispatch-task.sh stderr fix → formal commit + review

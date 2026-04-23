@@ -414,12 +414,13 @@ export async function runLearnerTick(
       // re-invoke LLM against its own analysis output. The legacy
       // `CLAUDE_SOP_LEARNER` name is still honored for backward compat
       // with tick scripts installed by older versions.
+      // Only explicit LEARNER_MODE=offline disables LLM. The capture-suppress
+      // and CLAUDE_SOP_LEARNER env vars are recursion guards for the capture
+      // pipeline — they must NOT force the learner offline, otherwise the
+      // hourly cron (tick.sh) never runs LLM analysis.
       const isOffline =
         process.env.AUTO_SOP_LEARNER_MODE === 'offline' ||
-        process.env.CLAUDE_SOP_LEARNER_MODE === 'offline' ||
-        process.env.AUTO_SOP_CAPTURE_SUPPRESS === '1' ||
-        process.env.CLAUDE_SOP_CAPTURE_SUPPRESS === '1' ||
-        process.env.CLAUDE_SOP_LEARNER === '1';
+        process.env.CLAUDE_SOP_LEARNER_MODE === 'offline';
 
       // Load turn data ONCE per project per tick (shared across all detectors)
       let turnData: ReturnType<typeof loadTurnsForDetection> = [];
