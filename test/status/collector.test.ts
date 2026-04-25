@@ -268,4 +268,91 @@ describe('collectStatus', () => {
 
     expect(report.pendingCaptures).toBe(3);
   });
+
+  // ── BUG-C1: readLastLearnerRun from cursor file ──────────
+
+  it('learner.lastRunAt reads from cursor file updated_at', async () => {
+    const stateDir = path.join(projectRoot, '.auto-sop', 'state');
+    await mkdirSafe(stateDir);
+    const cursor = {
+      last_finalized_at: '2026-04-25T10:00:00.000Z',
+      total_turns_seen: 42,
+      last_tick_id: 'ck-10h00',
+      updated_at: '2026-04-25T10:05:00.000Z',
+    };
+    await fs.writeFile(path.join(stateDir, 'learner-cursor.json'), JSON.stringify(cursor));
+
+    const report = await collectStatus(baseOpts());
+
+    expect(report.learner.lastRunAt).toBe(Date.parse('2026-04-25T10:05:00.000Z'));
+  });
+
+  it('learner.lastRunAt is null when cursor file is missing', async () => {
+    const report = await collectStatus(baseOpts());
+    expect(report.learner.lastRunAt).toBeNull();
+  });
+
+  it('learner.lastRunAt is null when cursor file has no updated_at', async () => {
+    const stateDir = path.join(projectRoot, '.auto-sop', 'state');
+    await mkdirSafe(stateDir);
+    await fs.writeFile(path.join(stateDir, 'learner-cursor.json'), '{}');
+
+    const report = await collectStatus(baseOpts());
+
+    expect(report.learner.lastRunAt).toBeNull();
+  });
+
+  // ── BUG-C1: countDirectives from directive-history.json ──
+
+  it('directive count reads from directive-history.json', async () => {
+    const stateDir = path.join(projectRoot, '.auto-sop', 'state');
+    await mkdirSafe(stateDir);
+    const history = {
+      entries: {
+        'd1': { id: 'd1', rule_text: 'Rule 1', severity: 'warning', first_seen: '2026-04-01T00:00:00Z', last_reinforced: '2026-04-25T00:00:00Z', occurrence_count: 3, pruned: false },
+        'd2': { id: 'd2', rule_text: 'Rule 2', severity: 'info', first_seen: '2026-04-01T00:00:00Z', last_reinforced: '2026-04-25T00:00:00Z', occurrence_count: 2, pruned: false },
+        'd3': { id: 'd3', rule_text: 'Pruned rule', severity: 'info', first_seen: '2026-04-01T00:00:00Z', last_reinforced: '2026-04-01T00:00:00Z', occurrence_count: 1, pruned: true },
+      },
+      updated_at: '2026-04-25T00:00:00Z',
+    };
+    await fs.writeFile(path.join(stateDir, 'directive-history.json'), JSON.stringify(history));
+
+    const report = await collectStatus(baseOpts());
+
+    // 2 active (not pruned), 1 pruned
+    expect(report.directives.count).toBe(2);
+  });
+
+  it('directive count falls back to CLAUDE.md when history is missing', async () => {
+    await fs.writeFile(
+      path.join(projectRoot, 'CLAUDE.md'),
+      `${MANAGED_BEGIN}\n- directive one\n- directive two\n${MANAGED_END}\n`,
+    );
+
+    const report = await collectStatus(baseOpts());
+
+    expect(report.directives.count).toBe(2);
+    expect(report.directives.sectionPresent).toBe(true);
+  });
+
+  // ── BUG-C1: scheduler.lastTickAt from recap log ──────────
+
+  it('scheduler.lastTickAt reads from recap log when backend has no data', async () => {
+    const logsDir = path.join(homeDir, '.auto-sop', 'logs');
+    await mkdirSafe(logsDir);
+    const recapLines = [
+      JSON.stringify({ v: 1, t: '2026-04-25T09:00:00.000Z', tick_id: 'ck-09h00', project_id: 'p1' }),
+      JSON.stringify({ v: 1, t: '2026-04-25T10:00:00.000Z', tick_id: 'ck-10h00', summary: true }),
+    ].join('\n') + '\n';
+    await fs.writeFile(path.join(logsDir, 'recap.log'), recapLines);
+
+    const report = await collectStatus(baseOpts());
+
+    expect(report.scheduler.lastTickAt).toBe(Date.parse('2026-04-25T10:00:00.000Z'));
+  });
+
+  it('scheduler.lastTickAt is null when recap log is missing', async () => {
+    const report = await collectStatus(baseOpts());
+    expect(report.scheduler.lastTickAt).toBeNull();
+  });
 });

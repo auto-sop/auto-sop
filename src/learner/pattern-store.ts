@@ -21,6 +21,7 @@
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { generateProposalId, type DirectiveProposalType } from './directive-schema.js';
+import { extractKeywords } from '../capture/writer/directive-fire.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -43,6 +44,8 @@ export interface PatternCandidate {
   last_seen: string;
   graduated: boolean;
   graduated_at?: string | undefined;
+  /** BUG-S1: 1-hour observation windows for graduation. Format: YYYY-MM-DDTHH */
+  observation_windows?: string[];
 }
 
 // ── Read ───────────────────────────────────────────────────
@@ -93,22 +96,98 @@ export function writeCandidates(stateDir: string, candidates: PatternCandidate[]
   renameSync(tmpPath, filePath);
 }
 
+// ── Semantic dedup (BUG-D1) ───────────────────────────────
+
+/**
+ * Jaccard similarity threshold for considering two rule texts as duplicates.
+ *
+ * 0.75 was chosen because 0.6 produced false positives on directive pairs
+ * that differ by a single distinguishing keyword, e.g.:
+ *   "Always run unit tests before committing changes"  vs
+ *   "Always run integration tests before committing changes"
+ * share 5/7 keywords → Jaccard 0.714, which clears 0.6 but not 0.75.
+ * At 0.75, only near-identical rewording is treated as a duplicate.
+ */
+const SEMANTIC_DEDUP_THRESHOLD = 0.75;
+
+/**
+ * Check whether two directive rule texts are semantically duplicate
+ * using Jaccard similarity on extracted keywords.
+ *
+ * Jaccard = |intersection| / |union|. If >= 0.75, texts are considered
+ * duplicates. Returns false for empty keyword sets (too short to compare).
+ */
+export function isSemanticallyDuplicate(ruleTextA: string, ruleTextB: string): boolean {
+  const kwA = extractKeywords(ruleTextA);
+  const kwB = extractKeywords(ruleTextB);
+
+  if (kwA.length === 0 || kwB.length === 0) return false;
+
+  const setA = new Set(kwA);
+  const setB = new Set(kwB);
+
+  let intersection = 0;
+  for (const kw of setA) {
+    if (setB.has(kw)) intersection++;
+  }
+
+  const union = setA.size + setB.size - intersection;
+  if (union === 0) return false;
+
+  return intersection / union >= SEMANTIC_DEDUP_THRESHOLD;
+}
+
+// ── Observation windows (BUG-S1) ─────────────────────────
+
+/**
+ * Compute the 1-hour observation window key for a session.
+ *
+ * Finds the earliest finalized_at timestamp among turns with the given
+ * session_id, then truncates to hour precision: YYYY-MM-DDTHH.
+ *
+ * @param sessionId  The session to look up.
+ * @param turns      Turn data (needs session_id + finalized_at fields).
+ * @returns Window key like "2026-04-25T17", or "unknown" if no turns match.
+ */
+export function timeWindowKey(
+  sessionId: string,
+  turns: ReadonlyArray<{ session_id: string; finalized_at: string }>,
+): string {
+  let earliest: string | null = null;
+  for (const t of turns) {
+    if (t.session_id === sessionId) {
+      if (earliest === null || t.finalized_at < earliest) {
+        earliest = t.finalized_at;
+      }
+    }
+  }
+  if (!earliest || earliest.length < 13) return 'unknown';
+  // Truncate ISO timestamp to hour: "2026-04-25T17"
+  return earliest.slice(0, 13);
+}
+
 // ── Merge ──────────────────────────────────────────────────
 
 /**
  * Merge incoming candidate evidence into the existing candidate list.
  *
- * Matching is by `id`. For matches:
+ * Matching is by `id` first, then by semantic similarity (BUG-D1).
+ * For matches:
  *   - session_ids: union (deduplicated)
  *   - turn_ids: union (deduplicated)
  *   - occurrence_count: summed with incoming additional occurrences
  *   - last_seen: latest timestamp wins
+ *   - observation_windows: union (BUG-S1)
  *
- * New candidates (no id match) are appended.
+ * New candidates (no id or semantic match) are appended.
+ *
+ * @param sessionWindowMap  Optional map from session_id to 1-hour window key (BUG-S1).
+ *                          When provided, observation_windows are tracked alongside session_ids.
  */
 export function mergeCandidateEvidence(
   existing: PatternCandidate[],
   incoming: PatternCandidate[],
+  sessionWindowMap?: Map<string, string>,
 ): PatternCandidate[] {
   const byId = new Map<string, PatternCandidate>();
   for (const c of existing) {
@@ -116,27 +195,65 @@ export function mergeCandidateEvidence(
   }
 
   for (const inc of incoming) {
-    const prev = byId.get(inc.id);
-    if (prev !== undefined) {
+    // ID-based match first
+    let target = byId.get(inc.id);
+
+    // BUG-D1: If no ID match, check for semantic duplicates
+    if (target === undefined) {
+      for (const [, existCandidate] of byId) {
+        if (isSemanticallyDuplicate(inc.rule_text, existCandidate.rule_text)) {
+          target = existCandidate;
+          break;
+        }
+      }
+    }
+
+    if (target !== undefined) {
       // Union session_ids
-      const sessionSet = new Set(prev.session_ids);
+      const sessionSet = new Set(target.session_ids);
       for (const sid of inc.session_ids) sessionSet.add(sid);
-      prev.session_ids = [...sessionSet];
+      target.session_ids = [...sessionSet];
 
       // Union turn_ids
-      const turnSet = new Set(prev.turn_ids);
+      const turnSet = new Set(target.turn_ids);
       for (const tid of inc.turn_ids) turnSet.add(tid);
-      prev.turn_ids = [...turnSet];
+      target.turn_ids = [...turnSet];
 
       // Sum occurrence counts
-      prev.occurrence_count += inc.occurrence_count;
+      target.occurrence_count += inc.occurrence_count;
 
       // Latest last_seen wins
-      if (inc.last_seen > prev.last_seen) {
-        prev.last_seen = inc.last_seen;
+      if (inc.last_seen > target.last_seen) {
+        target.last_seen = inc.last_seen;
+      }
+
+      // BUG-S1: Track observation windows
+      if (sessionWindowMap) {
+        const windowSet = new Set(target.observation_windows ?? []);
+        for (const sid of inc.session_ids) {
+          const windowKey = sessionWindowMap.get(sid);
+          // Filter 'unknown' at insertion — sessions without timestamp data
+          // should never enter the window set (prevents inflation).
+          if (windowKey && windowKey !== 'unknown') windowSet.add(windowKey);
+        }
+        target.observation_windows = [...windowSet];
       }
     } else {
-      byId.set(inc.id, { ...inc });
+      const newCandidate: PatternCandidate = { ...inc };
+      // BUG-S1: Initialize observation windows for new candidates
+      if (sessionWindowMap) {
+        const windowSet = new Set<string>();
+        for (const sid of inc.session_ids) {
+          const windowKey = sessionWindowMap.get(sid);
+          // Filter 'unknown' at insertion — sessions without timestamp data
+          // should never enter the window set (prevents inflation).
+          if (windowKey && windowKey !== 'unknown') windowSet.add(windowKey);
+        }
+        if (windowSet.size > 0) {
+          newCandidate.observation_windows = [...windowSet];
+        }
+      }
+      byId.set(inc.id, newCandidate);
     }
   }
 
@@ -146,7 +263,9 @@ export function mergeCandidateEvidence(
 // ── Graduate ───────────────────────────────────────────────
 
 /**
- * Promote candidates with evidence from >= 3 distinct sessions.
+ * Promote candidates with evidence from >= 3 distinct observation windows
+ * (BUG-S1). Falls back to distinct session count for backward compat with
+ * old candidates that lack observation_windows.
  *
  * Returns:
  *   - graduated: DirectiveProposalType[] — newly promoted candidates
@@ -161,8 +280,23 @@ export function graduateCandidates(candidates: PatternCandidate[]): {
   const updated: PatternCandidate[] = [];
 
   for (const c of candidates) {
+    // BUG-S1: Prefer observation_windows count; fall back to session_ids
+    // only for old candidates that lack observation_windows entirely.
+    // BUG-E1/YODA-4: Defensive filter for 'unknown' window keys — handles
+    // pre-existing stored data from before insertion-time filtering was added.
+    // New code filters 'unknown' at insertion (mergeCandidateEvidence), but
+    // legacy candidates may still contain 'unknown' entries on disk.
+    const hasWindowTracking = c.observation_windows !== undefined;
+    const validWindows = hasWindowTracking
+      ? c.observation_windows!.filter((w) => w !== 'unknown')
+      : [];
+    const distinctWindows = new Set(validWindows).size;
+    // Fall back to session count ONLY for legacy candidates without
+    // observation_windows. If windows were tracked but all are 'unknown',
+    // distinctWindows = 0 — the candidate simply hasn't earned enough evidence.
     const distinctSessions = new Set(c.session_ids).size;
-    if (distinctSessions >= GRADUATION_THRESHOLD && !c.graduated) {
+    const evidenceCount = hasWindowTracking ? distinctWindows : distinctSessions;
+    if (evidenceCount >= GRADUATION_THRESHOLD && !c.graduated) {
       // Mark as graduated
       const gradCandidate: PatternCandidate = {
         ...c,

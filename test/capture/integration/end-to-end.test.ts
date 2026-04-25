@@ -302,9 +302,7 @@ describe('large-output', () => {
     });
   }, 180_000);
 
-  // TODO: FLAKY — times out under parallel load (waitForQuiescence 160s). Passes in isolation.
-  // Track: ROADMAP bug entry BUG-E1.
-  it.skip('offloads large output to gzipped file in large-outputs/ (CAPT-10)', () => {
+  it('offloads large output to gzipped file in large-outputs/ (CAPT-10)', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
     expect(dirs.length).toBe(1);
 
@@ -321,8 +319,7 @@ describe('large-output', () => {
     expect(stat.size).toBeGreaterThan(0);
   });
 
-  // TODO: FLAKY — depends on large-output scenario which times out under parallel load.
-  it.skip('tool-calls.jsonl carries output_ref and bytes for offloaded output', () => {
+  it('tool-calls.jsonl carries output_ref and bytes for offloaded output', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
     const lines = readToolCallLines(join(run.captureDir, dirs[0]));
     const postLine = lines.find((l) => l.event === 'post');
@@ -348,9 +345,7 @@ describe('orphan-recovery', () => {
     });
   }, 180_000);
 
-  // TODO: FLAKY — times out under parallel load (waitForQuiescence). Passes in isolation.
-  // Track: ROADMAP bug entry BUG-E1.
-  it.skip('orphan turn is finalized with timeout reason (CAPT-08)', () => {
+  it('orphan turn is finalized with timeout reason (CAPT-08)', () => {
     const dirs = listFinalizedTurnDirs(run.captureDir);
     // Should have at least 2 turns: the orphan (timed out) + the recovery session
     expect(dirs.length).toBeGreaterThanOrEqual(2);
@@ -363,8 +358,7 @@ describe('orphan-recovery', () => {
     expect(stopMeta).toBeDefined();
   });
 
-  // TODO: FLAKY — depends on orphan-recovery scenario which times out under parallel load.
-  it.skip('no .pending dirs remain after sweep', () => {
+  it('no .pending dirs remain after sweep', () => {
     const entries = readdirSync(run.captureDir);
     const pending = entries.filter((n) => n.endsWith('.pending'));
     expect(pending.length).toBe(0);

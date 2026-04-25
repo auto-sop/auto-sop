@@ -1,7 +1,7 @@
 # Roadmap: auto-sop
 
 **Created:** 2026-04-13
-**Last updated:** 2026-04-23
+**Last updated:** 2026-04-26
 **Depth:** standard
 **Phases:** 10 (restructured: Metrics before SaaS, publish after both)
 **Coverage:** 61/61 v1 requirements mapped
@@ -17,29 +17,263 @@
 - [x] **Phase 6: Native Windows + Hardening** — Platform abstraction layer, Task Scheduler backend, NTFS ACL, learner drift fix, incremental pattern memory. _(v23-v25 Windows, v26 site, v27 drift fix, v29 incremental patterns)_
 - [ ] **Phase 7: Metrics & Social Proof** — Directive-fire detection, token/time savings tracker, "errors prevented" counter, `auto-sop stats` CLI, side-by-side proof on landing page (RTK format). Launch-critical — without metrics the landing page can't convert. Pure CLI-side work, no cloud needed. _(→ v30-v32)_
 - [ ] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-cloud/`.** CLI gains 1-project soft cap + feature-touch trial + encrypted sync. Free forever for solo, Pro $12/mo. _(→ v33-v37)_
-- [ ] **Phase 9: First Public Launch** — npm v0.1.0 publish, repo goes public, Node SEA binary, Homebrew tap live, landing page with real metrics, demo GIF. Everything a developer sees on first contact must be professional + Pro upgrade path exists. _(→ v38)_
+- [ ] **Phase 9: First Public Launch** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF. Everything a developer sees on first contact must be professional + Pro upgrade path exists. _(→ v38)_
 - [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v39+)_
 
-### Decision: Distribution & licensing model (RESOLVED 2026-04-25)
+### Decision: Distribution & licensing model (REVISED 2026-04-26)
 
-**Decision: Closed source, license-key gated.**
+**Decision: Open source (Elastic License 2.0) + 4-layer technical protection.**
+
+Kod açık, topluluk güveni ve katkısı var — ama lisans + teknik korumalar sayesinde rakip ürün oluşturulamaz ve ücretsiz sınır (1 proje) bypass edilemez.
 
 | Aspect | Decision |
 |--------|----------|
-| **Both repos** | **Private** (GitHub private repos) |
-| **Distribution** | npm (obfuscated bundles) + Homebrew (SEA binary) |
-| **Pricing** | 1 project = **free** (requires license key), 2+ projects = **paid monthly subscription** |
-| **Onboarding flow** | `npx auto-sop install` → prompts for license key → user signs up at cloud dashboard → gets free-tier license key → pastes into CLI → install completes |
-| **License key** | Server-validated via cloud API. Free tier key allows 1 project. Pro key allows unlimited. |
-| **Obfuscation (S6)** | Required — npm publishes obfuscated JS bundles |
-| **SEA binary (S7)** | Required — Homebrew distributes compiled Node binary |
+| **CLI repo (`auto-sop`)** | **Public** (GitHub public repo) |
+| **Cloud repo (`auto-sop-cloud`)** | **Private** (backend, dashboard, billing) |
+| **License** | **Elastic License 2.0 (ELv2)** — kaynak okunabilir, fork edilebilir ama rakip ürün oluşturma ve managed service sunma yasak |
+| **Distribution** | npm + Homebrew (kaynak açık, build edilmiş paket) |
+| **Pricing** | 1 proje = **free** (lisans key gerekli), 2+ proje = **Pro $12/mo** |
+| **Onboarding flow** | `npx auto-sop install` → lisans key sor → kullanıcı cloud dashboard'dan ücretsiz signup → free key al → CLI'a yapıştır → install tamamlanır |
+| **Obfuscation (S6)** | **Gereksiz** — kod zaten açık, koruma lisans + teknik katmanlarda |
+| **SEA binary (S7)** | **Opsiyonel** — Homebrew convenience için, güvenlik amacıyla değil |
+
+#### 4 Katmanlı Koruma Modeli (Detay)
+
+##### Katman 1: Project Binding (Local — Offline Çalışır)
+
+Hook install anında her projeye bir binding dosyası yazılır. Bu dosya projenin bu makine + bu lisans key ile bağlandığını kanıtlar.
+
+```
+npx auto-sop install (proje dizininde)
+  ↓
+1. Lisans key'i iste (veya ~/.auto-sop/config'den oku)
+2. Binding token üret:
+   token = HMAC-SHA256(license_key, project_path + machine_id)
+3. Proje içine yaz:
+   <project>/.auto-sop/binding.json
+   {
+     "license_key_hash": "sha256(key)[0:16]",   // key'in kendisi değil, hash'i
+     "machine_id": "sha256(hostname + username)",
+     "bound_at": "2026-04-26T18:00Z",
+     "token": "hmac-sha256-result"
+   }
+4. Global registry'ye proje kaydı ekle (zaten mevcut mekanizma):
+   ~/.auto-sop/state/project-registry.json
+```
+
+**Bypass analizi:**
+- `binding.json` silmek → proje unbound olur → learner o projede çalışmaz (kendi ayağına sıkar)
+- `binding.json` başka projeye kopyalamak → HMAC `project_path` içeriyor → token eşleşmez → geçersiz
+- Sahte binding oluşturmak → `license_key` bilmeden geçerli HMAC üretilemez
+
+**Not:** `<project>/.auto-sop/` zaten `.gitignore`'da — binding dosyası repo'ya push edilmez.
+
+##### Katman 2: Periodic Server Validation (Online — 7 Gün Grace)
+
+Her learner tick'inde (saatlik) CLI sunucuya bağlanıp lisansı doğrular.
+
+```
+Her tick başlangıcında:
+  1. Tüm projelerdeki binding.json dosyalarını tara
+  2. Aktif bound proje sayısını hesapla
+  3. Sunucuya gönder:
+     POST https://api.auto-sop.com/v1/license/validate
+     {
+       "key": "license-key",
+       "machine_id": "sha256(hostname+username)",
+       "bound_projects": 3,
+       "binding_hashes": ["hash1", "hash2", "hash3"]
+     }
+  4. Sunucu döner (imzalı response — Katman 3):
+     {
+       "payload": {
+         "valid": true,
+         "plan": "free",
+         "max_projects": 1,
+         "issued_at": "2026-04-26T18:00:00Z",
+         "expires_at": "2026-04-26T19:00:00Z",
+         "nonce": "a1b2c3d4"
+       },
+       "signature": "ed25519-signature"
+     }
+  5. Response'u local cache'e yaz:
+     ~/.auto-sop/state/license-cache.json
+```
+
+**Proje sayısı aşımında:**
+- `bound_projects > max_projects` → ilk proje hariç diğerlerinde learner DURUR
+- Capture çalışmaya devam eder (veri kaybı olmasın)
+- Status mesajı: "Pro plan required for multiple projects. Upgrade at https://app.auto-sop.com"
+
+**Offline grace (7 gün):**
+- Sunucuya ulaşılamıyorsa → WARNING log, eski cache ile çalışmaya devam
+- 7 gün üst üste ulaşılamadıysa → learner DURUR, capture devam eder
+- Kullanıcı online olunca → validate → normal çalışma devam eder
+
+**Bypass analizi:**
+- Sunucu call'ını koddan silmek → 7 gün sonra grace biter, learner durur
+- `max_projects` check'i koddan silmek → sunucu her tick'de gerçek sayıyı biliyor, sunucu tarafında da enforce edebilir (sonraki tick'te yine durdurur)
+- Eski "valid:true" response'u cache'e yazmak → Katman 3 (imza + nonce) bunu engelliyor
+
+##### Katman 3: Signed Response Integrity (Ed25519 — Sahte Sunucu Engelliyor)
+
+Sunucu response'larını Ed25519 ile imzalar. CLI'da sadece public key gömülü — kod açık olsa bile kimse sahte response üretemez.
+
+```
+Sunucu tarafı (private key ile imzala):
+  const payloadStr = JSON.canonicalize(payload)
+  const signature = crypto.sign(null, Buffer.from(payloadStr), SERVER_PRIVATE_KEY)
+  return { payload, signature: signature.toString('base64') }
+
+CLI tarafı (public key ile doğrula):
+  // Bu key CLI koduna gömülü — open source'da herkes görebilir, sorun değil
+  const SERVER_PUBLIC_KEY = "MCowBQYDK2VwAyEA..."  // Ed25519 public key
+
+  const payloadStr = JSON.canonicalize(response.payload)
+  const valid = crypto.verify(
+    null,
+    Buffer.from(payloadStr),
+    SERVER_PUBLIC_KEY,
+    Buffer.from(response.signature, 'base64')
+  )
+  if (!valid) throw new Error('Invalid server signature — response rejected')
+```
+
+**Neden Ed25519 (asymmetric) ve HMAC (symmetric) değil?**
+- HMAC'ta shared secret CLI koduna gömülü → repo public → herkes secret'ı görür → sahte sunucu kurabilir
+- Ed25519'da CLI'da sadece public key var → private key sadece sunucuda → sahte imza üretmek matematiksel olarak imkansız
+- Node.js `crypto` modülünde built-in destekli, ek bağımlılık yok
+
+**Replay koruması:**
+```
+license-cache.json:
+  {
+    "validated_at": "2026-04-26T18:00Z",
+    "last_nonce": "a1b2c3d4",
+    "payload": { ... },
+    "signature": "base64..."
+  }
+
+Her tick'de kontrol:
+  - Yeni nonce !== last_nonce (replay engellenmiş)
+  - issued_at > önceki issued_at (zaman ileri gidiyor)
+  - expires_at henüz geçmemiş (eski response kullanılamaz)
+```
+
+##### Katman 3b: CLI Self-Hash — Tamper Detection
+
+Public key değiştirme saldırısına karşı ek koruma. CLI kendi dosyalarının hash'ini hesaplar ve sunucuya gönderir. Sunucu, yayınlanan resmi sürümlerin hash'lerini bilir — tanımadığı hash'i olan client'a imzalı response vermez.
+
+```
+Build/publish sırasında (CI pipeline):
+  1. npm build → dist/ oluşur (içinde Ed25519 public key gömülü)
+  2. cli_hash = SHA256(dist/ içindeki tüm dosyalar, sorted + concatenated)
+  3. Hash sunucuya kaydedilir:
+     POST /v1/admin/register-release
+     { version: "0.3.1", cli_hash: "abc123...", published_at: "..." }
+  4. npm publish çalışır
+
+Her tick'de (runtime):
+  1. CLI kendi dosyalarının hash'ini hesaplar (aynı algoritma)
+  2. Validation request'e ekler:
+     POST /v1/license/validate
+     { key, machine_id, bound_projects, cli_hash: "abc123...", cli_version: "0.3.1" }
+  3. Sunucu kontrol eder:
+     - "abc123..." benim bildiğim resmi bir sürüm hash'i mi?
+     - EVET → normal validation yap, Ed25519 ile imzala, dön
+     - HAYIR → { valid: false, reason: "tampered_client" } (imzalamayı REDDET)
+  4. CLI imzayı doğrular:
+     - İmza geçerli + valid: true → çalışmaya devam
+     - İmza geçersiz veya valid: false → DUR
+```
+
+**Neden çalışıyor — public key saldırısı örneği:**
+```
+Orijinal paket: hash = "abc43", içinde public_key = "ASLI"
+  → Tick: CLI "abc43" gönderir → sunucu tanır → imzalar → CLI doğrular ✓
+
+Saldırgan public key'i değiştirir: hash = "xyz99", içinde public_key = "SAHTE"
+  → Tick: CLI "xyz99" gönderir → sunucu tanımaz → İMZALAMAZ → CLI çalışmaz ✗
+```
+
+Sunucu, tanımadığı bir hash'e sahip client'a asla imzalı response vermediği için, public key değiştirmek artık tek başına yetmiyor.
+
+**Teknik sınır (kabul edilen risk):**
+Saldırgan hem hash check kodunu silip hem fake sunucu kurarsa, teknik olarak bypass edebilir. Bu her client-side uygulamada (Spotify, Adobe, JetBrains dahil) aynıdır — kullanıcının makinesinde çalışan kodu %100 korumak mümkün değil. Amacımız kırma maliyetini yükseltmek:
+
+| Bypass seviyesi | Ne yapması lazım | Kim yapar |
+|---|---|---|
+| Seviye 1 | max_projects check sil | Script kiddie — tek satır |
+| Seviye 2 | + server call sil + 7 gün bekle | Orta seviye |
+| Seviye 3 | + public key değiştir | Tek başına yetmez — sunucu tanımadığı hash'i reddeder |
+| Seviye 4 | + hash check sil + fake sunucu kur | Çok ileri — 4 farklı değişiklik |
+| Seviye 5 | Tüm korumayı sök + dağıt | **ELv2 ihlali → cease & desist → dava** |
+
+Her katman bir "değişiklik daha" gerektiriyor. Seviye 4'e ulaşacak kadar motive olan kullanıcı oranı <%0.1 — ve o kişi için de Katman 4 (hukuki) devreye giriyor.
+
+**Bypass analizi:**
+- DNS spoof ile sahte sunucu kurmak → Ed25519 private key olmadan geçerli imza üretilemez
+- Eski response'u tekrar kullanmak → nonce + timestamp kontrolü engelliyor
+- Public key'i değiştirmek → CLI hash değişir → sunucu tanımadığı hash'i imzalamaz (Katman 3b)
+- Hash check + fake sunucu + public key birlikte değiştirmek → teknik olarak mümkün ama 4 farklı değişiklik + ELv2 ihlali (Katman 4)
+
+##### Katman 4: Hukuki Koruma (Elastic License 2.0)
+
+Teknik korumaları bypass eden biri hâlâ **lisans ihlali** yapıyor.
+
+**ELv2 ne yasaklıyor?**
+1. Yazılımı kullanarak rakip ürün/hizmet sunmak (competing product)
+2. Yazılımı managed service olarak sunmak (SaaS olarak satmak)
+3. Lisans koşullarını değiştirmek veya kaldırmak
+
+**Kodu fork edip validation'ı söken biri:**
+- ELv2 Madde 2 ihlali: "You may not... remove or obscure any functionality in the Software that is protected by the License Key"
+- Cease & desist gönderilebilir
+- npm/Homebrew'da aynı ismi kullanamazlar (trademark)
+- Fork'un güvenlik güncellemesi yok, yeni özellik yok → topluluk güveni bizde
+
+**Referans şirketler (aynı model):**
+- **Elasticsearch** → Elastic License 2.0 (biz de bunu kullanıyoruz)
+- **MongoDB** → Server Side Public License (SSPL)
+- **HashiCorp Terraform** → Business Source License (BSL)
+- **Grafana** → AGPL-3.0
+- Hepsi kaynak kodu açık, hepsi ticari koruma altında
+
+#### Koruma Özeti
+
+| Saldırı Vektörü | Katman 1 (Binding) | Katman 2 (Server) | Katman 3 (Signature) | Katman 3b (Self-Hash) | Katman 4 (Hukuki) |
+|---|---|---|---|---|---|
+| Key olmadan 2. proje açmak | ❌ Binding token üretilemez | — | — | — | — |
+| Binding.json kopyalamak | ❌ HMAC path-specific | — | — | — | — |
+| max_projects check'i silmek | — | ❌ Sunucu enforce | — | — | ❌ Lisans ihlali |
+| Sahte sunucu kurmak | — | — | ❌ Ed25519 imza | — | — |
+| Eski response cache'lemek | — | — | ❌ Nonce + timestamp | — | — |
+| Public key değiştirmek | — | — | — | ❌ Hash değişir → sunucu reddeder | ❌ Lisans ihlali |
+| Public key + fake sunucu | — | — | — | — | ❌ 3 değişiklik + ELv2 ihlali |
+| Server call'ı tamamen silmek | — | ❌ 7 gün grace → durur | — | — | ❌ Lisans ihlali |
+| npm'den modifiye paket dağıtmak | — | — | — | ❌ Hash eşleşmez | ❌ Lisans + trademark |
+| Tüm teknik korumaları sökmek | — | — | — | — | ❌ ELv2 ihlali → dava |
+
+**Sonuç:** Casual bypass (teknik bilgisi düşük kullanıcı) imkansız. Determined bypass (kodu fork edip değiştiren) teknik olarak mümkün ama hukuki olarak kovuşturulabilir. Bu, Elasticsearch/MongoDB/Terraform'un kullandığı endüstri standardı koruma seviyesi.
+
+#### Open Source'un Getirdiği Avantajlar
+
+| Avantaj | Neden Önemli |
+|---------|-------------|
+| **Güven** | Kullanıcılar kodu okuyabilir — "veri dışarı gitmiyor" iddiasını doğrulayabilir |
+| **Topluluk katkısı** | Bug fix PR'ları, yeni detektörler, çeviri |
+| **SEO / keşfedilebilirlik** | GitHub'da aranabilir, Stars ile social proof |
+| **Geliştirici beklentisi** | CLI tool'lar genelde açık kaynak bekleniyor — kapalı kaynak güven kırıyor |
+| **Güvenlik denetimi** | Bağımsız security researcher'lar kodu inceleyebilir |
 
 **Implications for phases:**
-- Phase 8 (SaaS): Cloud dashboard MUST include signup + license key generation as first priority. CLI `install` requires a valid key before proceeding.
-- Phase 9 (Launch): No public repo. Landing page + npm + Homebrew are the only distribution channels.
-- S6 (obfuscation) and S7 (SEA binary) are confirmed in-scope.
-- Current test key `123` remains for development only.
-- Apache 2.0 LICENSE file in repo should be replaced with proprietary license before any public distribution.
+- Phase 8 (SaaS): Cloud dashboard signup + license key generation + Ed25519 key pair generation + validation endpoint. CLI `install` requires a valid key.
+- Phase 9 (Launch): CLI repo public, cloud repo private. Apache 2.0 → ELv2 lisans değişikliği.
+- S6 (obfuscation) **artık gerekli değil** — kod zaten açık, koruma teknik + hukuki katmanlarda.
+- S7 (SEA binary) **opsiyonel** — Homebrew convenience için, güvenlik amacıyla değil.
+- Binding mekanizması Phase 8'de implement edilecek (S-BIND serisi backlog item'lar).
+- Ed25519 key pair: sunucu private key'i gizli, CLI public key'i koda gömülü.
+- Avukata danışma gerekli: ELv2'nin Türk hukuku altında geçerliliği ve uygulanabilirliği.
 
 ### Reordering rationale (2026-04-23)
 1. **Windows before Metrics:** Cross-platform must work before measuring outcomes.
@@ -169,15 +403,20 @@ A user pays $X/month for cloud dashboard → runs claude-sop install on their Wi
 **Plans:** TBD (v20-v22)
 
 ### Phase 8: SaaS Platform + Monetization (was Phase 7, moved to Phase 8 on 2026-04-23 — Metrics first)
-**Goal:** Turn the plugin into a commercial closed-source product with a web dashboard, license-key gated install, encrypted cloud sync, and subscription billing — while keeping 1-project free tier and all LLM analysis local (free via user's Claude Max).
+**Goal:** Turn the plugin into a commercial open-source product (ELv2) with a web dashboard, license-key gated install, 4-layer technical protection, encrypted cloud sync, and subscription billing — while keeping 1-project free tier and all LLM analysis local (free via user's Claude Max).
 
-**Install flow (REVISED 2026-04-25):**
+**Install flow (REVISED 2026-04-26):**
 ```
 $ npx auto-sop install
 Enter your license key: ___
   (Get a free key at https://app.auto-sop.com/signup)
+  ↓
+1. License key sunucuda doğrulanır (Ed25519 signed response)
+2. binding.json oluşturulur (HMAC-SHA256 project binding)
+3. Hook'lar + scheduler kurulur
+4. İlk tick'de periodic validation başlar
 ```
-Cloud dashboard signup → free-tier license key → paste into CLI → install proceeds. No anonymous installs — every user has an account. This enables: usage tracking, upgrade prompts, cloud sync, support contact.
+Cloud dashboard signup → free-tier license key → paste into CLI → server validates key → binding token created → install proceeds. No anonymous installs — every user has an account. This enables: usage tracking, project binding, upgrade prompts, cloud sync, support contact.
 
 **Stack decision (confirmed):**
 - **Auth:** Clerk (JWT, <10K MAU free tier)
@@ -185,8 +424,9 @@ Cloud dashboard signup → free-tier license key → paste into CLI → install 
 - **Billing:** Stripe (existing account, Checkout + Customer Portal)
 - **Frontend:** Next.js on Vercel (free hobby tier)
 - **Encryption:** Client-side AES-256, key derived from Clerk user_id + project_id (server never sees plaintext)
+- **License signing:** Ed25519 key pair (private on server, public embedded in CLI)
 
-**Business model (REVISED 2026-04-25 — license-key gated, closed source):**
+**Business model (REVISED 2026-04-26 — open source ELv2 + 4-layer protection):**
 
 | Tier | What | Price | Gate |
 |---|---|---|---|
@@ -463,17 +703,26 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **WIN6** Docs: Windows-specific install section in README, troubleshooting guide
 
 ### SaaS / monetization (v33-v37) — Phase 8
-- **S1** ~~License API backend (ed25519)~~ → REMOVED, replaced by Clerk JWT + Supabase RLS (simpler stack)
-- **S2** Clerk integration in `auto-sop-cloud` — Sign in/up flows, JWT verify
+- **S1** License validation API — Ed25519 signed responses, `POST /v1/license/validate` endpoint. Key pair generation, nonce tracking, replay prevention. (`auto-sop-cloud/` repo)
+- **S2** Clerk integration in `auto-sop-cloud` — Sign in/up flows, JWT verify, license key generation on signup
 - **S3** Trial state machine — 14 days OR feature-touch-triggered, no credit card, stored in `secrets.enc`
 - **S4** Soft gate UX — at trial expiry, EXISTING data untouched, only NEW project blocked
-- **S5** Offline grace (7 days) for Pro
-- **S6** Obfuscation pipeline (CLI source)
-- **S7** Node SEA binary (macOS + Linux + **Windows** — Phase 6 req)
+- **S5** Offline grace (7 days) — `license-cache.json` TTL, learner stops after grace, capture continues
+- ~~**S6** Obfuscation pipeline (CLI source)~~ → **REMOVED** — kod açık (ELv2), obfuscation gereksiz
+- **S7** Node SEA binary (macOS + Linux + **Windows** — Phase 6 req) — **opsiyonel**, convenience only
 - **S8** Stripe Checkout + Customer Portal integration
 - **S9** Pricing page on landing site (`auto-sop.com`)
 - **S10** Dashboard app (`auto-sop-cloud/` repo, Next.js + Vercel)
 - **S11** CLI sync module (encrypted directive push to Supabase Edge Functions)
+
+### Protection layer implementation (v33-v37) — Phase 8 BIND-series
+- **BIND-1** Project binding — `binding.json` oluşturma: `HMAC-SHA256(license_key, project_path + machine_id)`. Install sırasında yazılır, her tick'de token doğrulanır.
+- **BIND-2** Periodic server validation — her tick başlangıcında `POST /v1/license/validate`. Bound project sayısı + binding hash'leri gönderilir.
+- **BIND-3** Ed25519 response verification — CLI'a server public key gömme, response signature doğrulama, nonce + timestamp replay koruması.
+- **BIND-4** License cache + grace period — `~/.auto-sop/state/license-cache.json`. 7 gün offline grace, grace sonrası learner durur, capture devam eder.
+- **BIND-5** Project count enforcement — `bound_projects > max_projects` → ilk proje hariç learner durur. Status mesajında upgrade yönlendirmesi.
+- **BIND-6** ELv2 license file — repo'daki Apache 2.0 LICENSE dosyasını Elastic License 2.0 ile değiştir. npm package.json `license` field güncelle.
+- **BIND-7** CLI self-hash tamper detection — build sırasında `dist/` hash'i hesapla ve sunucuya kaydet. Her tick'de CLI kendi hash'ini hesaplar, sunucu bilinen hash ile karşılaştırır. Eşleşmeyen → `tampered_client` reject.
 
 ### Freemium gating (v33-v37) — Phase 8 F-series
 - **F1** Project count enforcement — Free=1, Pro=∞. `auto-sop install` in 2nd project triggers trial prompt
@@ -535,4 +784,4 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 
 ---
 *Roadmap created: 2026-04-13*
-*Last updated: 2026-04-23 — Phases reordered: Metrics→7, SaaS→8. v23-v29 execution history added. Phase 6 complete.*
+*Last updated: 2026-04-26 — Distribution model REVISED: Closed source → Open source (ELv2) + 4-layer protection (binding + server validation + Ed25519 signature + legal). BIND-series backlog added. S6 obfuscation removed.*

@@ -1,6 +1,6 @@
 {
   "name": "auto-sop",
-  "version": "0.0.39",
+  "version": "0.0.40",
   "description": "Make Claude Code self-improving — auto-detect recurring mistakes and write enforced CLAUDE.md directives",
   "author": "Ugur Gokdere <ugokdere@gmail.com>",
   "keywords": [
@@ -63,8 +63,9 @@
     "build": "npm run extract-rules && tsup",
     "postbuild": "node scripts/postbuild.js",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.config.integration.ts",
     "test:smoke": "npm run build && vitest run --config vitest.smoke.config.ts",
-    "test:all": "npm run test && npm run test:smoke",
+    "test:all": "npm run test && npm run test:integration && npm run test:smoke",
     "test:watch": "vitest",
     "test:golden": "vitest run test/managed-section/golden.test.ts",
     "test:golden:update": "GOLDEN_UPDATE=1 tsx test/managed-section/golden/write-fixtures.ts && GOLDEN_UPDATE=1 tsx test/managed-section/golden/update-goldens.ts",

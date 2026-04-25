@@ -49,7 +49,7 @@ export async function collectStatus(opts: CollectOptions): Promise<StatusReport>
 
   const installedVersion = await readInstalledVersion(versionTxt);
   const hooks = await inspectHooks(projectClaudeSettings);
-  const scheduler: SchedulerStatus = opts.schedulerBackend
+  let scheduler: SchedulerStatus = opts.schedulerBackend
     ? await opts.schedulerBackend.status({
         homeDir: opts.homeDir,
         user: process.env.USER ?? process.env.USERNAME ?? '',
@@ -61,9 +61,17 @@ export async function collectStatus(opts: CollectOptions): Promise<StatusReport>
         lastExitCode: null,
         details: {},
       };
-  const learner = await readLastLearnerRun(claudeSopHome);
+
+  // BUG-C1: If scheduler doesn't report lastTickAt, read from recap log
+  if (scheduler.lastTickAt === null) {
+    const recapLastTickAt = await readLastTickFromRecap(claudeSopHome);
+    if (recapLastTickAt !== null) {
+      scheduler = { ...scheduler, lastTickAt: recapLastTickAt };
+    }
+  }
+  const learner = await readLastLearnerRun(opts.projectRoot);
   const pendingCaptures = await countPendingCaptures(capturesDir, learner.lastRunAt);
-  const directives = await countDirectives(claudeMdPath);
+  const directives = await countDirectives(claudeMdPath, opts.projectRoot);
   const license = await readLicenseStatus(secretsEnc);
   const errors = { last24h: await count24hErrors(errorsJsonl) };
   const disk = await diskUsage(capturesDir);
@@ -118,10 +126,23 @@ async function inspectHooks(settingsPath: string): Promise<StatusReport['hooks']
 }
 
 async function readLastLearnerRun(
-  _claudeSopHome: string,
+  projectRoot: string,
 ): Promise<{ lastRunAt: number | null; lastExitCode: number | null }> {
-  // Phase 3 will write learner metadata; Phase 2 returns nulls.
-  return { lastRunAt: null, lastExitCode: null };
+  const cursorPath = path.join(projectRoot, '.auto-sop', 'state', 'learner-cursor.json');
+  try {
+    const raw = await fs.readFile(cursorPath, 'utf8');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof parsed.updated_at === 'string' && parsed.updated_at.length > 0) {
+      const ms = Date.parse(parsed.updated_at);
+      if (Number.isFinite(ms)) {
+        return { lastRunAt: ms, lastExitCode: null };
+      }
+    }
+    return { lastRunAt: null, lastExitCode: null };
+  } catch {
+    // File missing or parse error → null (backward compat)
+    return { lastRunAt: null, lastExitCode: null };
+  }
 }
 
 async function countPendingCaptures(
@@ -141,7 +162,30 @@ async function countPendingCaptures(
 
 async function countDirectives(
   claudeMdPath: string,
+  projectRoot: string,
 ): Promise<{ count: number; sectionPresent: boolean }> {
+  // BUG-C1: Try directive history first (authoritative source)
+  const historyPath = path.join(projectRoot, '.auto-sop', 'state', 'directive-history.json');
+  try {
+    const raw = await fs.readFile(historyPath, 'utf8');
+    const parsed = JSON.parse(raw) as { entries?: Record<string, { pruned?: boolean }> };
+    if (parsed.entries && typeof parsed.entries === 'object') {
+      const activeCount = Object.values(parsed.entries).filter((e) => e.pruned !== true).length;
+      // Check if managed section exists in CLAUDE.md for sectionPresent flag
+      let sectionPresent = false;
+      try {
+        const text = await fs.readFile(claudeMdPath, 'utf8');
+        sectionPresent = text.includes(MANAGED_BEGIN) && text.includes(MANAGED_END);
+      } catch {
+        // CLAUDE.md missing → section not present
+      }
+      return { count: activeCount, sectionPresent };
+    }
+  } catch {
+    // History file missing/corrupt → fall through to CLAUDE.md fallback
+  }
+
+  // Fallback: count directives from CLAUDE.md managed section
   try {
     const text = await fs.readFile(claudeMdPath, 'utf8');
     const begin = text.indexOf(MANAGED_BEGIN);
@@ -209,6 +253,35 @@ async function walkSum(p: string): Promise<number> {
   const entries = await fs.readdir(p);
   const sizes = await Promise.all(entries.map((e) => walkSum(path.join(p, e)).catch(() => 0)));
   return sizes.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * BUG-C1: Read the last recap log line and parse its `t` field for the
+ * most recent tick timestamp. Returns epoch ms or null.
+ */
+async function readLastTickFromRecap(claudeSopHome: string): Promise<number | null> {
+  const recapPath = path.join(claudeSopHome, 'logs', 'recap.log');
+  try {
+    const text = await fs.readFile(recapPath, 'utf8');
+    const lines = text.trimEnd().split('\n');
+    // Walk backward to find the last parseable line with a `t` field
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i]!.trim();
+      if (line.length === 0) continue;
+      try {
+        const obj = JSON.parse(line) as Record<string, unknown>;
+        if (typeof obj.t === 'string' && obj.t.length > 0) {
+          const ms = Date.parse(obj.t);
+          if (Number.isFinite(ms)) return ms;
+        }
+      } catch {
+        // malformed line — try previous
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 async function pathExists(p: string): Promise<boolean> {

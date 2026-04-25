@@ -200,8 +200,8 @@ export function registerStatsVerb(program: Command): void {
           stateDir,
           projectRoot,
           projectSlug,
-          since,
-          minutesPerError,
+          ...(since !== undefined ? { since } : {}),
+          ...(minutesPerError !== undefined ? { minutesPerError } : {}),
         });
 
         if (jsonMode) {

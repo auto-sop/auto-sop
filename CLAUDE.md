@@ -5,9 +5,10 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-25T19:38:00Z · 180 turns analyzed · 8 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, jonathan-gsd-planner, main_
+_Data as of: 2026-04-25T21:59:00Z · 218 turns analyzed · 8 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, jonathan-gsd-planner, main_
+_AI analysis: The strongest pattern in this batch is the code-review agent making 15+ Bash grep calls instead of using the dedicated Grep tool, violating explicit tool usage guidelines. Secondary patterns include no-op edits in the planner and empty agent turns that waste context._
 
-**Learnings** (20 active directives)
+**Learnings** (25 active directives)
 
 - **[warning]** Never exclude failing tests to unblock a commit. If a test fails, first verify whether it fails on the base branch. If it is a pre-existing flaky test, create a tracking issue or add a skip annotation with a TODO before proceeding — do not silently drop it from the test command.
   _(evidence: 3 sessions)_
@@ -36,8 +37,11 @@ _Data as of: 2026-04-25T19:38:00Z · 180 turns analyzed · 8 agents: Explore, ap
 - **[warning]** Never use hardcoded numeric limits for data loading or processing bounds. Define shared constants in a single location and import them wherever the same limit applies.
   _(evidence: 3 sessions)_
 
-- **[info]** Run test suites in the foreground when their output is needed immediately. Only use background execution with proper wait mechanisms when genuine parallelism is required.
-  _(evidence: 3 sessions)_
+- **[warning]** Always use the Read tool with offset and limit parameters to read portions of files. Never use Bash with cat, head, or tail to read file contents — the Read tool provides a better experience and avoids unnecessary shell invocations.
+  _(evidence: 86 sessions · [view turns](.auto-sop/captures/Ahyis10Fm1qx))_
+
+- **[warning]** Always use the dedicated Grep tool for content search instead of running grep or rg via Bash. The Grep tool is optimized for correct permissions and access. Reserve Bash for shell-only operations that have no dedicated tool equivalent.
+  _(evidence: 86 sessions · [view turns](.auto-sop/captures/Ahyis10Fm1qx))_
 
 - **[info]** Prefer a single scripted deploy command over manual build-copy-verify sequences for distributing plugin artifacts to the marketplace directory.
   _(evidence: 3 sessions)_
@@ -68,5 +72,17 @@ _Data as of: 2026-04-25T19:38:00Z · 180 turns analyzed · 8 agents: Explore, ap
 
 - **[info]** Batch TodoWrite updates within a single turn — update the full todo list once after completing a logical group of tasks rather than after each individual step.
   _(evidence: 3 sessions)_
+
+- **[info]** Before submitting an Edit, verify that old_string and new_string are actually different. No-op edits waste tool calls and can indicate a copy-paste error in the edit construction.
+  _(evidence: 86 sessions · [view turns](.auto-sop/captures/9QZpcCNcscvm))_
+
+- **[info]** When a planner agent turn produces no tools and no output, investigate whether the agent is stuck or misconfigured before spawning additional turns. Avoid burning context on empty turns.
+  _(evidence: 86 sessions · [view turns](.auto-sop/captures/37vc7laZqQza) [+1 more])_
+
+- **[info]** Always run the TypeScript compiler with noEmit both before making type-related changes (to understand the baseline) and after (to confirm zero errors). This two-pass approach prevents introducing new type errors while fixing existing ones.
+  _(evidence: 86 sessions · [view turns](.auto-sop/captures/xjyCbOTYwbso))_
+
+- **[info]** When conducting code reviews, use dedicated tools (Grep, Read) for investigation to minimize tool call count, and reserve Bash for running test suites and build commands at the end of the review.
+  _(evidence: 86 sessions · [view turns](.auto-sop/captures/Ahyis10Fm1qx))_
 
 <!-- auto-sop:managed-section:end -->

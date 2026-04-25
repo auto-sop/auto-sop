@@ -38,6 +38,7 @@ import {
   mergeCandidateEvidence,
   graduateCandidates,
   pruneStaleCandidates,
+  timeWindowKey,
   type PatternCandidate,
 } from './pattern-store.js';
 import { mergeProposalsWithDedup } from './merge-proposals.js';
@@ -530,6 +531,12 @@ export async function runLearnerTick(
       const currentSessionIds = [...new Set(turnData.map((t) => t.session_id))];
       const primarySessionId = currentSessionIds.length > 0 ? currentSessionIds[0]! : 'unknown';
 
+      // BUG-S1: Build session→timeWindow mapping from turn data
+      const sessionWindowMap = new Map<string, string>();
+      for (const sid of currentSessionIds) {
+        sessionWindowMap.set(sid, timeWindowKey(sid, turnData));
+      }
+
       // Track LLM-level state for recap
       let llmDurationMs = 0;
       let llmError: string | null = null;
@@ -583,10 +590,11 @@ export async function runLearnerTick(
               nc.session_ids = currentSessionIds.length > 0 ? [...currentSessionIds] : [primarySessionId];
             }
 
-            // 6. Merge new candidate evidence into existing store
+            // 6. Merge new candidate evidence into existing store (BUG-S1: pass window map)
             existingCandidates = mergeCandidateEvidence(
               existingCandidates,
               llmResult.parsed.newCandidates,
+              sessionWindowMap,
             );
 
             // 7. Apply matched_existing updates — add session + turn evidence
@@ -606,6 +614,15 @@ export async function runLearnerTick(
                 // Update last_seen
                 const nowIso = new Date().toISOString();
                 if (nowIso > target.last_seen) target.last_seen = nowIso;
+                // BUG-S1: Track observation windows for matched candidates
+                const windowSet = new Set(target.observation_windows ?? []);
+                for (const sid of currentSessionIds) {
+                  const windowKey = sessionWindowMap.get(sid);
+                  // Filter 'unknown' at insertion — sessions without timestamp data
+                  // should never enter the window set (prevents inflation).
+                  if (windowKey && windowKey !== 'unknown') windowSet.add(windowKey);
+                }
+                target.observation_windows = [...windowSet];
               }
             }
 

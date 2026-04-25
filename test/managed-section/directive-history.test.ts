@@ -513,6 +513,77 @@ describe('applyDirectiveHistory (end-to-end)', () => {
     expect(loaded.entries['comeback']!.occurrence_count).toBe(2);
   });
 
+  it('filters semantically duplicate proposals against existing active directives', () => {
+    // Seed history with an existing directive.
+    const seeded: DirectiveHistory = {
+      entries: {
+        existing: makeEntry({
+          id: 'existing',
+          severity: 'warning',
+          rule_text: 'Never store API credentials directly in source code files',
+          last_reinforced: '2026-03-30T00:00:00.000Z',
+        }),
+      },
+      updated_at: '2026-03-30T00:00:00.000Z',
+    };
+    saveHistory(root, seeded);
+
+    // Propose a near-duplicate — should be silently dropped.
+    const now = new Date('2026-04-01T00:00:00.000Z');
+    const res = applyDirectiveHistory(
+      root,
+      [
+        makeProposal({
+          id: 'dup-attempt',
+          severity: 'warning',
+          rule_text: 'Never store API credentials directly in your code files',
+        }),
+      ],
+      { now, config: { ttlDays: 30, maxDirectives: 25 } },
+    );
+
+    // Only the original should remain — duplicate was dropped.
+    expect(res.active).toHaveLength(1);
+    expect(res.active[0]!.id).toBe('existing');
+    // History should NOT contain the duplicate.
+    const loaded = loadHistory(root);
+    expect(loaded.entries['dup-attempt']).toBeUndefined();
+  });
+
+  it('allows non-duplicate proposals through alongside existing directives', () => {
+    // Seed history with an existing directive.
+    const seeded: DirectiveHistory = {
+      entries: {
+        existing: makeEntry({
+          id: 'existing',
+          severity: 'warning',
+          rule_text: 'Never store API credentials directly in source code files',
+          last_reinforced: '2026-03-30T00:00:00.000Z',
+        }),
+      },
+      updated_at: '2026-03-30T00:00:00.000Z',
+    };
+    saveHistory(root, seeded);
+
+    // Propose a completely different directive — should pass through.
+    const now = new Date('2026-04-01T00:00:00.000Z');
+    const res = applyDirectiveHistory(
+      root,
+      [
+        makeProposal({
+          id: 'brand-new',
+          severity: 'info',
+          rule_text: 'Always run tests before committing code changes to the repository',
+        }),
+      ],
+      { now, config: { ttlDays: 30, maxDirectives: 25 } },
+    );
+
+    // Both should be active.
+    expect(res.active).toHaveLength(2);
+    expect(res.active.map((e) => e.id).sort()).toEqual(['brand-new', 'existing']);
+  });
+
   it('honours env var overrides via getDirectiveConfig', () => {
     const proposals = Array.from({ length: 6 }, (_, i) =>
       makeProposal({

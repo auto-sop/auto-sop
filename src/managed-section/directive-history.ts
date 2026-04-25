@@ -39,6 +39,7 @@ import {
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { getPlatform } from '../platform/index.js';
+import { isSemanticallyDuplicate } from '../learner/pattern-store.js';
 
 // ─── Constants ───────────────────────────────────────────
 
@@ -114,7 +115,7 @@ export interface DirectiveProposalLike {
   id: string;
   rule_text: string;
   severity: DirectiveSeverity;
-  evidence: { first_seen?: string; source_fingerprint?: string; session_ids?: string[] };
+  evidence: { first_seen?: string; source_fingerprint?: string | undefined; session_ids?: string[] };
   created_at?: string;
 }
 
@@ -555,7 +556,30 @@ export function applyDirectiveHistory(
   const config = options?.config ?? getDirectiveConfig();
 
   const history = loadHistory(projectRoot);
-  const afterUpdate = updateFromProposals(history, proposals, now.toISOString());
+
+  // BUG-D1: Filter semantically duplicate proposals against existing active directives.
+  // If a new proposal is semantically similar to an existing active entry, skip it
+  // (keep the existing one to prevent near-duplicate directives).
+  // Known limitation: same-batch proposals are not deduped against each other,
+  // only against existing history entries. Two near-duplicate proposals arriving
+  // in the same tick will both pass this filter. In practice this is rare because
+  // the LLM prompt discourages duplicates, and the cap/TTL system limits growth.
+  const activeEntries = Object.values(history.entries).filter((e) => !e.pruned);
+  const dedupedProposals = proposals.filter((p) => {
+    // If this proposal already exists by ID in history, always let it through
+    // (it's a reinforcement, not a new directive)
+    if (history.entries[p.id] !== undefined) return true;
+
+    // Check against existing active directives
+    for (const entry of activeEntries) {
+      if (isSemanticallyDuplicate(p.rule_text, entry.rule_text)) {
+        return false; // Skip — keep existing directive
+      }
+    }
+    return true;
+  });
+
+  const afterUpdate = updateFromProposals(history, dedupedProposals, now.toISOString());
   const result = applyTTLAndCap(afterUpdate, now, config.ttlDays, config.maxDirectives);
   try {
     saveHistory(projectRoot, result.history);
