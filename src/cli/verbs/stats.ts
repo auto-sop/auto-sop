@@ -7,13 +7,16 @@
  *   auto-sop stats --json                       — machine-readable output
  *   auto-sop stats --since 2026-03-01           — filter fires after date
  *   auto-sop stats --minutes-per-error 20       — override time estimate
+ *
+ * V31: shows fires by category, real errors prevented, severity emojis,
+ *      and session before/after comparison.
  */
 import type { Command } from 'commander';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import pc from 'picocolors';
 import { PathResolver } from '../../path-resolver/index.js';
-import { aggregateStats } from '../stats/aggregator.js';
+import { aggregateStats, type FireByDirective } from '../stats/aggregator.js';
 import { emit } from '../output/json.js';
 import { error as cliError } from '../output/human.js';
 
@@ -46,13 +49,31 @@ function padNum(n: number, width: number): string {
   return s.length >= width ? s : ' '.repeat(width - s.length) + s;
 }
 
+/** V31: severity → emoji for display. */
+function severityEmoji(severity?: 'error' | 'warning' | 'info'): string {
+  switch (severity) {
+    case 'error':
+      return '⛔'; // ⛔
+    case 'warning':
+      return '⚠️'; // ⚠️
+    case 'info':
+      return 'ℹ️'; // ℹ️
+    default:
+      return ' ';
+  }
+}
+
+/** V31: format percentage with sign. */
+function formatPct(pct: number): string {
+  const sign = pct <= 0 ? '' : '+';
+  return `${sign}${pct.toFixed(1)}%`;
+}
+
 // ── Top Directives Display ──────────────────────────────
 
 const TOP_N = 5;
 
-function printTopDirectives(
-  fires: Array<{ fire_count: number; rule_text_preview: string }>,
-): void {
+function printTopDirectives(fires: FireByDirective[]): void {
   if (fires.length === 0) return;
 
   process.stdout.write('\n' + pc.bold('Top Firing Directives:') + '\n');
@@ -66,12 +87,13 @@ function printTopDirectives(
     const rank = `${i + 1}.`;
     const countStr = padNum(entry.fire_count, maxCountWidth);
     const label = firePlural(entry.fire_count);
+    const emoji = severityEmoji(entry.severity);
     // Truncate preview for display
     const preview =
       entry.rule_text_preview.length > 50
         ? entry.rule_text_preview.slice(0, 47) + '...'
         : entry.rule_text_preview;
-    process.stdout.write(`  ${rank} [${countStr} ${label.padEnd(5)}] ${preview}\n`);
+    process.stdout.write(`  ${rank} ${emoji} [${countStr} ${label.padEnd(5)}] ${preview}\n`);
   }
 }
 
@@ -206,6 +228,14 @@ export function registerStatsVerb(program: Command): void {
           process.stdout.write(
             pc.dim('Directives start firing after the learner detects patterns.') + '\n',
           );
+
+          // V31: still show real errors prevented if available
+          if (stats.real_errors_prevented > 0) {
+            process.stdout.write(
+              '\n' +
+                `Real Errors Prevented:  ${stats.real_errors_prevented}\n`,
+            );
+          }
           return;
         }
 
@@ -218,8 +248,42 @@ export function registerStatsVerb(program: Command): void {
             `Est. Time Saved:        ${timeSaved}\n`,
         );
 
-        // Top firing directives
+        // V31: Fires by category
+        const cat = stats.fires_by_category;
+        if (cat.error_preventing > 0 || cat.efficiency > 0 || cat.best_practice > 0) {
+          process.stdout.write(
+            '\n' +
+              pc.bold('Fires by Category:') +
+              '\n' +
+              `  ⛔ Error-preventing:  ${cat.error_preventing}\n` +
+              `  ⚠️ Efficiency:        ${cat.efficiency}\n` +
+              `  ℹ️ Best-practice:     ${cat.best_practice}\n`,
+          );
+        }
+
+        // V31: Real errors prevented
+        if (stats.real_errors_prevented > 0) {
+          process.stdout.write(
+            '\n' +
+              `Real Errors Prevented:  ${stats.real_errors_prevented}\n`,
+          );
+        }
+
+        // Top firing directives (V31: with severity emojis)
         printTopDirectives(stats.fires_by_directive);
+
+        // V31: Session comparison before/after
+        if (stats.session_comparison !== null) {
+          const cmp = stats.session_comparison;
+          process.stdout.write('\n' + pc.bold('Session Comparison (Before/After Directives):') + '\n');
+          process.stdout.write(
+            `  Cutoff:          ${formatDate(cmp.cutoff)}\n` +
+              `  Before sessions: ${cmp.before.sessions}  |  After sessions: ${cmp.after.sessions}\n` +
+              `  Avg duration:    ${cmp.before.avg_duration_min.toFixed(1)} min -> ${cmp.after.avg_duration_min.toFixed(1)} min  (${formatPct(cmp.improvement.duration_pct)})\n` +
+              `  Avg tool calls:  ${cmp.before.avg_tool_calls.toFixed(1)} -> ${cmp.after.avg_tool_calls.toFixed(1)}  (${formatPct(cmp.improvement.tool_calls_pct)})\n` +
+              `  Avg bash fails:  ${cmp.before.avg_bash_failures.toFixed(1)} -> ${cmp.after.avg_bash_failures.toFixed(1)}  (${formatPct(cmp.improvement.bash_failures_pct)})\n`,
+          );
+        }
       } catch (err) {
         if (jsonMode) {
           emit({

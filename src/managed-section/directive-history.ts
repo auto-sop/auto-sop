@@ -92,6 +92,13 @@ export interface DirectiveHistoryEntry {
   pruned: boolean;
   /** ISO — when the entry was last pruned. Absent if never pruned. */
   pruned_at?: string;
+  /** V31: command fingerprint for error-prevention tracking. Optional — only set
+   *  for bash-failure directives. */
+  source_fingerprint?: string;
+  /** V31: session IDs from the original evidence that created this directive.
+   *  Used by error-prevention tracker to exclude false positives from the
+   *  original failure sessions. */
+  evidence_sessions?: string[];
 }
 
 export interface DirectiveHistory {
@@ -107,7 +114,7 @@ export interface DirectiveProposalLike {
   id: string;
   rule_text: string;
   severity: DirectiveSeverity;
-  evidence: { first_seen?: string };
+  evidence: { first_seen?: string; source_fingerprint?: string; session_ids?: string[] };
   created_at?: string;
 }
 
@@ -275,6 +282,19 @@ function coerceEntry(idKey: string, v: unknown): DirectiveHistoryEntry | null {
   if (typeof rec.pruned_at === 'string' && rec.pruned_at.length > 0) {
     entry.pruned_at = rec.pruned_at;
   }
+  // V31: load source_fingerprint from persisted history
+  if (typeof rec.source_fingerprint === 'string' && rec.source_fingerprint.length > 0) {
+    entry.source_fingerprint = rec.source_fingerprint;
+  }
+  // V31: load evidence_sessions from persisted history
+  if (Array.isArray(rec.evidence_sessions)) {
+    const filtered = (rec.evidence_sessions as unknown[]).filter(
+      (s): s is string => typeof s === 'string' && s.length > 0,
+    );
+    if (filtered.length > 0) {
+      entry.evidence_sessions = filtered;
+    }
+  }
   return entry;
 }
 
@@ -352,9 +372,15 @@ export function updateFromProposals(
       };
       // pruned_at is meaningful only while pruned; clear on reactivation.
       delete (next as { pruned_at?: string }).pruned_at;
+      // V31: union evidence_sessions on reinforcement
+      if (Array.isArray(p.evidence.session_ids) && p.evidence.session_ids.length > 0) {
+        const sessionSet = new Set(existing.evidence_sessions ?? []);
+        for (const sid of p.evidence.session_ids) sessionSet.add(sid);
+        next.evidence_sessions = [...sessionSet];
+      }
       entries[p.id] = next;
     } else {
-      entries[p.id] = {
+      const newEntry: DirectiveHistoryEntry = {
         id: p.id,
         rule_text: p.rule_text,
         severity: p.severity,
@@ -366,6 +392,18 @@ export function updateFromProposals(
         occurrence_count: 1,
         pruned: false,
       };
+      // V31: propagate source_fingerprint on first insert (bash-failure directives)
+      if (
+        typeof p.evidence.source_fingerprint === 'string' &&
+        p.evidence.source_fingerprint.length > 0
+      ) {
+        newEntry.source_fingerprint = p.evidence.source_fingerprint;
+      }
+      // V31: store evidence_sessions on first insert for error-prevention tracking
+      if (Array.isArray(p.evidence.session_ids) && p.evidence.session_ids.length > 0) {
+        newEntry.evidence_sessions = [...p.evidence.session_ids];
+      }
+      entries[p.id] = newEntry;
     }
   }
   return { entries, updated_at: now };

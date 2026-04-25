@@ -23,10 +23,10 @@ import {
   type DirectiveProposalType,
   generateProposalId,
 } from '../directive-schema.js';
+import { fingerprintCommand, isBashFailure } from '../command-fingerprint.js';
 
 const DETECTOR_NAME = 'repeated-bash-failure';
 const MIN_DISTINCT_SESSIONS = 3;
-const FINGERPRINT_MAX_LEN = 100;
 
 interface FailureRecord {
   session_id: string;
@@ -108,6 +108,7 @@ export const repeatedBashFailureDetector: Detector = {
           pattern: fingerprint,
           occurrence_count: failures.length,
           first_seen: firstSeen,
+          source_fingerprint: fingerprint,
         },
         created_at: nowIso,
       };
@@ -127,40 +128,9 @@ export const repeatedBashFailureDetector: Detector = {
 };
 
 // ── Helpers ────────────────────────────────────────────────
-
-/**
- * Fingerprint a Bash command for grouping:
- * - trim
- * - collapse interior whitespace runs to single space
- * - take first 100 chars
- */
-export function fingerprintCommand(command: string): string {
-  const trimmed = command.trim();
-  const collapsed = trimmed.replace(/\s+/g, ' ');
-  return collapsed.slice(0, FINGERPRINT_MAX_LEN);
-}
-
-/**
- * Decide whether a post-event ToolCall represents a Bash failure.
- *
- * Primary signal: `success === false`. Secondary: output.exitCode is
- * a non-zero number (belt-and-suspenders in case the hook omits the
- * success flag).
- *
- * IMPORTANT: this function reads structured fields only. It does NOT
- * inspect stderr/stdout text content.
- */
-function isBashFailure(call: ToolCall): boolean {
-  if (call.success === false) return true;
-  if (call.output && typeof call.output === 'object') {
-    const out = call.output as Record<string, unknown>;
-    if (typeof out.exitCode === 'number' && out.exitCode !== 0) return true;
-    // Some Claude Code tool wrappers report via `interrupted: true` on hard kill;
-    // that's an environment failure, worth counting.
-    if (out.interrupted === true) return true;
-  }
-  return false;
-}
+// fingerprintCommand and isBashFailure are imported from ../command-fingerprint.js
+// Re-export fingerprintCommand for backward compatibility with existing importers.
+export { fingerprintCommand } from '../command-fingerprint.js';
 
 /**
  * Build the directive rule_text from a hardcoded template.

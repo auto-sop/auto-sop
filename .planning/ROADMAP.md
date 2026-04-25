@@ -20,6 +20,17 @@
 - [ ] **Phase 9: First Public Launch** — npm v0.1.0 publish, repo goes public, Node SEA binary, Homebrew tap live, landing page with real metrics, demo GIF. Everything a developer sees on first contact must be professional + Pro upgrade path exists. _(→ v38)_
 - [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v39+)_
 
+### Open decision: Distribution & licensing model (resolve before Phase 8)
+The roadmap references both "open-source/semi-OSS friendly" and "obfuscation pipeline + SEA binary" for the CLI repo. These conflict — must pick one before Phase 8 planning:
+
+| Option | CLI Repo | npm Package | Protection | Tradeoff |
+|--------|----------|-------------|------------|----------|
+| **A. Open Core** (PostHog, Sentry, GitLab) | Public, MIT/Apache | Readable source | Pro features gated by license check | Community + trust, but fork risk |
+| **B. Closed Source** (RTK AI) | Private | Obfuscated bundles (S6) + SEA binaries (S7) | Code hidden | Full control, no community |
+| **C. Source-Available** (Elastic, HashiCorp) | Public, BSL/SSPL/ELv2 | Readable source | Restrictive license prohibits competing use | Readable + auditable, legally protected |
+
+**Impacts:** Phase 8 (S6 obfuscation, S7 SEA binary) scope depends on this. Phase 9 (public launch) repo visibility depends on this. No GSD research needed — this is a founder business decision.
+
 ### Reordering rationale (2026-04-23)
 1. **Windows before Metrics:** Cross-platform must work before measuring outcomes.
 2. **Metrics before SaaS (SWAPPED):** Metrics are pure CLI-side work (no cloud infra). Landing page needs real numbers ("47 errors prevented") to convert — selling features without proof doesn't work. SaaS dashboard (M5 widget) can show metrics AFTER they exist, not before.
@@ -302,12 +313,14 @@ To produce these numbers we need (M-series backlog items):
 
 **Why Phase 7 (before SaaS):** Metrics are pure CLI-side work — no cloud infra needed. M1-M4 and M6 are local-only. M5 (dashboard widget) moves to SaaS phase. The landing page needs real numbers to convert — build the data pipeline first, then the SaaS viewer. Also: metrics prove the product works, which de-risks the SaaS investment.
 
-**Planned versions:**
-  - v31: M1 + M6 — directive-fire detection (heuristic) + `auto-sop stats` local CLI verb
-  - v32: M2 + M3 — token/time savings tracker + "errors prevented" counter (requires hook integration with Claude Code)
-  - v33: M4 + M5 — landing page side-by-side proof copy + Pro dashboard widget + viral share
+**Cloud stats aggregation strategy:** Installed clients gather local stats (directive fires, categories, error prevention, session metrics). In Phase 8 (SaaS), Pro-tier CLI syncs these stats to the cloud (encrypted). The cloud aggregates across all users to produce landing page proof numbers: "auto-sop users prevented 12,000 errors this month" / "average 67% fewer token usage after directives." Stats are opt-in, anonymized, and never include prompt text or code. The local `auto-sop stats` verb shows per-project numbers; the cloud dashboard shows aggregate trends + per-user breakdown.
 
-**Depends on:** Phase 6 (working learner with incremental patterns). M5 (dashboard widget) deferred to Phase 8 (SaaS).
+**Planned versions:**
+  - v30: M1 + M6 — directive-fire detection (heuristic) + `auto-sop stats` CLI verb (**DONE**)
+  - v31: Fire quality (bigram matching) + categorization (error/efficiency/best-practice) + session metrics + error prevention tracking
+  - v32: M2 + M3 — token/time savings tracker + "errors prevented" counter (requires hook integration with Claude Code). Also: CLI `sync` prep — structure local stats for cloud upload format.
+
+**Depends on:** Phase 6 (working learner with incremental patterns). M5 (dashboard widget) deferred to Phase 8 (SaaS). Cloud stats aggregation and landing page proof numbers depend on Phase 8 sync pipeline.
 
 **Success Criteria:**
   1. After 2 weeks of use, `auto-sop stats` shows non-zero "directives fired" count.
@@ -459,6 +472,7 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 
 ### Known bugs (fix when convenient)
 - **BUG-C1** `auto-sop status` shows "last tick: never" and "directives: 0" even when learner cursor is advancing and CLAUDE.md has active directives. The status verb reads `scheduler.lastTickAt` and `learner.lastRunAt` fields that the tick script never writes to. Actual batch pipeline works correctly — recap log, cursors, and directive generation all function. Display-only issue.
+- **BUG-D1** **Semantic near-duplicate directives.** The LLM proposes directives per-tick without strong dedup against semantically similar existing ones. The merge logic catches exact ID matches but not near-duplicates. Example: wrbeautiful has two separate directives about "never embed API tokens in inline scripts" and "never pass Shopify access tokens as inline arguments" — same lesson, different wording. Also cross-project overlap on agent efficiency patterns (wrbeautiful + aiagenttr-website both learned review-agent waste lessons independently). Fix: add semantic similarity check during merge step — cosine similarity on rule_text embeddings, or LLM-based "is this the same lesson?" gate before accepting a new directive. Target: <5% duplicate rate across active directives.
 - **BUG-S1** **Session inflation from Dev Army agents.** Each subagent (ARCHITECT, YODA, APEX, PRISM, etc.) creates its own `session_id`, so a single 20-minute dev-army run on wrbeautiful-shopify-theme produced 21 sessions from 25 turns. The 3-session graduation threshold is trivially met in one sitting, causing the LLM to graduate all candidates immediately. Real impact: wrbeautiful got 10 directives from what was effectively 1 user work session. Fix options: (a) deduplicate by parent session / transcript_path root, (b) time-window grouping (sessions within same hour = 1 observation), (c) only count `main` agent type sessions toward threshold. This is a **quality issue, not a crash** — directives generated are still valid, but the "evidence: 3 sessions" claim is misleading.
 
 ### dev-army improvements (parallel)

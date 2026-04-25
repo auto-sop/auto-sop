@@ -1,23 +1,40 @@
 /**
- * Stats aggregation — computes per-project metrics from directive-fire events
- * and directive history.
+ * Stats aggregation — computes per-project metrics from directive-fire events,
+ * directive history, error prevention data, and session metrics.
  *
  * Entry point: {@link aggregateStats} reads fire events (filtered by `since`),
  * groups them by directive, looks up rule_text from directive history, and
  * returns a {@link ProjectStats} object ready for CLI display or JSON output.
  *
+ * V31: adds fires_by_category, real_errors_prevented, session_comparison,
+ * and severity on per-directive entries.
+ *
  * Dependencies:
  *   - readFires() from capture/writer/directive-fire.ts (fire event I/O)
  *   - loadHistory() from managed-section/directive-history.ts (directive metadata)
+ *   - readPreventedErrors() from learner/error-prevention.ts (error prevention I/O)
+ *   - buildSessionSummaries, compareBeforeAfter from learner/session-metrics.ts
+ *   - loadTurnsForDetection from learner/turn-loader.ts
  */
-import { readFires } from '../../capture/writer/directive-fire.js';
+import { readFires, type FireCategory } from '../../capture/writer/directive-fire.js';
 import { loadHistory } from '../../managed-section/directive-history.js';
+import { readPreventedErrors } from '../../learner/error-prevention.js';
+import {
+  buildSessionSummaries,
+  compareBeforeAfter,
+  type BeforeAfterComparison,
+} from '../../learner/session-metrics.js';
+import { loadTurnsForDetection } from '../../learner/turn-loader.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 // ─── Constants ───────────────────────────────────────────
 
 const DEFAULT_MINUTES_PER_ERROR = 15;
 const DEFAULT_SINCE_DAYS = 30;
 const PREVIEW_MAX_LENGTH = 80;
+/** Max turns to load for session comparison — matches learner MAX_TURNS_FIRST_RUN */
+const MAX_TURNS_FOR_STATS = 500;
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -26,6 +43,14 @@ export interface FireByDirective {
   rule_text_preview: string;
   fire_count: number;
   last_fired: string;
+  /** V31: directive severity (for emoji display). */
+  severity?: 'error' | 'warning' | 'info';
+}
+
+export interface FiresByCategory {
+  error_preventing: number;
+  efficiency: number;
+  best_practice: number;
 }
 
 export interface ProjectStats {
@@ -39,6 +64,12 @@ export interface ProjectStats {
   estimated_errors_prevented: number;
   estimated_minutes_saved: number;
   ticks_in_period: number;
+  /** V31: fires grouped by category. */
+  fires_by_category: FiresByCategory;
+  /** V31: count of real errors prevented (from error-prevention.jsonl). */
+  real_errors_prevented: number;
+  /** V31: before/after session comparison. Null if insufficient data. */
+  session_comparison: BeforeAfterComparison | null;
 }
 
 export interface AggregateStatsOptions {
@@ -68,6 +99,23 @@ function defaultSince(): string {
   return d.toISOString();
 }
 
+/**
+ * Map fire category string to FiresByCategory key.
+ * Falls back to 'best_practice' for old fires without category.
+ */
+function categoryKey(category?: FireCategory): keyof FiresByCategory {
+  switch (category) {
+    case 'error-preventing':
+      return 'error_preventing';
+    case 'efficiency':
+      return 'efficiency';
+    case 'best-practice':
+      return 'best_practice';
+    default:
+      return 'best_practice';
+  }
+}
+
 // ─── Aggregation ─────────────────────────────────────────
 
 /**
@@ -76,6 +124,8 @@ function defaultSince(): string {
  * Reads fires from `stateDir` (filtered by `since`), groups by directive_id,
  * looks up rule_text from directive history at `projectRoot`, and computes
  * estimated metrics.
+ *
+ * V31: adds category grouping, real error prevention count, and session comparison.
  */
 export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   const since = opts.since ?? defaultSince();
@@ -89,37 +139,53 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   const history = loadHistory(opts.projectRoot);
   const activeDirectives = Object.values(history.entries).filter((e) => !e.pruned).length;
 
-  // Build a rule_text lookup map from history entries
+  // Build a rule_text + severity lookup map from history entries
   const ruleTextMap = new Map<string, string>();
+  const severityMap = new Map<string, 'error' | 'warning' | 'info'>();
   for (const entry of Object.values(history.entries)) {
     ruleTextMap.set(entry.id, entry.rule_text);
+    severityMap.set(entry.id, entry.severity);
   }
 
-  // Group fires by directive_id
+  // Group fires by directive_id + count by category
   const grouped = new Map<string, { count: number; lastFired: string }>();
+  const firesByCategory: FiresByCategory = {
+    error_preventing: 0,
+    efficiency: 0,
+    best_practice: 0,
+  };
+
   for (const fire of fires) {
     const existing = grouped.get(fire.directive_id);
     if (existing !== undefined) {
       existing.count++;
-      // Track the latest fire timestamp
       if (fire.t > existing.lastFired) {
         existing.lastFired = fire.t;
       }
     } else {
       grouped.set(fire.directive_id, { count: 1, lastFired: fire.t });
     }
+
+    // V31: group by category
+    const key = categoryKey(fire.category);
+    firesByCategory[key]++;
   }
 
   // Build fires_by_directive sorted by count descending
   const firesByDirective: FireByDirective[] = [];
   for (const [directiveId, data] of grouped) {
     const ruleText = ruleTextMap.get(directiveId) ?? '(unknown directive)';
-    firesByDirective.push({
+    const entry: FireByDirective = {
       directive_id: directiveId,
       rule_text_preview: truncatePreview(ruleText),
       fire_count: data.count,
       last_fired: data.lastFired,
-    });
+    };
+    const severity = severityMap.get(directiveId);
+    if (severity !== undefined) {
+      entry.severity = severity;
+    }
+    firesByDirective.push(entry);
   }
 
   // Sort by fire_count descending, then directive_id ascending for stability
@@ -131,6 +197,44 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
 
   const totalFires = fires.length;
 
+  // V31: Read real error prevention count (filtered by since)
+  let realErrorsPrevented = 0;
+  try {
+    const preventedErrors = readPreventedErrors(opts.stateDir);
+    const filteredPrevented = since
+      ? preventedErrors.filter((pe) => pe.t >= since)
+      : preventedErrors;
+    realErrorsPrevented = filteredPrevented.length;
+  } catch {
+    // graceful degradation — no prevention data yet
+  }
+
+  // V31: Build session comparison
+  let sessionComparison: BeforeAfterComparison | null = null;
+  try {
+    const capturesDir = join(opts.projectRoot, '.auto-sop', 'captures');
+    if (existsSync(capturesDir)) {
+      const turnData = loadTurnsForDetection(capturesDir, MAX_TURNS_FOR_STATS);
+      if (turnData.length > 0) {
+        const sessions = buildSessionSummaries(turnData);
+        // Use earliest directive first_seen as the cutoff
+        let earliestFirstSeen: string | null = null;
+        for (const entry of Object.values(history.entries)) {
+          if (!entry.pruned) {
+            if (earliestFirstSeen === null || entry.first_seen < earliestFirstSeen) {
+              earliestFirstSeen = entry.first_seen;
+            }
+          }
+        }
+        if (earliestFirstSeen !== null) {
+          sessionComparison = compareBeforeAfter(sessions, earliestFirstSeen);
+        }
+      }
+    }
+  } catch {
+    // graceful degradation — no session data yet
+  }
+
   return {
     project_path: opts.projectRoot,
     project_slug: opts.projectSlug,
@@ -141,6 +245,9 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     fires_by_directive: firesByDirective,
     estimated_errors_prevented: totalFires,
     estimated_minutes_saved: totalFires * minutesPerError,
-    ticks_in_period: 0, // placeholder — can be enhanced from recap.log
+    ticks_in_period: 0,
+    fires_by_category: firesByCategory,
+    real_errors_prevented: realErrorsPrevented,
+    session_comparison: sessionComparison,
   };
 }

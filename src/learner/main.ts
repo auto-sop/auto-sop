@@ -20,6 +20,7 @@ import {
   applyDirectiveHistory,
   getDirectiveConfig,
   consumeJustRestored,
+  loadHistory,
   type DirectiveHistoryEntry,
 } from '../managed-section/directive-history.js';
 import { buildDirectiveBody } from './directive-builder.js';
@@ -41,6 +42,15 @@ import {
 } from './pattern-store.js';
 import { mergeProposalsWithDedup } from './merge-proposals.js';
 import { compactFires, readFires } from '../capture/writer/directive-fire.js';
+import {
+  detectPreventedErrors,
+  appendPreventedErrors,
+  readPreventedErrors,
+  compactPreventedErrors,
+  type DirectiveFingerprint,
+} from './error-prevention.js';
+// V31 fix: buildSessionSummaries import removed — the session-metrics.jsonl
+// write was dead I/O. The stats aggregator computes metrics on demand.
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -763,6 +773,64 @@ export async function runLearnerTick(
         result.directive_fires_new = 0;
         result.directive_fires_total = 0;
       }
+
+      // V31: Error prevention detection + compaction
+      // Only run when we have turn data to check. Wrapped in try/catch — never abort the tick.
+      if (turnData.length > 0) {
+        try {
+          // Build directive fingerprints from history entries that have source_fingerprint
+          const history = (() => {
+            try {
+              return loadHistory(validRoot);
+            } catch {
+              return null;
+            }
+          })();
+
+          if (history !== null) {
+            const dfps: DirectiveFingerprint[] = [];
+            for (const entry of Object.values(history.entries)) {
+              if (typeof entry.source_fingerprint === 'string' && entry.source_fingerprint.length > 0) {
+                dfps.push({
+                  directive_id: entry.id,
+                  source_fingerprint: entry.source_fingerprint,
+                  first_seen: entry.first_seen,
+                  // V31 fix: read evidence_sessions directly from the history entry
+                  // (persisted on first insert / unioned on reinforcement). Previous
+                  // code looked up mergedProposals which only contains THIS tick's
+                  // proposals — established directives got [] → false positives.
+                  evidence_sessions: entry.evidence_sessions ?? [],
+                });
+              }
+            }
+
+            if (dfps.length > 0) {
+              const preventedErrors = detectPreventedErrors(turnData, dfps);
+              if (preventedErrors.length > 0) {
+                appendPreventedErrors(stateDir, preventedErrors);
+              }
+              result.errors_prevented_new = preventedErrors.length;
+            } else {
+              result.errors_prevented_new = 0;
+            }
+          } else {
+            result.errors_prevented_new = 0;
+          }
+
+          // Compact old prevention entries (90 days)
+          compactPreventedErrors(stateDir, 90);
+          const allPrevented = readPreventedErrors(stateDir);
+          result.errors_prevented_total = allPrevented.length;
+        } catch (err) {
+          logError('error_prevention_failed', err, home);
+          result.errors_prevented_new = 0;
+          result.errors_prevented_total = 0;
+        }
+      }
+
+      // V31 fix: Removed session-metrics.jsonl write — the stats aggregator
+      // recomputes session metrics on demand via buildSessionSummaries(turns).
+      // Writing to the JSONL was dead I/O with unbounded growth (no reader).
 
       // Append per-project recap
       appendRecap(result, home);

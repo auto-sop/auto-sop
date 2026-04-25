@@ -5,8 +5,9 @@
  * Detection point: capture writer's UserPromptSubmit handler (already a
  * detached grandchild process, so zero impact on the shim).
  *
- * Matching: heuristic keyword matching — fast, no LLM, O(directives × keywords).
- * A fire is recorded when ≥ 2 keywords match AND ratio ≥ 0.4.
+ * Matching: bigram+unigram weighted scoring — fast, no LLM.
+ * Bigram hit = 2 points, unigram hit = 1 point. Threshold: score ≥ 0.3
+ * AND total hits ≥ 3. Category derived from directive severity.
  *
  * Storage: directive-fires.jsonl — append-only JSONL in the project state dir.
  * File mode 0600 — never world-readable.
@@ -33,12 +34,22 @@ import { join, dirname } from 'node:path';
 
 export const FIRES_FILENAME = 'directive-fires.jsonl';
 export const MIN_KEYWORD_LENGTH = 3;
+/** @deprecated — legacy unigram-only thresholds; kept for backward compat reference */
 export const MIN_HITS = 2;
+/** @deprecated — legacy unigram-only thresholds; kept for backward compat reference */
 export const MIN_RATIO = 0.4;
+
+/** Combined scoring thresholds (v31 bigram+unigram) */
+export const MIN_COMBINED_HITS = 3;   // unigrams + bigrams combined
+export const MIN_COMBINED_SCORE = 0.3; // weighted score threshold
+export const BIGRAM_WEIGHT = 2;        // bigram hit worth 2 points
+export const UNIGRAM_WEIGHT = 1;       // unigram hit worth 1 point
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // ─── Types ───────────────────────────────────────────────
+
+export type FireCategory = 'error-preventing' | 'efficiency' | 'best-practice';
 
 export interface DirectiveFire {
   t: string;              // ISO timestamp
@@ -48,17 +59,29 @@ export interface DirectiveFire {
   keyword_hits: number;   // how many keywords matched
   keyword_total: number;  // total keywords in directive
   match_ratio: number;    // keyword_hits / keyword_total
+  /** v31: fire category derived from directive severity. Optional for backward compat. */
+  category?: FireCategory;
+  /** v31: number of bigram matches. Optional for backward compat. */
+  bigram_hits?: number;
+  /** v31: total bigrams in directive. Optional for backward compat. */
+  bigram_total?: number;
 }
 
 export interface MatchResult {
   hits: number;
   total: number;
   ratio: number;
+  /** v31: bigram match count */
+  bigram_hits: number;
+  /** v31: total bigrams */
+  bigram_total: number;
 }
 
 export interface DirectiveInput {
   id: string;
   rule_text: string;
+  /** v31: directive severity for category derivation. Optional for backward compat. */
+  severity?: 'info' | 'warning' | 'error';
 }
 
 // ─── Stopwords ───────────────────────────────────────────
@@ -93,6 +116,43 @@ export function extractKeywords(ruleText: string): string[] {
   return unique;
 }
 
+// ─── Bigram extraction ─────────────────────────────────
+
+/**
+ * Extract consecutive word pairs (bigrams) from rule text.
+ * Lowercased, filtered: removes pairs where both words are stopwords,
+ * keeps only bigrams with combined length ≥ 7 chars.
+ *
+ * Example: "Always pull user-controlled files before dev work"
+ * → ["always pull", "pull user", "user controlled", "controlled files",
+ *    "files before", "before dev", "dev work"]
+ */
+export function extractBigrams(ruleText: string): string[] {
+  const tokens = ruleText
+    .toLowerCase()
+    .split(/[\s\W_]+/)
+    .filter((t) => t.length > 0);
+
+  if (tokens.length < 2) return [];
+
+  const bigrams: string[] = [];
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const a = tokens[i]!;
+    const b = tokens[i + 1]!;
+
+    // Skip pairs where both words are stopwords
+    if (STOPWORDS.has(a) && STOPWORDS.has(b)) continue;
+
+    // Keep only bigrams with combined length ≥ 7 chars
+    if (a.length + b.length < 7) continue;
+
+    bigrams.push(`${a} ${b}`);
+  }
+
+  // Deduplicate while preserving order
+  return [...new Set(bigrams)];
+}
+
 // ─── Regex helper ───────────────────────────────────────
 
 /**
@@ -106,34 +166,84 @@ export function escapeRegExp(s: string): string {
 // ─── Matching ────────────────────────────────────────────
 
 /**
- * Check whether a prompt matches a set of directive keywords.
- * Returns null if fewer than MIN_HITS keywords match or ratio < MIN_RATIO.
+ * Check whether a prompt matches a directive using combined bigram+unigram scoring.
+ *
+ * Scoring: unigram hit = 1 point, bigram hit = 2 points (more specific).
+ * Score = (unigram_points + bigram_points) / (unigram_total + bigram_total * 2).
+ * Threshold: score >= 0.3 AND total hits >= 3 (unigrams + bigrams combined).
+ *
+ * @param prompt      User prompt text
+ * @param keywords    Unigram keywords extracted from directive rule_text
+ * @param bigrams     Bigram pairs extracted from directive rule_text (optional for backward compat)
  */
 export function matchDirective(
   prompt: string,
   keywords: string[],
+  bigrams: string[] = [],
 ): MatchResult | null {
   if (keywords.length === 0) return null;
 
-  // Pre-compile word-boundary regexes once per keyword set for performance.
-  // Uses 'i' flag for case-insensitive matching without lowercasing the prompt.
-  // Keywords are escaped to prevent regex injection from special characters.
-  const patterns = keywords.map((kw) => new RegExp('\\b' + escapeRegExp(kw) + '\\b', 'i'));
-  let hits = 0;
-  for (const pattern of patterns) {
+  // Unigram matching — word-boundary regex, case-insensitive
+  const unigramPatterns = keywords.map(
+    (kw) => new RegExp('\\b' + escapeRegExp(kw) + '\\b', 'i'),
+  );
+  let unigramHits = 0;
+  for (const pattern of unigramPatterns) {
     if (pattern.test(prompt)) {
-      hits++;
+      unigramHits++;
     }
   }
 
-  const ratio = hits / keywords.length;
-  if (hits < MIN_HITS || ratio < MIN_RATIO) return null;
+  // Bigram matching — word-boundary regex, case-insensitive
+  let bigramHits = 0;
+  for (const bigram of bigrams) {
+    const parts = bigram.split(' ');
+    if (parts.length !== 2) continue;
+    const bigramRegex = new RegExp(
+      '\\b' + escapeRegExp(parts[0]!) + '\\s+' + escapeRegExp(parts[1]!) + '\\b',
+      'i',
+    );
+    if (bigramRegex.test(prompt)) {
+      bigramHits++;
+    }
+  }
+
+  const totalHits = unigramHits + bigramHits;
+  const unigramPoints = unigramHits * UNIGRAM_WEIGHT;
+  const bigramPoints = bigramHits * BIGRAM_WEIGHT;
+  const maxPoints = keywords.length * UNIGRAM_WEIGHT + bigrams.length * BIGRAM_WEIGHT;
+
+  if (maxPoints === 0) return null;
+
+  const score = (unigramPoints + bigramPoints) / maxPoints;
+
+  if (totalHits < MIN_COMBINED_HITS || score < MIN_COMBINED_SCORE) return null;
 
   return {
-    hits,
+    hits: unigramHits,
     total: keywords.length,
-    ratio: Math.round(ratio * 1000) / 1000, // 3 decimal precision
+    ratio: Math.round(score * 1000) / 1000, // 3 decimal precision
+    bigram_hits: bigramHits,
+    bigram_total: bigrams.length,
   };
+}
+
+// ─── Category derivation ────────────────────────────────
+
+/**
+ * Derive fire category from directive severity.
+ * error → error-preventing, warning → efficiency, info → best-practice.
+ */
+function severityToCategory(severity?: 'info' | 'warning' | 'error'): FireCategory {
+  switch (severity) {
+    case 'error':
+      return 'error-preventing';
+    case 'warning':
+      return 'efficiency';
+    case 'info':
+    default:
+      return 'best-practice';
+  }
 }
 
 // ─── Detection ───────────────────────────────────────────
@@ -141,6 +251,9 @@ export function matchDirective(
 /**
  * Detect which directives a prompt matches. Returns DirectiveFire objects
  * for all matches. Empty directives array → immediate empty return (fast path).
+ *
+ * v31: uses combined bigram+unigram scoring and assigns fire category
+ * from directive severity.
  *
  * PRIV-02: prompt text is NEVER stored in the returned fire events.
  */
@@ -157,7 +270,8 @@ export function detectDirectiveFires(
 
   for (const directive of directives) {
     const keywords = extractKeywords(directive.rule_text);
-    const match = matchDirective(prompt, keywords);
+    const bigrams = extractBigrams(directive.rule_text);
+    const match = matchDirective(prompt, keywords, bigrams);
     if (match !== null) {
       fires.push({
         t: now,
@@ -167,6 +281,9 @@ export function detectDirectiveFires(
         keyword_hits: match.hits,
         keyword_total: match.total,
         match_ratio: match.ratio,
+        category: severityToCategory(directive.severity),
+        bigram_hits: match.bigram_hits,
+        bigram_total: match.bigram_total,
       });
     }
   }

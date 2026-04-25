@@ -52,6 +52,8 @@ export const DirectiveProposal = z.object({
     pattern: z.string().min(1),
     occurrence_count: z.number().int().min(3),
     first_seen: z.string().min(1),
+    /** V31: optional command fingerprint for error-prevention tracking. */
+    source_fingerprint: z.string().min(1).optional(),
   }),
   created_at: z.string().min(1),
 });

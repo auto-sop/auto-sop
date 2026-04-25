@@ -99,6 +99,12 @@ export interface PerProjectRecap {
   /** Total fire count in the store after compaction. */
   directive_fires_total?: number;
 
+  // ── Error prevention metrics (V31) ─────────────────────────
+  /** Count of prevented errors detected this tick. */
+  errors_prevented_new?: number;
+  /** Total prevented-error count in the store after compaction. */
+  errors_prevented_total?: number;
+
   // ── LLM skip optimization (PLAN-v17 I8) ──────────────────
   /**
    * Optimization code indicating why the LLM was skipped this tick

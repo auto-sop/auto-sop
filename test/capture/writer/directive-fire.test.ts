@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import {
   extractKeywords,
+  extractBigrams,
   matchDirective,
   detectDirectiveFires,
   appendFires,
@@ -13,10 +14,10 @@ import {
   escapeRegExp,
   FIRES_FILENAME,
   MIN_KEYWORD_LENGTH,
-  MIN_HITS,
-  MIN_RATIO,
+  MIN_COMBINED_HITS,
+  MIN_COMBINED_SCORE,
 } from '~/capture/writer/directive-fire.js';
-import type { DirectiveFire, DirectiveInput } from '~/capture/writer/directive-fire.js';
+import type { DirectiveFire, DirectiveInput, FireCategory } from '~/capture/writer/directive-fire.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
@@ -89,6 +90,70 @@ describe('extractKeywords', () => {
   });
 });
 
+// ─── extractBigrams ─────────────────────────────────────
+
+describe('extractBigrams', () => {
+  it('extracts consecutive word pairs from rule text', () => {
+    const result = extractBigrams('Always pull user-controlled files before dev work');
+    expect(result).toContain('always pull');
+    expect(result).toContain('pull user');
+    expect(result).toContain('user controlled');
+    expect(result).toContain('controlled files');
+    expect(result).toContain('files before');
+    expect(result).toContain('before dev');
+    expect(result).toContain('dev work');
+  });
+
+  it('lowercases all bigrams', () => {
+    const result = extractBigrams('UPPERCASE Keywords Here Now');
+    for (const bg of result) {
+      expect(bg).toBe(bg.toLowerCase());
+    }
+  });
+
+  it('filters bigrams where both words are stopwords', () => {
+    // "the and" → both stopwords → filtered
+    // "the validate" → only one stopword → kept (if combined length ≥ 7)
+    const result = extractBigrams('the and for with validate');
+    expect(result).not.toContain('the and');
+    expect(result).not.toContain('and for');
+    expect(result).not.toContain('for with');
+    // "with validate" → combined length = 4 + 8 = 12 ≥ 7, one non-stopword → kept
+    expect(result).toContain('with validate');
+  });
+
+  it('filters bigrams with combined length < 7', () => {
+    // "do it" → 2 + 2 = 4 < 7 → filtered
+    const result = extractBigrams('do it now');
+    expect(result).not.toContain('do it');
+  });
+
+  it('deduplicates bigrams', () => {
+    const result = extractBigrams('validate input validate input');
+    const validateInput = result.filter((bg) => bg === 'validate input');
+    expect(validateInput).toHaveLength(1);
+  });
+
+  it('returns empty for single-word input', () => {
+    expect(extractBigrams('validate')).toEqual([]);
+  });
+
+  it('returns empty for empty string', () => {
+    expect(extractBigrams('')).toEqual([]);
+  });
+
+  it('handles very short rule_text with only stopwords', () => {
+    expect(extractBigrams('the and for')).toEqual([]);
+  });
+
+  it('splits on punctuation like extractKeywords', () => {
+    const result = extractBigrams('error-handling, input.validation');
+    expect(result).toContain('error handling');
+    expect(result).toContain('handling input');
+    expect(result).toContain('input validation');
+  });
+});
+
 // ─── escapeRegExp ────────────────────────────────────────
 
 describe('escapeRegExp', () => {
@@ -120,28 +185,31 @@ describe('escapeRegExp', () => {
 // ─── matchDirective ──────────────────────────────────────
 
 describe('matchDirective', () => {
-  it('returns match stats when threshold is met', () => {
+  it('returns match stats when combined threshold is met', () => {
     const keywords = ['validate', 'input', 'database', 'queries'];
-    const result = matchDirective('please validate user input before running database queries', keywords);
+    const bigrams = ['validate input', 'database queries'];
+    // Prompt contains "validate input" and "database queries" as substrings
+    const result = matchDirective('please validate input before running database queries', keywords, bigrams);
     expect(result).not.toBeNull();
-    expect(result!.hits).toBe(4);
+    expect(result!.hits).toBe(4); // 4 unigram hits
     expect(result!.total).toBe(4);
-    expect(result!.ratio).toBe(1);
+    expect(result!.bigram_hits).toBe(2); // 2 bigram hits
+    expect(result!.bigram_total).toBe(2);
   });
 
-  it('returns null when fewer than MIN_HITS keywords match', () => {
+  it('returns null when fewer than MIN_COMBINED_HITS total', () => {
     const keywords = ['validate', 'input', 'database', 'queries', 'security'];
+    // Only 1 unigram hit, 0 bigram hits = 1 total < 3
     const result = matchDirective('please validate something', keywords);
-    // Only 1 hit — below MIN_HITS=2
     expect(result).toBeNull();
   });
 
-  it('returns null when ratio is below MIN_RATIO', () => {
-    // 10 keywords, need at least 4 hits for 0.4 ratio
+  it('returns null when score is below MIN_COMBINED_SCORE', () => {
+    // 10 keywords, 2 unigram hits, no bigrams → score = 2/10 = 0.2 < 0.3
     const keywords = ['aaa', 'bbb', 'ccc', 'ddd', 'eee', 'fff', 'ggg', 'hhh', 'iii', 'jjj'];
-    // Only 2 hits → ratio 0.2 < 0.4
-    const result = matchDirective('something with aaa and bbb', keywords);
-    expect(result).toBeNull();
+    const result = matchDirective('something with aaa and bbb and ccc', keywords);
+    // 3 hits, score = 3/10 = 0.3, threshold met at exactly 0.3 AND 3 hits
+    expect(result).not.toBeNull();
   });
 
   it('returns null for empty keywords', () => {
@@ -149,27 +217,33 @@ describe('matchDirective', () => {
   });
 
   it('is case-insensitive for prompt matching', () => {
-    const keywords = ['validate', 'input'];
-    const result = matchDirective('VALIDATE YOUR INPUT', keywords);
+    const keywords = ['validate', 'input', 'data'];
+    const result = matchDirective('VALIDATE YOUR INPUT DATA', keywords);
     expect(result).not.toBeNull();
-    expect(result!.hits).toBe(2);
+    expect(result!.hits).toBe(3);
   });
 
-  it('rounds ratio to 3 decimal places', () => {
-    // 3 keywords, 2 hits → 0.6666... → 0.667
+  it('rounds score to 3 decimal places', () => {
+    // 3 keywords, 3 hits, no bigrams → score = 3/3 = 1.0
     const keywords = ['alpha', 'beta', 'gamma'];
-    const result = matchDirective('use alpha and beta in code', keywords);
+    const result = matchDirective('use alpha and beta and gamma in code', keywords);
     expect(result).not.toBeNull();
-    expect(result!.ratio).toBe(0.667);
+    expect(result!.ratio).toBe(1);
   });
 
-  it('matches when exactly at MIN_HITS and MIN_RATIO threshold', () => {
-    // 5 keywords, 2 hits → ratio 0.4 exactly
-    const keywords = ['alpha', 'beta', 'gamma', 'delta', 'epsilon'];
-    const result = matchDirective('use alpha and beta', keywords);
+  it('bigram hits contribute 2 points each to score', () => {
+    // 2 keywords + 1 bigram. Prompt matches 1 keyword + 1 bigram
+    // unigram points: 1*1 = 1, bigram points: 1*2 = 2, total = 3
+    // max: 2*1 + 1*2 = 4, score = 3/4 = 0.75
+    // total hits: 1+1 = 2 — but need 3 combined hits
+    const keywords = ['validate', 'input'];
+    const bigrams = ['validate input'];
+    // prompt has both "validate" and "input" as unigrams + bigram
+    const result = matchDirective('please validate input correctly', keywords, bigrams);
+    // 2 unigram hits + 1 bigram hit = 3 total hits ≥ 3 ✓
+    // score = (2*1 + 1*2)/(2*1 + 1*2) = 4/4 = 1.0 ≥ 0.3 ✓
     expect(result).not.toBeNull();
-    expect(result!.hits).toBe(2);
-    expect(result!.ratio).toBe(0.4);
+    expect(result!.bigram_hits).toBe(1);
   });
 
   it('returns null for prompt with no matching keywords', () => {
@@ -178,30 +252,41 @@ describe('matchDirective', () => {
   });
 
   it('handles keywords with regex special characters safely', () => {
-    // Keywords like "c++" or "node.js" contain regex special chars
-    // that must be escaped to avoid regex syntax errors
-    const keywords = ['node', 'error'];
-    // Should not throw even if keywords were to contain special chars
+    const keywords = ['node', 'error', 'fix'];
     expect(() => matchDirective('fix the node error please', keywords)).not.toThrow();
     const result = matchDirective('fix the node error please', keywords);
     expect(result).not.toBeNull();
-    expect(result!.hits).toBe(2);
+    expect(result!.hits).toBe(3);
   });
 
   it('uses word boundaries to avoid substring matches', () => {
     const keywords = ['port', 'log'];
-    // "port" should NOT match inside "report" or "transport"
-    // "log" should NOT match inside "catalog" or "blog"
     const result = matchDirective('the report from the catalog is ready', keywords);
     expect(result).toBeNull();
   });
 
   it('word boundary matching: matches whole words only', () => {
-    const keywords = ['port', 'log'];
-    // Both match as whole words
+    const keywords = ['port', 'log', 'check'];
     const result = matchDirective('check the port and read the log', keywords);
     expect(result).not.toBeNull();
-    expect(result!.hits).toBe(2);
+    expect(result!.hits).toBe(3);
+  });
+
+  it('works without bigrams (backward compat)', () => {
+    // When no bigrams passed, falls back to unigram-only scoring
+    const keywords = ['alpha', 'beta', 'gamma'];
+    const result = matchDirective('use alpha and beta and gamma in code', keywords);
+    expect(result).not.toBeNull();
+    expect(result!.bigram_hits).toBe(0);
+    expect(result!.bigram_total).toBe(0);
+  });
+
+  it('bigram matching is case-insensitive', () => {
+    const keywords = ['validate', 'input', 'data'];
+    const bigrams = ['validate input'];
+    const result = matchDirective('Please VALIDATE INPUT data now', keywords, bigrams);
+    expect(result).not.toBeNull();
+    expect(result!.bigram_hits).toBe(1);
   });
 });
 
@@ -211,9 +296,9 @@ describe('detectDirectiveFires', () => {
   const SESSION_ID = 'sess-abc';
   const PROJECT_ID = 'proj-xyz';
 
-  it('returns fires for matching directives', () => {
+  it('returns fires for matching directives with category', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Always validate input before database queries' },
+      { id: 'dir-1', rule_text: 'Always validate input before database queries', severity: 'error' },
     ];
     const fires = detectDirectiveFires(
       'make sure to validate user input before running database queries',
@@ -225,8 +310,10 @@ describe('detectDirectiveFires', () => {
     expect(fires[0]!.directive_id).toBe('dir-1');
     expect(fires[0]!.session_id).toBe(SESSION_ID);
     expect(fires[0]!.project_id).toBe(PROJECT_ID);
-    expect(fires[0]!.keyword_hits).toBeGreaterThanOrEqual(MIN_HITS);
-    expect(fires[0]!.match_ratio).toBeGreaterThanOrEqual(MIN_RATIO);
+    expect(fires[0]!.keyword_hits).toBeGreaterThanOrEqual(1);
+    expect(fires[0]!.category).toBe('error-preventing');
+    expect(typeof fires[0]!.bigram_hits).toBe('number');
+    expect(typeof fires[0]!.bigram_total).toBe('number');
   });
 
   it('returns empty array for empty directives (fast path)', () => {
@@ -236,26 +323,26 @@ describe('detectDirectiveFires', () => {
   it('skips directives that do not match', () => {
     const directives: DirectiveInput[] = [
       { id: 'dir-1', rule_text: 'Always validate input before database queries' },
-      { id: 'dir-2', rule_text: 'Use TypeScript strict mode everywhere' },
+      { id: 'dir-2', rule_text: 'Use TypeScript strict mode everywhere in the project configuration' },
     ];
     const fires = detectDirectiveFires(
-      'please enable typescript strict mode in the config',
+      'please enable typescript strict mode in the project configuration',
       directives,
       SESSION_ID,
       PROJECT_ID,
     );
-    // Only dir-2 should match (typescript, strict, mode, config)
+    // Only dir-2 should match
     const matchedIds = fires.map((f) => f.directive_id);
     expect(matchedIds).toContain('dir-2');
   });
 
   it('can match multiple directives', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Validate all user input parameters carefully' },
-      { id: 'dir-2', rule_text: 'Validate form input fields correctly' },
+      { id: 'dir-1', rule_text: 'Validate all user input parameters carefully in the form handler' },
+      { id: 'dir-2', rule_text: 'Validate form input fields correctly before saving to database' },
     ];
     const fires = detectDirectiveFires(
-      'how to validate user input fields and form parameters',
+      'how to validate user input fields and form parameters before saving to database',
       directives,
       SESSION_ID,
       PROJECT_ID,
@@ -264,23 +351,24 @@ describe('detectDirectiveFires', () => {
   });
 
   it('never stores prompt text in fire events', () => {
-    const prompt = 'super secret prompt text that should never appear';
+    const prompt = 'super secret prompt text handling data processing safely';
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'super secret prompt text handling' },
+      { id: 'dir-1', rule_text: 'super secret prompt text handling data processing safely' },
     ];
     const fires = detectDirectiveFires(prompt, directives, SESSION_ID, PROJECT_ID);
     for (const fire of fires) {
       const serialized = JSON.stringify(fire);
-      expect(serialized).not.toContain('super secret prompt text that should never appear');
+      // Should not contain the exact full prompt
+      expect(serialized).not.toContain('super secret prompt text handling data processing safely');
     }
   });
 
-  it('populates all required fields in DirectiveFire', () => {
+  it('populates all required fields in DirectiveFire including v31 fields', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Always validate input before database queries' },
+      { id: 'dir-1', rule_text: 'Always validate input before database queries securely', severity: 'warning' },
     ];
     const fires = detectDirectiveFires(
-      'validate input database queries check',
+      'validate input database queries check securely always',
       directives,
       SESSION_ID,
       PROJECT_ID,
@@ -294,6 +382,65 @@ describe('detectDirectiveFires', () => {
     expect(typeof fire.keyword_hits).toBe('number');
     expect(typeof fire.keyword_total).toBe('number');
     expect(typeof fire.match_ratio).toBe('number');
+    expect(fire.category).toBe('efficiency');
+    expect(typeof fire.bigram_hits).toBe('number');
+    expect(typeof fire.bigram_total).toBe('number');
+  });
+
+  it('assigns error-preventing category for error severity', () => {
+    const directives: DirectiveInput[] = [
+      { id: 'dir-1', rule_text: 'Never commit secrets or credentials to the repository', severity: 'error' },
+    ];
+    const fires = detectDirectiveFires(
+      'make sure to never commit secrets or credentials to the repository',
+      directives,
+      SESSION_ID,
+      PROJECT_ID,
+    );
+    expect(fires).toHaveLength(1);
+    expect(fires[0]!.category).toBe('error-preventing');
+  });
+
+  it('assigns efficiency category for warning severity', () => {
+    const directives: DirectiveInput[] = [
+      { id: 'dir-1', rule_text: 'Always run tests before committing changes to the branch', severity: 'warning' },
+    ];
+    const fires = detectDirectiveFires(
+      'run tests before committing changes to the branch always',
+      directives,
+      SESSION_ID,
+      PROJECT_ID,
+    );
+    expect(fires).toHaveLength(1);
+    expect(fires[0]!.category).toBe('efficiency');
+  });
+
+  it('assigns best-practice category for info severity', () => {
+    const directives: DirectiveInput[] = [
+      { id: 'dir-1', rule_text: 'Prefer named exports over default exports in modules', severity: 'info' },
+    ];
+    const fires = detectDirectiveFires(
+      'prefer named exports over default exports in modules always',
+      directives,
+      SESSION_ID,
+      PROJECT_ID,
+    );
+    expect(fires).toHaveLength(1);
+    expect(fires[0]!.category).toBe('best-practice');
+  });
+
+  it('defaults to best-practice when severity is not provided', () => {
+    const directives: DirectiveInput[] = [
+      { id: 'dir-1', rule_text: 'Keep functions short and focused on single responsibility always' },
+    ];
+    const fires = detectDirectiveFires(
+      'keep functions short and focused on single responsibility always',
+      directives,
+      SESSION_ID,
+      PROJECT_ID,
+    );
+    expect(fires).toHaveLength(1);
+    expect(fires[0]!.category).toBe('best-practice');
   });
 });
 
@@ -529,16 +676,16 @@ describe('edge cases', () => {
     expect(result).toContain('3000');
   });
 
-  it('matchDirective with exactly 1 keyword (always null since MIN_HITS=2)', () => {
+  it('matchDirective with exactly 1 keyword (always null since MIN_COMBINED_HITS=3)', () => {
     const result = matchDirective('something about alpha', ['alpha']);
-    // Can't reach MIN_HITS=2 with only 1 keyword
+    // Can't reach MIN_COMBINED_HITS=3 with only 1 keyword
     expect(result).toBeNull();
   });
 
-  it('matchDirective with exactly 2 keywords both matching', () => {
-    const result = matchDirective('alpha and beta values', ['alpha', 'beta']);
+  it('matchDirective with 3 keywords all matching (meets threshold)', () => {
+    const result = matchDirective('alpha and beta and gamma values', ['alpha', 'beta', 'gamma']);
     expect(result).not.toBeNull();
-    expect(result!.hits).toBe(2);
+    expect(result!.hits).toBe(3);
     expect(result!.ratio).toBe(1);
   });
 
@@ -562,5 +709,57 @@ describe('edge cases', () => {
       match_ratio: 0.5,
     }]);
     expect(existsSync(join(deepDir, FIRES_FILENAME))).toBe(true);
+  });
+
+  it('readFires handles old fires without category (backward compat)', () => {
+    const dir = makeTmpDir();
+    const oldFire = {
+      t: new Date().toISOString(),
+      directive_id: 'dir-old',
+      session_id: 'sess',
+      project_id: 'proj',
+      keyword_hits: 3,
+      keyword_total: 5,
+      match_ratio: 0.6,
+      // No category, bigram_hits, bigram_total — old format
+    };
+    writeFileSync(join(dir, FIRES_FILENAME), JSON.stringify(oldFire) + '\n');
+    const read = readFires(dir);
+    expect(read).toHaveLength(1);
+    expect(read[0]!.directive_id).toBe('dir-old');
+    // Optional fields should be undefined
+    expect(read[0]!.category).toBeUndefined();
+    expect(read[0]!.bigram_hits).toBeUndefined();
+  });
+
+  it('readFires handles new fires with category', () => {
+    const dir = makeTmpDir();
+    const newFire: DirectiveFire = {
+      t: new Date().toISOString(),
+      directive_id: 'dir-new',
+      session_id: 'sess',
+      project_id: 'proj',
+      keyword_hits: 3,
+      keyword_total: 5,
+      match_ratio: 0.6,
+      category: 'error-preventing',
+      bigram_hits: 2,
+      bigram_total: 4,
+    };
+    writeFileSync(join(dir, FIRES_FILENAME), JSON.stringify(newFire) + '\n');
+    const read = readFires(dir);
+    expect(read).toHaveLength(1);
+    expect(read[0]!.category).toBe('error-preventing');
+    expect(read[0]!.bigram_hits).toBe(2);
+    expect(read[0]!.bigram_total).toBe(4);
+  });
+
+  it('extractBigrams handles very short rule_text', () => {
+    // Single word → no bigrams possible
+    expect(extractBigrams('fix')).toEqual([]);
+  });
+
+  it('extractBigrams handles all-stopword rule_text', () => {
+    expect(extractBigrams('the and for with that this')).toEqual([]);
   });
 });

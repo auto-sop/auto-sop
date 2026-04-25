@@ -60,7 +60,7 @@ export const handleUserPromptSubmit: Handler<UserPromptSubmitPayload> = (event, 
       const directives: DirectiveInput[] = [];
       for (const entry of Object.values(history.entries)) {
         if (!entry.pruned && entry.rule_text.length > 0) {
-          directives.push({ id: entry.id, rule_text: entry.rule_text });
+          directives.push({ id: entry.id, rule_text: entry.rule_text, severity: entry.severity });
         }
       }
       if (directives.length > 0) {
