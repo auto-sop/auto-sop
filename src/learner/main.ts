@@ -49,8 +49,19 @@ import {
   compactPreventedErrors,
   type DirectiveFingerprint,
 } from './error-prevention.js';
-// V31 fix: buildSessionSummaries import removed — the session-metrics.jsonl
-// write was dead I/O. The stats aggregator computes metrics on demand.
+// V32: sync queue + token estimation
+import {
+  buildSyncEntry,
+  appendSyncEntry,
+  compactSyncQueue,
+} from './sync-queue.js';
+import {
+  estimateTokenSavings,
+  buildSessionSummaries,
+  compareBeforeAfter,
+  type BeforeAfterComparison,
+  type TokenEstimate,
+} from './session-metrics.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -755,6 +766,8 @@ export async function runLearnerTick(
 
       // V30: Directive-fire compaction + recap fields
       // Wrapped in try/catch — fire compaction failure must NEVER abort the tick.
+      // V32: also compute fires_by_category for sync queue entry
+      let tickFiresByCategory = { error_preventing: 0, efficiency: 0, best_practice: 0 };
       try {
         const compacted = compactFires(stateDir, 90);
         if (compacted > 0) {
@@ -766,6 +779,13 @@ export async function runLearnerTick(
         result.directive_fires_new = prevFinalizedAt
           ? allFires.filter((f) => f.t > prevFinalizedAt).length
           : allFires.length;
+        // V32: compute fires by category for sync entry
+        for (const f of allFires) {
+          const cat = f.category;
+          if (cat === 'error-preventing') tickFiresByCategory.error_preventing++;
+          else if (cat === 'efficiency') tickFiresByCategory.efficiency++;
+          else tickFiresByCategory.best_practice++;
+        }
       } catch (err) {
         // Note: compactFires and readFires are error-swallowing; this catch
         // exists for unexpected synchronous throws only (e.g. type errors).
@@ -774,18 +794,19 @@ export async function runLearnerTick(
         result.directive_fires_total = 0;
       }
 
+      // Load history once — shared between error prevention and sync queue blocks.
+      // Hoisted to avoid duplicate loadHistory disk reads.
+      let history: ReturnType<typeof loadHistory> | null = null;
+      try {
+        history = loadHistory(validRoot);
+      } catch {
+        // history stays null — both blocks handle this gracefully
+      }
+
       // V31: Error prevention detection + compaction
       // Only run when we have turn data to check. Wrapped in try/catch — never abort the tick.
       if (turnData.length > 0) {
         try {
-          // Build directive fingerprints from history entries that have source_fingerprint
-          const history = (() => {
-            try {
-              return loadHistory(validRoot);
-            } catch {
-              return null;
-            }
-          })();
 
           if (history !== null) {
             const dfps: DirectiveFingerprint[] = [];
@@ -828,9 +849,54 @@ export async function runLearnerTick(
         }
       }
 
-      // V31 fix: Removed session-metrics.jsonl write — the stats aggregator
-      // recomputes session metrics on demand via buildSessionSummaries(turns).
-      // Writing to the JSONL was dead I/O with unbounded growth (no reader).
+      // V32: Sync queue entry + token estimation
+      // Build a sync entry from all available tick data, append to queue,
+      // compact entries older than 30 days. NEVER abort the tick on failure.
+      try {
+        // Compute session comparison + token estimate from turn data
+        let tickSessionComparison: BeforeAfterComparison | null = null;
+        let tickTokenEstimate: TokenEstimate | null = null;
+
+        if (turnData.length > 0) {
+          const sessions = buildSessionSummaries(turnData);
+          // Reuse history from error prevention block (avoid duplicate disk read)
+          const syncHistory = history;
+          if (syncHistory !== null) {
+            let earliestFirstSeen: string | null = null;
+            for (const entry of Object.values(syncHistory.entries)) {
+              if (!entry.pruned) {
+                if (earliestFirstSeen === null || entry.first_seen < earliestFirstSeen) {
+                  earliestFirstSeen = entry.first_seen;
+                }
+              }
+            }
+            if (earliestFirstSeen !== null) {
+              tickSessionComparison = compareBeforeAfter(sessions, earliestFirstSeen);
+              tickTokenEstimate = estimateTokenSavings(tickSessionComparison);
+            }
+          }
+        }
+
+        const syncEntry = buildSyncEntry({
+          projectId: project.project_id,
+          projectSlug: project.slug,
+          tickId,
+          directivesActive: renderProposals.length,
+          firesTotal: result.directive_fires_total ?? 0,
+          firesByCategory: { ...tickFiresByCategory },
+          errorsPrevented: result.errors_prevented_total ?? 0,
+          sessionComparison: tickSessionComparison,
+          tokenEstimate: tickTokenEstimate,
+        });
+
+        appendSyncEntry(stateDir, syncEntry);
+        const compactResult = compactSyncQueue(stateDir, 30);
+
+        // Use kept count from compaction (+1 for the entry we just appended before compaction)
+        result.sync_entries_total = compactResult.kept;
+      } catch (err) {
+        logError('sync_queue_failed', err, home);
+      }
 
       // Append per-project recap
       appendRecap(result, home);

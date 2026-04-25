@@ -6,8 +6,13 @@
  * - compareBeforeAfter: splitting, averaging, percentage calculation, edge cases
  */
 import { describe, it, expect } from 'vitest';
-import { buildSessionSummaries, compareBeforeAfter } from '../../src/learner/session-metrics.js';
-import type { SessionSummary } from '../../src/learner/session-metrics.js';
+import {
+  buildSessionSummaries,
+  compareBeforeAfter,
+  estimateTokenSavings,
+  TOKENS_PER_CALL,
+} from '../../src/learner/session-metrics.js';
+import type { SessionSummary, BeforeAfterComparison } from '../../src/learner/session-metrics.js';
 import type { TurnData, ToolCall } from '../../src/learner/turn-loader.js';
 
 // ── Fixture helpers ──────────────────────────────────────
@@ -329,5 +334,92 @@ describe('compareBeforeAfter', () => {
     ];
 
     expect(compareBeforeAfter(sessions, 'not-a-date')).toBeNull();
+  });
+});
+
+// ─── estimateTokenSavings ─────────────────────────────
+
+describe('estimateTokenSavings', () => {
+  function makeComparison(
+    beforeAvgToolCalls: number,
+    afterAvgToolCalls: number,
+    overrides?: Partial<BeforeAfterComparison>,
+  ): BeforeAfterComparison {
+    return {
+      cutoff: '2026-04-22T00:00:00Z',
+      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: beforeAvgToolCalls, avg_bash_failures: 2 },
+      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: afterAvgToolCalls, avg_bash_failures: 1 },
+      improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
+      ...overrides,
+    };
+  }
+
+  it('returns null for null comparison', () => {
+    expect(estimateTokenSavings(null)).toBeNull();
+  });
+
+  it('returns null if before bucket has 0 sessions', () => {
+    const comp = makeComparison(20, 10, {
+      before: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 20, avg_bash_failures: 0 },
+    });
+    expect(estimateTokenSavings(comp)).toBeNull();
+  });
+
+  it('returns null if after bucket has 0 sessions', () => {
+    const comp = makeComparison(20, 10, {
+      after: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 10, avg_bash_failures: 0 },
+    });
+    expect(estimateTokenSavings(comp)).toBeNull();
+  });
+
+  it('calculates token savings correctly', () => {
+    // before: 20 tool calls * 200 = 4000 tokens
+    // after: 12 tool calls * 200 = 2400 tokens
+    // savings: 1600 tokens, 40%
+    const comp = makeComparison(20, 12);
+    const result = estimateTokenSavings(comp)!;
+
+    expect(result).not.toBeNull();
+    expect(result.method).toBe('tool_call_heuristic');
+    expect(result.tokens_per_call).toBe(TOKENS_PER_CALL);
+    expect(result.before_avg_tokens).toBe(4000);
+    expect(result.after_avg_tokens).toBe(2400);
+    expect(result.savings_per_session).toBe(1600);
+    expect(result.savings_pct).toBe(40);
+  });
+
+  it('returns 0 savings when after has more tool calls (negative savings)', () => {
+    // before: 10 calls * 200 = 2000 tokens
+    // after: 15 calls * 200 = 3000 tokens
+    // savings: 0 (clamped, not negative)
+    const comp = makeComparison(10, 15);
+    const result = estimateTokenSavings(comp)!;
+
+    expect(result.savings_per_session).toBe(0);
+    expect(result.savings_pct).toBe(0);
+  });
+
+  it('handles zero tool calls in before bucket', () => {
+    const comp = makeComparison(0, 10);
+    const result = estimateTokenSavings(comp)!;
+
+    expect(result.before_avg_tokens).toBe(0);
+    expect(result.after_avg_tokens).toBe(2000);
+    expect(result.savings_per_session).toBe(0); // clamped to 0
+    expect(result.savings_pct).toBe(0); // can't divide by 0
+  });
+
+  it('handles zero tool calls in both buckets', () => {
+    const comp = makeComparison(0, 0);
+    const result = estimateTokenSavings(comp)!;
+
+    expect(result.before_avg_tokens).toBe(0);
+    expect(result.after_avg_tokens).toBe(0);
+    expect(result.savings_per_session).toBe(0);
+    expect(result.savings_pct).toBe(0);
+  });
+
+  it('uses TOKENS_PER_CALL constant (200)', () => {
+    expect(TOKENS_PER_CALL).toBe(200);
   });
 });

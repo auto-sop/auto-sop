@@ -5,10 +5,9 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-25T17:58:00Z · 165 turns analyzed · 8 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, jonathan-gsd-planner, main_
-_AI analysis: Five turns show an architect agent implementing error-prevention detection and session-metrics features across the learner subsystem. The main concerns are inconsistent build/test verification after edits (one turn verified, another did not), redundant file reads across closely-timed sessions suggesting work fragmentation, and two empty agent invocations that produced no output._
+_Data as of: 2026-04-25T19:38:00Z · 180 turns analyzed · 8 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, jonathan-gsd-planner, main_
 
-**Learnings** (16 active directives)
+**Learnings** (20 active directives)
 
 - **[warning]** Never exclude failing tests to unblock a commit. If a test fails, first verify whether it fails on the base branch. If it is a pre-existing flaky test, create a tracking issue or add a skip annotation with a TODO before proceeding — do not silently drop it from the test command.
   _(evidence: 3 sessions)_
@@ -29,7 +28,13 @@ _AI analysis: Five turns show an architect agent implementing error-prevention d
   _(evidence: 3 sessions)_
 
 - **[warning]** Always run build and test suite after creating new files or editing multiple modules before considering the task complete. Never leave a turn with code changes unverified.
-  _(evidence: 65 sessions · [view turns](.auto-sop/captures/_sBcfmkvUiI2))_
+  _(evidence: 3 sessions)_
+
+- **[warning]** Always quote glob patterns passed to vitest --exclude to prevent shell expansion (e.g., --exclude 'test/integration/**'). Use a space separator, not equals sign, before the quoted glob.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Never use hardcoded numeric limits for data loading or processing bounds. Define shared constants in a single location and import them wherever the same limit applies.
+  _(evidence: 3 sessions)_
 
 - **[info]** Run test suites in the foreground when their output is needed immediately. Only use background execution with proper wait mechanisms when genuine parallelism is required.
   _(evidence: 3 sessions)_
@@ -47,15 +52,21 @@ _AI analysis: Five turns show an architect agent implementing error-prevention d
   _(evidence: 3 sessions)_
 
 - **[info]** Before dispatching an architect agent, ensure the prompt includes sufficient context and a clear deliverable so the agent can take action rather than producing an empty turn.
-  _(evidence: 65 sessions · [view turns](.auto-sop/captures/bVZh3YzdCWlo) [+1 more])_
+  _(evidence: 3 sessions)_
 
 - **[info]** When modifying interfaces or adding fields to types, update all related test assertions in the same editing pass before running the test suite, rather than discovering mismatches at test runtime.
-  _(evidence: 65 sessions · [view turns](.auto-sop/captures/6MQjYBU9ggr7))_
+  _(evidence: 3 sessions)_
 
 - **[info]** When planning multi-step feature work across the learner and directive subsystems, consolidate related changes into fewer sessions to avoid redundant context-gathering reads of the same core module set.
-  _(evidence: 65 sessions · [view turns](.auto-sop/captures/UCXyXtn7f_oj) [+2 more])_
+  _(evidence: 3 sessions)_
 
 - **[info]** When extracting helpers into a shared module, replace the original inline code with clean imports. Do not leave behind comments narrating what was removed or where it moved.
-  _(evidence: 65 sessions · [view turns](.auto-sop/captures/6MQjYBU9ggr7))_
+  _(evidence: 3 sessions)_
+
+- **[info]** When dispatching multiple review agents against the same file set, stagger execution so later agents can consume earlier agents' findings rather than duplicating file reads and analysis.
+  _(evidence: 3 sessions)_
+
+- **[info]** Batch TodoWrite updates within a single turn — update the full todo list once after completing a logical group of tasks rather than after each individual step.
+  _(evidence: 3 sessions)_
 
 <!-- auto-sop:managed-section:end -->

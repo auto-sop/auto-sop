@@ -22,8 +22,11 @@ import { readPreventedErrors } from '../../learner/error-prevention.js';
 import {
   buildSessionSummaries,
   compareBeforeAfter,
+  estimateTokenSavings,
   type BeforeAfterComparison,
+  type TokenEstimate,
 } from '../../learner/session-metrics.js';
+import { readSyncEntries } from '../../learner/sync-queue.js';
 import { loadTurnsForDetection } from '../../learner/turn-loader.js';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -70,6 +73,10 @@ export interface ProjectStats {
   real_errors_prevented: number;
   /** V31: before/after session comparison. Null if insufficient data. */
   session_comparison: BeforeAfterComparison | null;
+  /** V32: estimated token savings from tool call heuristic. Null if insufficient data. */
+  token_estimate: TokenEstimate | null;
+  /** V32: number of entries in the sync queue (pending cloud push). */
+  sync_queue_size: number;
 }
 
 export interface AggregateStatsOptions {
@@ -235,6 +242,18 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     // graceful degradation — no session data yet
   }
 
+  // V32: Token estimation from session comparison
+  const tokenEstimate = estimateTokenSavings(sessionComparison);
+
+  // V32: Sync queue size
+  let syncQueueSize = 0;
+  try {
+    const syncEntries = readSyncEntries(opts.stateDir);
+    syncQueueSize = syncEntries.length;
+  } catch {
+    // graceful degradation — no sync queue yet
+  }
+
   return {
     project_path: opts.projectRoot,
     project_slug: opts.projectSlug,
@@ -249,5 +268,7 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     fires_by_category: firesByCategory,
     real_errors_prevented: realErrorsPrevented,
     session_comparison: sessionComparison,
+    token_estimate: tokenEstimate,
+    sync_queue_size: syncQueueSize,
   };
 }

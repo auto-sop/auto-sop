@@ -1,5 +1,7 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
+import { statSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { lock } from 'proper-lockfile';
 import { assertPlatformSupported } from '../platform-check.js';
 import { readInstalledVersion, writeInstalledVersion, compareVersions } from './version.js';
@@ -144,11 +146,13 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
     }
     await fs.mkdir(binDir, { recursive: true });
     const errorsLog = path.join(logDir, 'errors.log');
+    const claudeBinDir = detectClaudeBinDir(opts.homeDir);
     await writeTickScript(tickScriptPath, {
       homeDir: opts.homeDir,
       nodeBin: opts.nodeBin,
       learnerJs: opts.learnerAbsPath,
       errorsLog,
+      claudeBinDir,
     });
     await schedulerBackend.install({
       tickScriptPath,
@@ -216,6 +220,45 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
       });
     }
   }
+}
+
+/**
+ * Detect the directory containing the `claude` binary.
+ * Tries `which claude` first, then checks common install locations.
+ * Returns undefined if detection fails — callers should fall back to
+ * $HOME/.local/bin which is always prepended in the tick script PATH.
+ */
+export function detectClaudeBinDir(homeDir: string): string | undefined {
+  // 1. Try `which claude` (works on POSIX and some Windows setups)
+  try {
+    const resolved = execSync('which claude', {
+      encoding: 'utf8',
+      timeout: 5_000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (resolved) return path.dirname(resolved);
+  } catch {
+    // which failed — try common paths
+  }
+
+  // 2. Check common install locations
+  const candidates = [
+    path.join(homeDir, '.local', 'bin', 'claude'),
+    '/usr/local/bin/claude',
+    path.join(homeDir, '.cargo', 'bin', 'claude'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      statSync(candidate);
+      return path.dirname(candidate);
+    } catch {
+      // not found, try next
+    }
+  }
+
+  // No common path found — return undefined, caller uses safe default
+  return undefined;
 }
 
 /**

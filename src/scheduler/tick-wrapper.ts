@@ -6,6 +6,8 @@ export interface TickScriptOpts {
   nodeBin: string; // process.execPath at install time
   learnerJs: string; // absolute path to learner entry
   errorsLog: string; // absolute path
+  /** Directory containing the claude binary, detected at install time. */
+  claudeBinDir?: string | undefined;
 }
 
 export function renderTickScript(opts: TickScriptOpts): string {
@@ -17,8 +19,9 @@ export function renderTickScript(opts: TickScriptOpts): string {
     '',
     'set -eu',
     '',
-    '# Minimal, deterministic env',
-    'export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"',
+    '# Minimal, deterministic env — $HOME/.local/bin always included as',
+    '# safe default; detected claude binary dir inserted when available.',
+    `export PATH="${buildPosixPath(opts.claudeBinDir)}"`,
     `export HOME=${shellQuote(opts.homeDir)}`,
     '# Suppress Phase-2 capture inside the scheduled learner tick so it',
     '# does not record its own turns. Legacy CLAUDE_SOP_* vars are kept',
@@ -50,6 +53,9 @@ export function renderTickScriptCmd(opts: TickScriptOpts): string {
     '',
     'setlocal',
     '',
+    'REM Minimal, deterministic PATH',
+    `set "PATH=${buildCmdPath(opts.claudeBinDir)}"`,
+    '',
     'REM Suppress capture inside scheduled tick',
     'set AUTO_SOP_CAPTURE_SUPPRESS=1',
     'set CLAUDE_SOP_CAPTURE_SUPPRESS=1',
@@ -62,6 +68,47 @@ export function renderTickScriptCmd(opts: TickScriptOpts): string {
     `"${opts.nodeBin}" "${opts.learnerJs}" 2>>"${opts.errorsLog}"`,
     '',
   ].join('\r\n');
+}
+
+/**
+ * Build the POSIX PATH value. Always includes $HOME/.local/bin as a safe
+ * default. If claudeBinDir is provided (detected at install time), it is
+ * inserted after $HOME/.local/bin.
+ */
+function buildPosixPath(claudeBinDir?: string): string {
+  const segments = ['$HOME/.local/bin'];
+  const safe = validatePathSegment(claudeBinDir);
+  if (safe) segments.push(safe);
+  segments.push('/usr/local/bin', '/usr/bin', '/bin', '${PATH:-}');
+  return segments.join(':');
+}
+
+/**
+ * Build the Windows CMD PATH value. Always includes %USERPROFILE%\.local\bin.
+ * If claudeBinDir is provided, it is inserted after the user-local dir.
+ */
+function buildCmdPath(claudeBinDir?: string): string {
+  const segments = ['%USERPROFILE%\\.local\\bin'];
+  const safe = validatePathSegment(claudeBinDir);
+  if (safe) {
+    segments.push(safe.replace(/\//g, '\\'));
+  }
+  segments.push('%PATH%');
+  return segments.join(';');
+}
+
+/**
+ * Reject path segments containing shell-special characters that could
+ * break the generated tick script. Returns the path unchanged if safe,
+ * or undefined if it contains dangerous characters.
+ */
+export function validatePathSegment(segment: string | undefined): string | undefined {
+  if (!segment) return undefined;
+  // Reject paths containing shell metacharacters: " $ ` % newline null
+  // Note: backslash is intentionally allowed for Windows path separators.
+  // % is blocked because it triggers variable expansion in Windows CMD.
+  if (/["$`%\n\0]/.test(segment)) return undefined;
+  return segment;
 }
 
 function shellQuote(s: string): string {

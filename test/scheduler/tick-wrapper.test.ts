@@ -7,6 +7,7 @@ import {
   renderTickScript,
   renderTickScriptCmd,
   writeTickScript,
+  validatePathSegment,
 } from '../../src/scheduler/tick-wrapper.js';
 import { isWindows } from '../setup/platform.js';
 
@@ -16,6 +17,67 @@ const baseOpts = {
   learnerJs: '/Users/alice/.auto-sop/dist/learner.js',
   errorsLog: '/Users/alice/.auto-sop/logs/errors.log',
 };
+
+describe('validatePathSegment', () => {
+  it('returns safe paths unchanged', () => {
+    expect(validatePathSegment('/usr/local/bin')).toBe('/usr/local/bin');
+    expect(validatePathSegment('/opt/homebrew/bin')).toBe('/opt/homebrew/bin');
+    expect(validatePathSegment('/home/user/.local/bin')).toBe('/home/user/.local/bin');
+  });
+
+  it('returns undefined for undefined/empty input', () => {
+    expect(validatePathSegment(undefined)).toBeUndefined();
+    expect(validatePathSegment('')).toBeUndefined();
+  });
+
+  it('rejects paths with double quotes', () => {
+    expect(validatePathSegment('/path/with"quote')).toBeUndefined();
+  });
+
+  it('rejects paths with dollar sign', () => {
+    expect(validatePathSegment('/path/$HOME/bin')).toBeUndefined();
+  });
+
+  it('rejects paths with backtick', () => {
+    expect(validatePathSegment('/path/`whoami`/bin')).toBeUndefined();
+  });
+
+  it('allows Windows paths with backslash', () => {
+    expect(validatePathSegment('C:\\Program Files\\Claude')).toBe('C:\\Program Files\\Claude');
+  });
+
+  it('rejects paths with newline', () => {
+    expect(validatePathSegment('/path/with\nnewline')).toBeUndefined();
+  });
+
+  it('rejects paths with null byte', () => {
+    expect(validatePathSegment('/path/with\0null')).toBeUndefined();
+  });
+
+  it('rejects paths with percent sign (Windows CMD expansion)', () => {
+    expect(validatePathSegment('C:\\foo%PATH%bar')).toBeUndefined();
+  });
+});
+
+describe('renderTickScript — claudeBinDir sanitization', () => {
+  it('silently drops claudeBinDir with shell-special chars', () => {
+    const script = renderTickScript({
+      ...baseOpts,
+      claudeBinDir: '/path/$EVIL',
+    });
+    expect(script).not.toContain('$EVIL');
+    // PATH should still be well-formed
+    expect(script).toContain('$HOME/.local/bin');
+  });
+
+  it('silently drops claudeBinDir with backtick injection', () => {
+    const script = renderTickScript({
+      ...baseOpts,
+      claudeBinDir: '/path/`rm -rf /`',
+    });
+    expect(script).not.toContain('rm -rf');
+  });
+});
 
 describe('renderTickScript', () => {
   it('starts with #!/bin/sh', () => {
@@ -70,6 +132,35 @@ describe('renderTickScript', () => {
     // Filter out comment lines; assert no executable flock usage
     const codeLines = script.split('\n').filter((l) => !l.startsWith('#'));
     expect(codeLines.join('\n')).not.toMatch(/\bflock\b/);
+  });
+
+  it('always includes $HOME/.local/bin in PATH', () => {
+    const script = renderTickScript(baseOpts);
+    expect(script).toContain('$HOME/.local/bin');
+  });
+
+  it('includes claudeBinDir in PATH when provided', () => {
+    const script = renderTickScript({
+      ...baseOpts,
+      claudeBinDir: '/opt/homebrew/bin',
+    });
+    expect(script).toContain('/opt/homebrew/bin');
+    // Should also still have $HOME/.local/bin
+    expect(script).toContain('$HOME/.local/bin');
+    // claudeBinDir should appear after $HOME/.local/bin
+    const pathLine = script.split('\n').find((l) => l.startsWith('export PATH='))!;
+    const localBinIdx = pathLine.indexOf('$HOME/.local/bin');
+    const claudeIdx = pathLine.indexOf('/opt/homebrew/bin');
+    expect(localBinIdx).toBeLessThan(claudeIdx);
+  });
+
+  it('works without claudeBinDir (backward compat)', () => {
+    const script = renderTickScript(baseOpts);
+    expect(script).toContain('$HOME/.local/bin');
+    expect(script).toContain('/usr/local/bin');
+    // Should not have empty path segment (double colon)
+    const pathLine = script.split('\n').find((l) => l.startsWith('export PATH='))!;
+    expect(pathLine).not.toContain('::');
   });
 });
 
@@ -134,6 +225,27 @@ describe('renderTickScriptCmd', () => {
       homeDir: 'C:/Users/alice',
     });
     expect(script).toContain('C:\\Users\\alice\\.auto-sop');
+  });
+
+  it('includes %USERPROFILE%\\.local\\bin in PATH', () => {
+    const script = renderTickScriptCmd(winOpts);
+    expect(script).toContain('%USERPROFILE%\\.local\\bin');
+  });
+
+  it('includes claudeBinDir in PATH when provided', () => {
+    const script = renderTickScriptCmd({
+      ...winOpts,
+      claudeBinDir: 'C:\\Program Files\\Claude',
+    });
+    expect(script).toContain('C:\\Program Files\\Claude');
+    expect(script).toContain('%USERPROFILE%\\.local\\bin');
+  });
+
+  it('works without claudeBinDir (backward compat)', () => {
+    const script = renderTickScriptCmd(winOpts);
+    expect(script).toContain('%USERPROFILE%\\.local\\bin');
+    // Should not have double semicolons
+    expect(script).not.toContain(';;');
   });
 });
 

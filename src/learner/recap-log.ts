@@ -105,6 +105,10 @@ export interface PerProjectRecap {
   /** Total prevented-error count in the store after compaction. */
   errors_prevented_total?: number;
 
+  // ── Sync queue metrics (V32) ──────────────────────────────
+  /** Total entries in the sync queue after append + compaction. */
+  sync_entries_total?: number;
+
   // ── LLM skip optimization (PLAN-v17 I8) ──────────────────
   /**
    * Optimization code indicating why the LLM was skipped this tick

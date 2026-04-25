@@ -8,6 +8,15 @@
 import type { TurnData, ToolCall } from './turn-loader.js';
 import { isBashFailure } from './command-fingerprint.js';
 
+// ─── Constants ──────────────────────────────────────────
+
+/**
+ * Conservative estimate of tokens consumed per tool call.
+ * Used for M2 heuristic-based token savings estimation.
+ * Based on average tool call input+output across typical sessions.
+ */
+export const TOKENS_PER_CALL = 200;
+
 // ─── Types ───────────────────────────────────────────────
 
 export interface SessionSummary {
@@ -26,6 +35,15 @@ export interface BucketStats {
   avg_duration_min: number;
   avg_tool_calls: number;
   avg_bash_failures: number;
+}
+
+export interface TokenEstimate {
+  method: 'tool_call_heuristic';
+  tokens_per_call: number;
+  before_avg_tokens: number;
+  after_avg_tokens: number;
+  savings_per_session: number;
+  savings_pct: number;
 }
 
 export interface BeforeAfterComparison {
@@ -195,4 +213,34 @@ function pctChange(before: number, after: number): number {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+// ─── Token estimation ─────────────────────────────────────
+
+/**
+ * Estimate token savings from a before/after comparison using the
+ * tool_call_heuristic method: each tool call ≈ TOKENS_PER_CALL tokens.
+ *
+ * Returns null if the comparison is null or either bucket has 0 sessions
+ * (insufficient data for a meaningful estimate).
+ */
+export function estimateTokenSavings(
+  comparison: BeforeAfterComparison | null,
+): TokenEstimate | null {
+  if (!comparison) return null;
+  if (comparison.before.sessions === 0 || comparison.after.sessions === 0) return null;
+
+  const beforeAvgTokens = round2(comparison.before.avg_tool_calls * TOKENS_PER_CALL);
+  const afterAvgTokens = round2(comparison.after.avg_tool_calls * TOKENS_PER_CALL);
+  const savingsPerSession = Math.max(0, round2(beforeAvgTokens - afterAvgTokens));
+  const savingsPct = beforeAvgTokens === 0 ? 0 : round2((savingsPerSession / beforeAvgTokens) * 100);
+
+  return {
+    method: 'tool_call_heuristic',
+    tokens_per_call: TOKENS_PER_CALL,
+    before_avg_tokens: beforeAvgTokens,
+    after_avg_tokens: afterAvgTokens,
+    savings_per_session: savingsPerSession,
+    savings_pct: savingsPct,
+  };
 }

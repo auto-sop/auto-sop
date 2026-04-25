@@ -284,6 +284,16 @@ export function registerStatsVerb(program: Command): void {
               `  Avg bash fails:  ${cmp.before.avg_bash_failures.toFixed(1)} -> ${cmp.after.avg_bash_failures.toFixed(1)}  (${formatPct(cmp.improvement.bash_failures_pct)})\n`,
           );
         }
+
+        // V32: Token estimation
+        if (stats.token_estimate !== null && stats.token_estimate.savings_per_session > 0) {
+          const te = stats.token_estimate;
+          process.stdout.write(
+            '\n' +
+              `Est. Token Savings:     ~${te.savings_per_session.toLocaleString()} tokens/session (${formatPct(-te.savings_pct)})\n` +
+              `  Method: ${te.method.replace(/_/g, '-')} (${te.tokens_per_call} tokens/call)\n`,
+          );
+        }
       } catch (err) {
         if (jsonMode) {
           emit({

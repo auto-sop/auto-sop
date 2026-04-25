@@ -20,16 +20,26 @@
 - [ ] **Phase 9: First Public Launch** — npm v0.1.0 publish, repo goes public, Node SEA binary, Homebrew tap live, landing page with real metrics, demo GIF. Everything a developer sees on first contact must be professional + Pro upgrade path exists. _(→ v38)_
 - [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v39+)_
 
-### Open decision: Distribution & licensing model (resolve before Phase 8)
-The roadmap references both "open-source/semi-OSS friendly" and "obfuscation pipeline + SEA binary" for the CLI repo. These conflict — must pick one before Phase 8 planning:
+### Decision: Distribution & licensing model (RESOLVED 2026-04-25)
 
-| Option | CLI Repo | npm Package | Protection | Tradeoff |
-|--------|----------|-------------|------------|----------|
-| **A. Open Core** (PostHog, Sentry, GitLab) | Public, MIT/Apache | Readable source | Pro features gated by license check | Community + trust, but fork risk |
-| **B. Closed Source** (RTK AI) | Private | Obfuscated bundles (S6) + SEA binaries (S7) | Code hidden | Full control, no community |
-| **C. Source-Available** (Elastic, HashiCorp) | Public, BSL/SSPL/ELv2 | Readable source | Restrictive license prohibits competing use | Readable + auditable, legally protected |
+**Decision: Closed source, license-key gated.**
 
-**Impacts:** Phase 8 (S6 obfuscation, S7 SEA binary) scope depends on this. Phase 9 (public launch) repo visibility depends on this. No GSD research needed — this is a founder business decision.
+| Aspect | Decision |
+|--------|----------|
+| **Both repos** | **Private** (GitHub private repos) |
+| **Distribution** | npm (obfuscated bundles) + Homebrew (SEA binary) |
+| **Pricing** | 1 project = **free** (requires license key), 2+ projects = **paid monthly subscription** |
+| **Onboarding flow** | `npx auto-sop install` → prompts for license key → user signs up at cloud dashboard → gets free-tier license key → pastes into CLI → install completes |
+| **License key** | Server-validated via cloud API. Free tier key allows 1 project. Pro key allows unlimited. |
+| **Obfuscation (S6)** | Required — npm publishes obfuscated JS bundles |
+| **SEA binary (S7)** | Required — Homebrew distributes compiled Node binary |
+
+**Implications for phases:**
+- Phase 8 (SaaS): Cloud dashboard MUST include signup + license key generation as first priority. CLI `install` requires a valid key before proceeding.
+- Phase 9 (Launch): No public repo. Landing page + npm + Homebrew are the only distribution channels.
+- S6 (obfuscation) and S7 (SEA binary) are confirmed in-scope.
+- Current test key `123` remains for development only.
+- Apache 2.0 LICENSE file in repo should be replaced with proprietary license before any public distribution.
 
 ### Reordering rationale (2026-04-23)
 1. **Windows before Metrics:** Cross-platform must work before measuring outcomes.
@@ -159,7 +169,15 @@ A user pays $X/month for cloud dashboard → runs claude-sop install on their Wi
 **Plans:** TBD (v20-v22)
 
 ### Phase 8: SaaS Platform + Monetization (was Phase 7, moved to Phase 8 on 2026-04-23 — Metrics first)
-**Goal:** Turn the plugin into a commercial open-core product with a web dashboard, encrypted cloud sync, and subscription billing — while keeping the entire local CLI free forever and all LLM analysis local (free via user's Claude Max).
+**Goal:** Turn the plugin into a commercial closed-source product with a web dashboard, license-key gated install, encrypted cloud sync, and subscription billing — while keeping 1-project free tier and all LLM analysis local (free via user's Claude Max).
+
+**Install flow (REVISED 2026-04-25):**
+```
+$ npx auto-sop install
+Enter your license key: ___
+  (Get a free key at https://app.auto-sop.com/signup)
+```
+Cloud dashboard signup → free-tier license key → paste into CLI → install proceeds. No anonymous installs — every user has an account. This enables: usage tracking, upgrade prompts, cloud sync, support contact.
 
 **Stack decision (confirmed):**
 - **Auth:** Clerk (JWT, <10K MAU free tier)
@@ -168,13 +186,13 @@ A user pays $X/month for cloud dashboard → runs claude-sop install on their Wi
 - **Frontend:** Next.js on Vercel (free hobby tier)
 - **Encryption:** Client-side AES-256, key derived from Clerk user_id + project_id (server never sees plaintext)
 
-**Business model (REVISED 2026-04-19 — psychologically-honest soft-gate freemium):**
+**Business model (REVISED 2026-04-25 — license-key gated, closed source):**
 
 | Tier | What | Price | Gate |
 |---|---|---|---|
-| **Free** (forever) | 1 project, unlimited directives, full local capture + LLM analysis, all CLI verbs (recent/show/learn-now/revert/stats) | $0 | 1-project soft cap |
-| **Pro** | Unlimited projects + opt-in encrypted cloud sync + curated directive packs (framework/language) + cross-project pattern detection + web dashboard with savings widget | **$12/mo** or **$99/yr** | None for these features |
-| **Trial** | Full Pro for 14 days OR until first Pro feature touch (whichever comes first) | $0, **no credit card** | Triggered by attempting 2nd project, browsing packs, enabling cloud sync |
+| **Free** (forever) | 1 project, unlimited directives, full local capture + LLM analysis, all CLI verbs | $0 | License key required (free signup at dashboard) |
+| **Pro** | Unlimited projects + encrypted cloud sync + curated directive packs + cross-project patterns + dashboard | **$12/mo** or **$99/yr** | Upgrade via dashboard |
+| **Trial** | Full Pro for 14 days from first Pro feature touch | $0, **no credit card** | Triggered by attempting 2nd project |
 
 **Critical UX — Soft gate (Notion model):**
 - Trial expiry NEVER deletes existing data
@@ -317,7 +335,7 @@ To produce these numbers we need (M-series backlog items):
 
 **Planned versions:**
   - v30: M1 + M6 — directive-fire detection (heuristic) + `auto-sop stats` CLI verb (**DONE**)
-  - v31: Fire quality (bigram matching) + categorization (error/efficiency/best-practice) + session metrics + error prevention tracking
+  - v31: Fire quality (bigram matching) + categorization (error/efficiency/best-practice) + session metrics + error prevention tracking (**DONE**)
   - v32: M2 + M3 — token/time savings tracker + "errors prevented" counter (requires hook integration with Claude Code). Also: CLI `sync` prep — structure local stats for cloud upload format.
 
 **Depends on:** Phase 6 (working learner with incremental patterns). M5 (dashboard widget) deferred to Phase 8 (SaaS). Cloud stats aggregation and landing page proof numbers depend on Phase 8 sync pipeline.
@@ -343,7 +361,7 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | 4. ManagedSectionEditor | 2/2 | **COMPLETE** | v10, v11, v16 |
 | 5. Inspection CLI + Packaging | 2/2 | **COMPLETE** | v17-v22 |
 | 6. Native Windows + Hardening | 5/5 | **COMPLETE** | v23-v25 (Windows), v27 (drift fix), v29 (incremental patterns) |
-| 7. Metrics & Social Proof | 0/3 | **NEXT** — pure CLI work, no cloud needed | v30-v32 |
+| 7. Metrics & Social Proof | 2/3 | **IN PROGRESS** — v30+v31 done, v32 next | v30-v32 |
 | 8. SaaS Platform + Monetization | 0/5 | Not started (separate repo `auto-sop-cloud`) | v33-v37 |
 | 9. First Public Launch | 0/1 | Not started — after Metrics + SaaS | v38 |
 | 10. Smart Directive Targeting | 0/3 | Not started — post-launch | v39+ |
@@ -387,7 +405,9 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | v26 | `a2e82d7` | auto-sop.com landing page — purple brand, owl mascot, SEO-ready (`auto-sop-site/` repo) |
 | v27 | `0b9a956` | Learner drift fix — error serialization, repair CLI verb, auto-recovery after 3 drifts |
 | v28 | — | Vercel deploy + auto-sop.com domain (`auto-sop-site/` repo, queued) |
-| v29 | — | Incremental pattern memory — LLM accumulates candidates across ticks (in progress) |
+| v29 | — | Incremental pattern memory — LLM accumulates candidates across ticks |
+| v30 | `5b01df7` | Directive-fire detection + `auto-sop stats` CLI verb |
+| v31 | `1938438` | Fire categorization + bigram matching + session metrics + error prevention tracking |
 
 ## Remaining Backlog (39 items — 8 bugs move to v15, I1-I4 done in v13)
 
@@ -473,6 +493,7 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 ### Known bugs (fix when convenient)
 - **BUG-C1** `auto-sop status` shows "last tick: never" and "directives: 0" even when learner cursor is advancing and CLAUDE.md has active directives. The status verb reads `scheduler.lastTickAt` and `learner.lastRunAt` fields that the tick script never writes to. Actual batch pipeline works correctly — recap log, cursors, and directive generation all function. Display-only issue.
 - **BUG-D1** **Semantic near-duplicate directives.** The LLM proposes directives per-tick without strong dedup against semantically similar existing ones. The merge logic catches exact ID matches but not near-duplicates. Example: wrbeautiful has two separate directives about "never embed API tokens in inline scripts" and "never pass Shopify access tokens as inline arguments" — same lesson, different wording. Also cross-project overlap on agent efficiency patterns (wrbeautiful + aiagenttr-website both learned review-agent waste lessons independently). Fix: add semantic similarity check during merge step — cosine similarity on rule_text embeddings, or LLM-based "is this the same lesson?" gate before accepting a new directive. Target: <5% duplicate rate across active directives.
+- **BUG-E1** **Flaky e2e integration tests under parallel load.** The large-output and orphan-recovery tests in test/capture/integration/end-to-end.test.ts time out (waitForQuiescence 160s) when running alongside the full test suite. They pass reliably in isolation. Root cause: resource contention under parallel test execution.
 - **BUG-S1** **Session inflation from Dev Army agents.** Each subagent (ARCHITECT, YODA, APEX, PRISM, etc.) creates its own `session_id`, so a single 20-minute dev-army run on wrbeautiful-shopify-theme produced 21 sessions from 25 turns. The 3-session graduation threshold is trivially met in one sitting, causing the LLM to graduate all candidates immediately. Real impact: wrbeautiful got 10 directives from what was effectively 1 user work session. Fix options: (a) deduplicate by parent session / transcript_path root, (b) time-window grouping (sessions within same hour = 1 observation), (c) only count `main` agent type sessions toward threshold. This is a **quality issue, not a crash** — directives generated are still valid, but the "evidence: 3 sessions" claim is misleading.
 
 ### dev-army improvements (parallel)
