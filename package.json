@@ -1,6 +1,6 @@
 {
   "name": "auto-sop",
-  "version": "0.0.40",
+  "version": "0.0.41",
   "description": "Make Claude Code self-improving — auto-detect recurring mistakes and write enforced CLAUDE.md directives",
   "author": "Ugur Gokdere <ugokdere@gmail.com>",
   "keywords": [
@@ -16,7 +16,7 @@
     "code-quality",
     "automation"
   ],
-  "license": "Apache-2.0",
+  "license": "Elastic-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/auto-sop/auto-sop.git"

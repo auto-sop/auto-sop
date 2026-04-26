@@ -6,6 +6,10 @@ import { readInstalledVersion } from '../installer/version.js';
 import { MANAGED_BEGIN, MANAGED_END } from '../installer/managed-section.js';
 import { readSecrets } from '../license/storage.js';
 import { trialStatus } from '../license/trial.js';
+import { getValidationStatus } from '../license/server-client.js';
+import { readBindingFile, verifyBindingToken } from '../license/binding.js';
+import { readRegistry } from '../learner/project-registry.js';
+import { getMachineId } from '../config/machine-id.js';
 import type { SchedulerBackend, SchedulerStatus } from '../scheduler/types.js';
 
 export interface StatusReport {
@@ -23,6 +27,19 @@ export interface StatusReport {
   license: {
     status: 'dev-key' | 'trial' | 'expired' | 'user' | 'none';
     daysRemaining: number | null;
+  };
+  serverValidation: {
+    lastValidated: string | null;
+    graceRemaining: number | null;
+    isOnline: boolean;
+    plan: string | null;
+    maxProjects: number | null;
+    boundProjects: number;
+  };
+  binding: {
+    exists: boolean;
+    valid: boolean;
+    tokenPreview: string | null;
   };
   errors: { last24h: number };
   disk: { usageBytes: number; capBytes: number | null };
@@ -73,6 +90,8 @@ export async function collectStatus(opts: CollectOptions): Promise<StatusReport>
   const pendingCaptures = await countPendingCaptures(capturesDir, learner.lastRunAt);
   const directives = await countDirectives(claudeMdPath, opts.projectRoot);
   const license = await readLicenseStatus(secretsEnc);
+  const serverValidation = await collectServerValidation(opts.homeDir);
+  const binding = await collectBindingStatus(opts.projectRoot, secretsEnc);
   const errors = { last24h: await count24hErrors(errorsJsonl) };
   const disk = await diskUsage(capturesDir);
   const paused = await pathExists(pausedFlag);
@@ -90,6 +109,8 @@ export async function collectStatus(opts: CollectOptions): Promise<StatusReport>
     pendingCaptures,
     directives,
     license,
+    serverValidation,
+    binding,
     errors,
     disk,
     paused,
@@ -290,5 +311,63 @@ async function pathExists(p: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function collectServerValidation(
+  homeDir: string,
+): Promise<StatusReport['serverValidation']> {
+  try {
+    const status = await getValidationStatus();
+    const registry = readRegistry(homeDir);
+    return {
+      lastValidated: status.lastValidated,
+      graceRemaining: status.graceRemaining,
+      isOnline: status.isOnline,
+      plan: status.plan,
+      maxProjects: status.maxProjects,
+      boundProjects: registry.projects.length,
+    };
+  } catch {
+    return {
+      lastValidated: null,
+      graceRemaining: null,
+      isOnline: false,
+      plan: null,
+      maxProjects: null,
+      boundProjects: 0,
+    };
+  }
+}
+
+async function collectBindingStatus(
+  projectRoot: string,
+  secretsEncPath: string,
+): Promise<StatusReport['binding']> {
+  try {
+    const projectAutoSopDir = path.join(projectRoot, '.auto-sop');
+    const binding = await readBindingFile(projectAutoSopDir);
+    if (binding === null) {
+      return { exists: false, valid: false, tokenPreview: null };
+    }
+
+    let valid = false;
+    try {
+      const secrets = await readSecrets(secretsEncPath);
+      if (secrets !== null) {
+        const machineId = await getMachineId();
+        valid = verifyBindingToken(binding, secrets.license.key, projectRoot, machineId);
+      }
+    } catch {
+      // verification failed — report as invalid
+    }
+
+    return {
+      exists: true,
+      valid,
+      tokenPreview: binding.token.slice(0, 8) + '…',
+    };
+  } catch {
+    return { exists: false, valid: false, tokenPreview: null };
   }
 }

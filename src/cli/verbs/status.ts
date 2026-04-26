@@ -73,6 +73,34 @@ export function registerStatusVerb(program: Command): void {
             ['paused', report.paused ? 'yes' : 'no'],
           ]) + '\n',
         );
+
+        // License & Binding section
+        const sv = report.serverValidation;
+        process.stdout.write('\n' + pc.bold('License & Binding') + '\n');
+        const planLabel = sv.plan
+          ? `${sv.plan} (${sv.maxProjects ?? '?'} project max)`
+          : '(unknown)';
+        const serverLabel = sv.lastValidated
+          ? `validated ${formatTimeAgo(sv.lastValidated)}`
+          : 'never validated';
+        const graceLabel = formatGrace(sv.graceRemaining);
+        const boundLabel = `${sv.boundProjects}/${sv.maxProjects ?? '?'}`;
+        const bindingLabel = report.binding.exists
+          ? report.binding.valid
+            ? `valid (${report.binding.tokenPreview})`
+            : pc.yellow('invalid')
+          : pc.dim('not bound');
+
+        process.stdout.write(
+          renderTable([
+            ['plan', planLabel],
+            ['server', sv.isOnline ? serverLabel : pc.yellow(`offline — ${serverLabel}`)],
+            ['grace', graceLabel],
+            ['bound projects', boundLabel],
+            ['project binding', bindingLabel],
+            ['upgrade', 'https://app.auto-sop.com/upgrade'],
+          ]) + '\n',
+        );
       }
     });
 }
@@ -95,4 +123,25 @@ function formatBytes(n: number): string {
     i++;
   }
   return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+function formatTimeAgo(isoString: string): string {
+  const ms = Date.now() - new Date(isoString).getTime();
+  if (ms < 0) return 'just now';
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function formatGrace(graceRemainingMs: number | null): string {
+  if (graceRemainingMs === null) return pc.green('7 days remaining');
+  if (graceRemainingMs <= 0) return pc.red('EXPIRED');
+  const days = graceRemainingMs / (24 * 60 * 60 * 1000);
+  const label = `${days.toFixed(1)} days remaining`;
+  if (days < 3) return pc.yellow(label);
+  return label;
 }

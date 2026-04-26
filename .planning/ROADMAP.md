@@ -16,9 +16,9 @@
 - [x] **Phase 5: Inspection CLI + Packaging** — `recent`/`show`/`revert` verbs, npm publish pipeline, README badges, GitHub community files, Homebrew tap staging. _(v17-v22 → 100%)_
 - [x] **Phase 6: Native Windows + Hardening** — Platform abstraction layer, Task Scheduler backend, NTFS ACL, learner drift fix, incremental pattern memory. _(v23-v25 Windows, v26 site, v27 drift fix, v29 incremental patterns)_
 - [ ] **Phase 7: Metrics & Social Proof** — Directive-fire detection, token/time savings tracker, "errors prevented" counter, `auto-sop stats` CLI, side-by-side proof on landing page (RTK format). Launch-critical — without metrics the landing page can't convert. Pure CLI-side work, no cloud needed. _(→ v30-v32)_
-- [ ] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-cloud/`.** CLI gains 1-project soft cap + feature-touch trial + encrypted sync. Free forever for solo, Pro $12/mo. _(→ v33-v37)_
-- [ ] **Phase 9: First Public Launch** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF. Everything a developer sees on first contact must be professional + Pro upgrade path exists. _(→ v38)_
-- [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v39+)_
+- [ ] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-site/`.** CLI gains 1-project soft cap + feature-touch trial + encrypted sync + X25519 request encryption. Free forever for solo, Pro $12/mo. _(→ v34-v37)_
+- [ ] **Phase 9: First Public Launch + Viral Growth** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF, **referral & rewards system** (Pro trial days for referrals, GitHub star, social shares, CLAUDE.md badge). Everything a developer sees on first contact must be professional + Pro upgrade path + viral loop exists. _(→ v38-v39)_
+- [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v40+)_
 
 ### Decision: Distribution & licensing model (REVISED 2026-04-26)
 
@@ -207,15 +207,50 @@ Saldırgan hem hash check kodunu silip hem fake sunucu kurarsa, teknik olarak by
 | Seviye 2 | + server call sil + 7 gün bekle | Orta seviye |
 | Seviye 3 | + public key değiştir | Tek başına yetmez — sunucu tanımadığı hash'i reddeder |
 | Seviye 4 | + hash check sil + fake sunucu kur | Çok ileri — 4 farklı değişiklik |
+| Seviye 4b | + request encryption bypass (X25519 kaldır) | 5 farklı değişiklik — fake sunucu kursa bile request format'ını da değiştirmeli |
 | Seviye 5 | Tüm korumayı sök + dağıt | **ELv2 ihlali → cease & desist → dava** |
 
-Her katman bir "değişiklik daha" gerektiriyor. Seviye 4'e ulaşacak kadar motive olan kullanıcı oranı <%0.1 — ve o kişi için de Katman 4 (hukuki) devreye giriyor.
+Her katman bir "değişiklik daha" gerektiriyor. Seviye 4b'ye ulaşacak kadar motive olan kullanıcı oranı <%0.1 — ve o kişi için de Katman 4 (hukuki) devreye giriyor.
 
 **Bypass analizi:**
 - DNS spoof ile sahte sunucu kurmak → Ed25519 private key olmadan geçerli imza üretilemez
 - Eski response'u tekrar kullanmak → nonce + timestamp kontrolü engelliyor
 - Public key'i değiştirmek → CLI hash değişir → sunucu tanımadığı hash'i imzalamaz (Katman 3b)
 - Hash check + fake sunucu + public key birlikte değiştirmek → teknik olarak mümkün ama 4 farklı değişiklik + ELv2 ihlali (Katman 4)
+
+##### Katman 3c: Request Encryption (X25519 Sealed Box — BIND-8)
+
+CLI → Server yönünde request confidentiality. HTTPS'in üzerine defense-in-depth katmanı.
+
+```
+CLI tarafı (request gönderirken):
+  1. Server Ed25519 public key → X25519 public key'e dönüştür
+  2. Ephemeral X25519 key pair üret (her request için yeni)
+  3. ECDH: cli_ephemeral_private × server_x25519_public → shared_secret
+  4. AES-256-GCM ile request payload şifrele
+  5. Gönder: { encrypted_payload, ephemeral_public_key, nonce, tag }
+
+Server tarafı (request alırken):
+  1. Ed25519 private key → X25519 private key'e dönüştür
+  2. ECDH: server_x25519_private × cli_ephemeral_public → aynı shared_secret
+  3. AES-256-GCM ile decrypt → plaintext request
+```
+
+**Neden X25519 ve Ed25519 değil?**
+- Ed25519 = signing only (imza oluşturma/doğrulama)
+- X25519 = key exchange (ECDH → shared secret → encryption)
+- İkisi aynı Curve25519 ailesi — key dönüşümü Node.js `crypto`'da native (v16+)
+- Tek key pair hem signing (Ed25519) hem encryption (X25519) için kullanılır
+
+**Ne koruyor:**
+- License key, machine_id, binding hash'leri HTTPS üzerine ek olarak application layer'da da şifrelenir
+- MITM saldırganı HTTPS'i kırsa bile (certificate pinning olmadan), request payload'ı açamaz
+- Ephemeral key pair → her request farklı shared_secret → forward secrecy
+
+**Bypass analizi:**
+- Network sniffing → payload encrypted, sadece ephemeral public key görünür
+- Replay attack → nonce + ephemeral key değişiyor, aynı encrypted payload yeniden kullanılamaz
+- Server public key'i değiştirmek → Katman 3b (self-hash) bunu zaten engelliyor
 
 ##### Katman 4: Hukuki Koruma (Elastic License 2.0)
 
@@ -241,18 +276,20 @@ Teknik korumaları bypass eden biri hâlâ **lisans ihlali** yapıyor.
 
 #### Koruma Özeti
 
-| Saldırı Vektörü | Katman 1 (Binding) | Katman 2 (Server) | Katman 3 (Signature) | Katman 3b (Self-Hash) | Katman 4 (Hukuki) |
-|---|---|---|---|---|---|
-| Key olmadan 2. proje açmak | ❌ Binding token üretilemez | — | — | — | — |
-| Binding.json kopyalamak | ❌ HMAC path-specific | — | — | — | — |
-| max_projects check'i silmek | — | ❌ Sunucu enforce | — | — | ❌ Lisans ihlali |
-| Sahte sunucu kurmak | — | — | ❌ Ed25519 imza | — | — |
-| Eski response cache'lemek | — | — | ❌ Nonce + timestamp | — | — |
-| Public key değiştirmek | — | — | — | ❌ Hash değişir → sunucu reddeder | ❌ Lisans ihlali |
-| Public key + fake sunucu | — | — | — | — | ❌ 3 değişiklik + ELv2 ihlali |
-| Server call'ı tamamen silmek | — | ❌ 7 gün grace → durur | — | — | ❌ Lisans ihlali |
-| npm'den modifiye paket dağıtmak | — | — | — | ❌ Hash eşleşmez | ❌ Lisans + trademark |
-| Tüm teknik korumaları sökmek | — | — | — | — | ❌ ELv2 ihlali → dava |
+| Saldırı Vektörü | Katman 1 (Binding) | Katman 2 (Server) | Katman 3 (Signature) | Katman 3b (Self-Hash) | Katman 3c (Request Enc.) | Katman 4 (Hukuki) |
+|---|---|---|---|---|---|---|
+| Key olmadan 2. proje açmak | ❌ Binding token üretilemez | — | — | — | — | — |
+| Binding.json kopyalamak | ❌ HMAC path-specific | — | — | — | — | — |
+| max_projects check'i silmek | — | ❌ Sunucu enforce | — | — | — | ❌ Lisans ihlali |
+| Sahte sunucu kurmak | — | — | ❌ Ed25519 imza | — | — | — |
+| Eski response cache'lemek | — | — | ❌ Nonce + timestamp | — | — | — |
+| Public key değiştirmek | — | — | — | ❌ Hash değişir → sunucu reddeder | — | ❌ Lisans ihlali |
+| Public key + fake sunucu | — | — | — | — | — | ❌ 3 değişiklik + ELv2 ihlali |
+| Server call'ı tamamen silmek | — | ❌ 7 gün grace → durur | — | — | — | ❌ Lisans ihlali |
+| npm'den modifiye paket dağıtmak | — | — | — | ❌ Hash eşleşmez | — | ❌ Lisans + trademark |
+| Request sniffing (MITM) | — | — | — | — | ❌ X25519 sealed box | — |
+| License key extraction | — | — | — | — | ❌ Payload app-layer encrypted | — |
+| Tüm teknik korumaları sökmek | — | — | — | — | — | ❌ ELv2 ihlali → dava |
 
 **Sonuç:** Casual bypass (teknik bilgisi düşük kullanıcı) imkansız. Determined bypass (kodu fork edip değiştiren) teknik olarak mümkün ama hukuki olarak kovuşturulabilir. Bu, Elasticsearch/MongoDB/Terraform'un kullandığı endüstri standardı koruma seviyesi.
 
@@ -267,7 +304,7 @@ Teknik korumaları bypass eden biri hâlâ **lisans ihlali** yapıyor.
 | **Güvenlik denetimi** | Bağımsız security researcher'lar kodu inceleyebilir |
 
 **Implications for phases:**
-- Phase 8 (SaaS): Cloud dashboard signup + license key generation + Ed25519 key pair generation + validation endpoint. CLI `install` requires a valid key.
+- Phase 8 (SaaS): Cloud dashboard signup + license key generation + Ed25519 key pair generation + validation endpoint + X25519 request encryption. CLI `install` requires a valid key. Aynı Ed25519 key pair hem response signing (integrity) hem request encryption (confidentiality, X25519'a dönüştürerek) için kullanılır.
 - Phase 9 (Launch): CLI repo public, cloud repo private. Apache 2.0 → ELv2 lisans değişikliği.
 - S6 (obfuscation) **artık gerekli değil** — kod zaten açık, koruma teknik + hukuki katmanlarda.
 - S7 (SEA binary) **opsiyonel** — Homebrew convenience için, güvenlik amacıyla değil.
@@ -503,6 +540,44 @@ The CLI in this repo gains a thin `sync` module that talks to the cloud repo's p
   9. **F1-F5 backlog items** (project gate, trial state machine, soft gate UX, packs, cross-project) all green.
 **Plans:** TBD (v23-v27)
 
+### Phase 9: First Public Launch + Viral Growth (was Phase 9, expanded 2026-04-26)
+**Goal:** Launch auto-sop publicly with professional first-impression experience AND built-in viral growth mechanics. Day-one users see real metrics, can upgrade to Pro, and have incentives to share.
+
+**Launch checklist:**
+1. npm v0.1.0 publish with provenance
+2. Homebrew tap live
+3. GitHub repo public (ELv2 license)
+4. Landing page with real dogfood metrics
+5. Demo GIF/video on landing page
+6. Product Hunt launch prepared
+
+**Referral & Rewards System (viral growth):**
+
+| Mekanik | Ödül | Tekrar | Amacı |
+|---------|------|--------|-------|
+| **Referral link** | Her iki tarafa +1 ay Pro trial | Sınırsız | Dropbox modeli — kanıtlanmış en güçlü viral loop |
+| **GitHub Star** | +1 ay Pro trial | Tek seferlik | Repo visibility + social proof (stars = credibility) |
+| **Tweet/LinkedIn paylaşım** | +15 gün Pro trial | Ayda 1 | Organik reach, developer audiences |
+| **Product Hunt upvote** | +15 gün Pro trial | Tek seferlik (launch day) | Launch day boost |
+| **CLAUDE.md badge** | Ongoing %10 Pro indirim | Sürekli (badge kaldırılmadığı sürece) | Developer-to-developer keşif — her repo'nun CLAUDE.md'si bir reklam |
+
+**Neden "credits" değil "Pro trial gün"?**
+- Free tier zaten sınırsız (1 proje) — credits anlamsız
+- Pro'nun değerini tattırmak asıl amaç — deneyip bırakmak yerine deneyip görmek
+- Basit mental model: "arkadaşını davet et → 1 ay Pro bedava"
+
+**Implementation notes:**
+- `asop_referrals` table: referrer_id, referee_id, reward_days, claimed_at
+- `asop_rewards` table: user_id, reward_type (github_star, tweet, linkedin, claude_badge), reward_days, claimed_at, expires_at
+- Referral link: `https://auto-sop.com/signup?ref={user_code}`
+- GitHub star verification: GitHub API check (user starred repo?)
+- Tweet verification: Twitter/X intent URL + manual claim button
+- LinkedIn verification: share URL + manual claim button
+- CLAUDE.md badge: periodic scan of user's public repos for badge presence
+
+**Depends on:** Phase 8 (dashboard + billing must exist)
+**Plans:** TBD (v38-v39)
+
 ### Phase 10: Smart Directive Targeting (post-launch)
 **Goal:** Prevent CLAUDE.md context bloat at scale by routing directives to the right surface — universal rules stay in CLAUDE.md (always in system prompt), context-specific rules become Claude Code Skills (on-demand, loaded only when relevant).
 
@@ -691,6 +766,14 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 - **P5** Dual ESM+CJS entry point validation
 - **P6** README polish + demo GIF/video
 
+### Referral & Viral Growth (v38-v39) — Phase 9 R-series
+- **R1** Referral system — `asop_referrals` table, unique referral codes per user, `?ref=CODE` signup flow. Both referrer and referee get +30 days Pro trial. Dashboard shows referral stats.
+- **R2** GitHub Star reward — GitHub API integration, verify user starred `auto-sop/auto-sop` repo. +30 days Pro trial, one-time. Claim button in dashboard.
+- **R3** Social share rewards — Tweet/LinkedIn share with tracking. Twitter intent URL + claim button. +15 days Pro trial per platform, monthly limit.
+- **R4** Product Hunt launch integration — Upvote verification + special launch day reward (+15 days Pro trial). One-time.
+- **R5** CLAUDE.md badge program — Users add `<!-- auto-sop-badge: USER_CODE -->` to their public repos' CLAUDE.md. Periodic scan verifies badge presence. Ongoing 10% Pro discount while badge is active. Dual benefit: user gets discount, we get developer-to-developer discovery.
+- **R6** Rewards dashboard page — `/dashboard/rewards` showing: earned days, referral link with copy, social task checklist, referral history, pending rewards.
+
 ### Dogfood observation milestone (between v18 and v20)
 _Not a planned code version — 1-2 week period of running the tool on real projects after MVP publish. Hotfix patches (v18.1, v18.2…) as needed. Outputs: directive quality data, Windows user count, Phase 6 priority input._
 
@@ -723,6 +806,7 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **BIND-5** Project count enforcement — `bound_projects > max_projects` → ilk proje hariç learner durur. Status mesajında upgrade yönlendirmesi.
 - **BIND-6** ELv2 license file — repo'daki Apache 2.0 LICENSE dosyasını Elastic License 2.0 ile değiştir. npm package.json `license` field güncelle.
 - **BIND-7** CLI self-hash tamper detection — build sırasında `dist/` hash'i hesapla ve sunucuya kaydet. Her tick'de CLI kendi hash'ini hesaplar, sunucu bilinen hash ile karşılaştırır. Eşleşmeyen → `tampered_client` reject.
+- **BIND-8** Request encryption (X25519 sealed box) — CLI → Server request confidentiality. Server'ın Ed25519 public key'i CLI'da zaten gömülü (BIND-3). Bu key X25519'a dönüştürülür ve request payload'ı şifrelenir. Flow: (1) CLI, server Ed25519 public → X25519 public dönüştürür, (2) ephemeral X25519 key pair üretir, (3) ECDH: cli_ephemeral_private × server_x25519_public → shared_secret, (4) AES-256-GCM ile payload şifrelenir, (5) gönderir: `{ encrypted_payload, ephemeral_public_key, nonce, tag }`, (6) Server: Ed25519 private → X25519 private dönüştürür, (7) ECDH: server_x25519_private × cli_ephemeral_public → aynı shared_secret, (8) AES-256-GCM decrypt → plaintext request. Tek key pair hem signing (Ed25519) hem encryption (X25519) için kullanılır. Node.js `crypto` modülünde native destekli (v16+). HTTPS üzerine defense-in-depth katmanı — license key, machine_id, binding hash'leri application layer'da da şifrelenir.
 
 ### Freemium gating (v33-v37) — Phase 8 F-series
 - **F1** Project count enforcement — Free=1, Pro=∞. `auto-sop install` in 2nd project triggers trial prompt
@@ -740,9 +824,17 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **M6** `auto-sop stats` CLI verb — local-only metric display, free tier (no cloud needed). Shows per-project savings
 
 ### Known bugs (fix when convenient)
+- **BUG-V34-1** `validate/route.ts` — Supabase log insert (validation_log) has no error handling; rate limiting silently degrades on DB errors. Add try/catch around log insert, don't let log failure block validation response.
+- **BUG-V34-2** `validate/route.ts` — `select("*")` over-fetches user row. Should be `select("id, plan, max_projects, stripe_customer_id")` — only the fields actually used.
+- **BUG-V34-3** `dashboard.ts` — `patternCandidates` is a magic-number fabrication (`count * 1.6`). Replace with real metric from CLI stats or remove until real data exists.
+- **BUG-V34-4** Dashboard layout — double-queries `asop_users` table (layout fetches user, page fetches user again). Hoist user fetch to layout, pass via React context or server component prop.
 - **BUG-C1** `auto-sop status` shows "last tick: never" and "directives: 0" even when learner cursor is advancing and CLAUDE.md has active directives. The status verb reads `scheduler.lastTickAt` and `learner.lastRunAt` fields that the tick script never writes to. Actual batch pipeline works correctly — recap log, cursors, and directive generation all function. Display-only issue.
 - **BUG-D1** **Semantic near-duplicate directives.** The LLM proposes directives per-tick without strong dedup against semantically similar existing ones. The merge logic catches exact ID matches but not near-duplicates. Example: wrbeautiful has two separate directives about "never embed API tokens in inline scripts" and "never pass Shopify access tokens as inline arguments" — same lesson, different wording. Also cross-project overlap on agent efficiency patterns (wrbeautiful + aiagenttr-website both learned review-agent waste lessons independently). Fix: add semantic similarity check during merge step — cosine similarity on rule_text embeddings, or LLM-based "is this the same lesson?" gate before accepting a new directive. Target: <5% duplicate rate across active directives.
 - **BUG-E1** **Flaky e2e integration tests under parallel load.** The large-output and orphan-recovery tests in test/capture/integration/end-to-end.test.ts time out (waitForQuiescence 160s) when running alongside the full test suite. They pass reliably in isolation. Root cause: resource contention under parallel test execution.
+- **BUG-V36-1** `server-client.ts` — Unused `isCacheValid` import. Either call it in `fallbackToCache` or remove the import.
+- **BUG-V36-2** `main.ts` — Double `checkLicenseBeforeTick` call. Refactor to single call, extract both `allowed` and `maxProjects` from one result.
+- **BUG-V36-3** `GRACE_PERIOD_MS` duplicated in `server-client.ts`. Export from `cache.ts` and import instead.
+- **BUG-V36-4** `server-client.ts` — `resetFailures` utility bypassed in success path. Use the existing utility instead of manual reset.
 - **BUG-S1** **Session inflation from Dev Army agents.** Each subagent (ARCHITECT, YODA, APEX, PRISM, etc.) creates its own `session_id`, so a single 20-minute dev-army run on wrbeautiful-shopify-theme produced 21 sessions from 25 turns. The 3-session graduation threshold is trivially met in one sitting, causing the LLM to graduate all candidates immediately. Real impact: wrbeautiful got 10 directives from what was effectively 1 user work session. Fix options: (a) deduplicate by parent session / transcript_path root, (b) time-window grouping (sessions within same hour = 1 observation), (c) only count `main` agent type sessions toward threshold. This is a **quality issue, not a crash** — directives generated are still valid, but the "evidence: 3 sessions" claim is misleading.
 
 ### dev-army improvements (parallel)

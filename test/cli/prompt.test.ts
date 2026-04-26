@@ -51,12 +51,15 @@ describe('promptLicense (via simulated readline)', () => {
 });
 
 describe('classifyLicense', () => {
-  it('returns "dev" for key "123"', () => {
-    expect(classifyLicense('123')).toBe('dev');
+  it('returns "dev" for keys starting with "dev-"', () => {
+    expect(classifyLicense('dev-key-test')).toBe('dev');
+    expect(classifyLicense('dev-123')).toBe('dev');
+    expect(classifyLicense('dev-')).toBe('dev');
   });
 
   it('returns "user" for any other key', () => {
     expect(classifyLicense('real-key')).toBe('user');
+    expect(classifyLicense('123')).toBe('user');
     expect(classifyLicense('')).toBe('user');
     expect(classifyLicense('abc-def-ghi')).toBe('user');
   });

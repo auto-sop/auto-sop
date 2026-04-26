@@ -5,25 +5,10 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-25T21:59:00Z · 218 turns analyzed · 8 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, jonathan-gsd-planner, main_
-_AI analysis: The strongest pattern in this batch is the code-review agent making 15+ Bash grep calls instead of using the dedicated Grep tool, violating explicit tool usage guidelines. Secondary patterns include no-op edits in the planner and empty agent turns that waste context._
+_Data as of: 2026-04-26T17:56:00Z · 309 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
+_AI analysis: First batch analysis of 5 turns across architect and jonathan agents. Main findings: a variable rename done via ~10 individual edits instead of replace_all, test fixtures not updated alongside production code changes causing predictable test failures, and a shell script edited extensively with syntax validation deferred to the very end._
 
 **Learnings** (25 active directives)
-
-- **[warning]** Never exclude failing tests to unblock a commit. If a test fails, first verify whether it fails on the base branch. If it is a pre-existing flaky test, create a tracking issue or add a skip annotation with a TODO before proceeding — do not silently drop it from the test command.
-  _(evidence: 3 sessions)_
-
-- **[warning]** When resetting a learner cursor to epoch, always document the root cause of why it got stuck. Resetting without root cause analysis masks underlying issues and leads to repeated resets across projects.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before running auto-sop ticks or checking learner output for any project, first verify three prerequisites: hooks are installed, the captures directory exists and contains data, and the project is registered in the project registry.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before starting a debugging session, form a hypothesis about the most likely root cause and check it first. Limit exploratory tool calls to 5 before stopping to reassess the approach rather than chaining incremental checks.
-  _(evidence: 3 sessions)_
-
-- **[warning]** When a tick completes successfully but produces no recap output, check in this order: (1) captures directory has data, (2) learner cursor points to unprocessed captures, (3) recap log path matches what the tick writes to. Do not re-run the tick until these are verified.
-  _(evidence: 3 sessions)_
 
 - **[warning]** Always verify plan completion status by checking both the plans directory structure and recent git history, since plan file moves and git commits can fall out of sync.
   _(evidence: 3 sessions)_
@@ -38,51 +23,66 @@ _AI analysis: The strongest pattern in this batch is the code-review agent makin
   _(evidence: 3 sessions)_
 
 - **[warning]** Always use the Read tool with offset and limit parameters to read portions of files. Never use Bash with cat, head, or tail to read file contents — the Read tool provides a better experience and avoids unnecessary shell invocations.
-  _(evidence: 86 sessions · [view turns](.auto-sop/captures/Ahyis10Fm1qx))_
+  _(evidence: 3 sessions)_
 
 - **[warning]** Always use the dedicated Grep tool for content search instead of running grep or rg via Bash. The Grep tool is optimized for correct permissions and access. Reserve Bash for shell-only operations that have no dedicated tool equivalent.
-  _(evidence: 86 sessions · [view turns](.auto-sop/captures/Ahyis10Fm1qx))_
-
-- **[info]** Prefer a single scripted deploy command over manual build-copy-verify sequences for distributing plugin artifacts to the marketplace directory.
   _(evidence: 3 sessions)_
 
-- **[info]** After discovering a stuck or stale cursor in one project, immediately check all registered projects for the same issue rather than discovering them one at a time in separate turns.
+- **[warning]** When exploring an unfamiliar CLI tool's capabilities, prefer Read and Grep on its source code over repeated Bash invocations. Limit exploratory Bash calls to 3 before switching to source-reading.
   _(evidence: 3 sessions)_
 
-- **[info]** When inspecting auto-sop learner state across multiple projects, combine hook checks, directive counts, and cursor positions into a single consolidated inspection script rather than running separate passes.
+- **[warning]** Before guessing CLI commands, always read the project's source code (CLI entry point, command registration files) or documentation to understand available commands. Never try more than 2 command variations without reading source.
   _(evidence: 3 sessions)_
 
-- **[info]** Before adding a new bug entry to the roadmap, verify the ID prefix matches the established convention and check for ID conflicts with existing entries.
+- **[warning]** Jonathan agents must never edit source files, commit, or push code. Jonathan creates plans in plans/queued/ only. All code execution, commits, and pushes are Commander's responsibility.
   _(evidence: 3 sessions)_
 
-- **[info]** Before dispatching an architect agent, ensure the prompt includes sufficient context and a clear deliverable so the agent can take action rather than producing an empty turn.
+- **[warning]** Never push directly to main. Always create a feature branch and open a pull request, even for small changes like config file updates, to preserve review history.
   _(evidence: 3 sessions)_
 
-- **[info]** When modifying interfaces or adding fields to types, update all related test assertions in the same editing pass before running the test suite, rather than discovering mismatches at test runtime.
+- **[warning]** Define clear success criteria for auto-sop plugin installation (e.g., specific file or hook that must exist) so agents can verify in one step and stop retrying once the check passes.
   _(evidence: 3 sessions)_
 
-- **[info]** When planning multi-step feature work across the learner and directive subsystems, consolidate related changes into fewer sessions to avoid redundant context-gathering reads of the same core module set.
+- **[warning]** Document the canonical install command for the auto-sop plugin in the project README or CLAUDE.md so agents do not resort to trial-and-error guessing across multiple invocation styles.
   _(evidence: 3 sessions)_
 
-- **[info]** When extracting helpers into a shared module, replace the original inline code with clean imports. Do not leave behind comments narrating what was removed or where it moved.
+- **[warning]** Always use the Read tool instead of Bash cat/head/tail for reading files, and Glob instead of Bash ls/find for listing or finding files. Reserve Bash for operations that have no dedicated tool equivalent.
   _(evidence: 3 sessions)_
 
-- **[info]** When dispatching multiple review agents against the same file set, stagger execution so later agents can consume earlier agents' findings rather than duplicating file reads and analysis.
+- **[warning]** Avoid empty agent turns that produce no tool calls or outputs. If the agent has nothing actionable to do in a turn, it should either complete its task or clearly state what it is blocked on.
   _(evidence: 3 sessions)_
 
-- **[info]** Batch TodoWrite updates within a single turn — update the full todo list once after completing a logical group of tasks rather than after each individual step.
+- **[warning]** Before guessing CLI flag syntax, read the relevant CLI verb source file to determine supported flags and their positions. Never trial-and-error flag combinations via repeated Bash calls.
   _(evidence: 3 sessions)_
 
-- **[info]** Before submitting an Edit, verify that old_string and new_string are actually different. No-op edits waste tool calls and can indicate a copy-paste error in the edit construction.
-  _(evidence: 86 sessions · [view turns](.auto-sop/captures/9QZpcCNcscvm))_
+- **[warning]** Always use the Glob tool for file pattern matching instead of running find commands via Bash. Glob is faster, safer, and provides better output formatting.
+  _(evidence: 3 sessions)_
 
-- **[info]** When a planner agent turn produces no tools and no output, investigate whether the agent is stuck or misconfigured before spawning additional turns. Avoid burning context on empty turns.
-  _(evidence: 86 sessions · [view turns](.auto-sop/captures/37vc7laZqQza) [+1 more])_
+- **[warning]** When an Explore agent needs to understand a file, read it in chunks of at least 100-200 lines rather than repeatedly reading 5-15 line fragments at scattered offsets. If the file is under 1000 lines, read it in full on the first pass.
+  _(evidence: 3 sessions)_
 
-- **[info]** Always run the TypeScript compiler with noEmit both before making type-related changes (to understand the baseline) and after (to confirm zero errors). This two-pass approach prevents introducing new type errors while fixing existing ones.
-  _(evidence: 86 sessions · [view turns](.auto-sop/captures/xjyCbOTYwbso))_
+- **[warning]** Explore agents should target fewer than 30 tool calls per investigation. Before issuing a new read of a file already visited, check if the needed content was already retrieved in a prior read. Plan reads upfront rather than incrementally discovering adjacent lines.
+  _(evidence: 3 sessions)_
 
-- **[info]** When conducting code reviews, use dedicated tools (Grep, Read) for investigation to minimize tool call count, and reserve Bash for running test suites and build commands at the end of the review.
-  _(evidence: 86 sessions · [view turns](.auto-sop/captures/Ahyis10Fm1qx))_
+- **[warning]** Before increasing timeouts to fix deadline misses, investigate why the operation is slow. Increasing timeouts should be a last resort after confirming the operation genuinely requires more time, not a workaround for undiagnosed performance issues.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Jonathan (planner agent) must not directly edit code or scripts. When Jonathan discovers a bug during planning, it should document the bug and fix approach in a plan, then hand off to Commander or Architect for execution.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Always use the Glob tool for file discovery and listing directory contents. Never use Bash with find or ls for locating files by pattern — Glob is purpose-built for this and avoids unnecessary shell invocations.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Before writing a new file, fully plan its contents including all imports, types, and edge cases. Never write a file expecting to immediately rewrite it in the same turn — get it right on the first pass.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Do not add multi-line JSDoc comment blocks to new files. Default to no comments, and if a comment is needed, keep it to one short line. Module-level doc blocks describing what the file does are redundant when file and function names are descriptive.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When modifying plans, decide on scope changes before editing the file. Do not add content to a plan and then immediately revert it in the same turn — evaluate cross-repo scope implications before making any edits.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When renaming a variable or identifier across a single file, use the Edit tool with replace_all=true in one call instead of making many individual edit calls for each occurrence.
+  _(evidence: 124 sessions · [view turns](.auto-sop/captures/N2HkHVOsBUz9))_
 
 <!-- auto-sop:managed-section:end -->

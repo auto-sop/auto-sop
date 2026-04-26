@@ -63,6 +63,11 @@ import {
   type BeforeAfterComparison,
   type TokenEstimate,
 } from './session-metrics.js';
+import {
+  checkLicenseBeforeTick,
+  shouldProjectRun,
+  sortProjectsByAge,
+} from '../license/enforcement.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -310,6 +315,22 @@ export async function main(): Promise<void> {
       process.exit(0);
     }
 
+    // License enforcement — gate learner before acquiring lock.
+    // Captures continue regardless; only the learner is blocked.
+    // Called ONCE; both 'allowed' and 'maxProjects' are extracted from the single result.
+    let maxProjects = Infinity;
+    try {
+      const enforcement = await checkLicenseBeforeTick(home);
+      if (!enforcement.allowed) {
+        logError('license_check_failed', enforcement.reason ?? 'unknown', home);
+        process.exit(0);
+      }
+      if (enforcement.maxProjects !== undefined) maxProjects = enforcement.maxProjects;
+    } catch (err) {
+      // Fail-open: if license check itself errors, allow the tick with unlimited projects
+      logError('license_check_error', err, home);
+    }
+
     // Learner lock (skip if another tick running)
     const releaseLock = acquireLearnerLock(home);
     if (!releaseLock) {
@@ -318,7 +339,7 @@ export async function main(): Promise<void> {
     }
 
     try {
-      await runLearnerTick(home, tickId, tickStart, ac.signal);
+      await runLearnerTick(home, tickId, tickStart, ac.signal, maxProjects);
     } finally {
       releaseLock();
     }
@@ -336,9 +357,13 @@ export async function runLearnerTick(
   tickId: string,
   tickStart: number,
   signal: AbortSignal,
+  maxProjects: number = Infinity,
 ): Promise<void> {
   const registry = readRegistry(home);
   const now = new Date().toISOString();
+
+  // Sort projects by installed_at ascending so oldest projects get priority
+  const sortedProjects = sortProjectsByAge(registry.projects);
 
   let projects_processed = 0;
   let projects_skipped = 0;
@@ -347,7 +372,15 @@ export async function runLearnerTick(
   let total_turns_new = 0;
   const errors: string[] = [];
 
-  for (const project of registry.projects) {
+  for (let projectIndex = 0; projectIndex < sortedProjects.length; projectIndex++) {
+    const project = sortedProjects[projectIndex]!;
+
+    // Per-project quota gating: skip projects beyond the plan limit
+    if (!shouldProjectRun(projectIndex, maxProjects)) {
+      logError('project_over_quota', `skipping ${project.slug} — over project limit (${projectIndex + 1}/${maxProjects})`, home);
+      projects_skipped++;
+      continue;
+    }
     if (signal.aborted) {
       logError('learner_timeout', 'hard timeout reached during tick', home);
       break;

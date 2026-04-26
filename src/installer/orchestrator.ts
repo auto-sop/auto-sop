@@ -15,7 +15,9 @@ import { recordLicenseOnInstall } from '../license/storage.js';
 import { getMachineId } from '../config/machine-id.js';
 import { promptLicense, classifyLicense } from '../cli/prompt.js';
 import { PreconditionError } from '../cli/errors.js';
-import { upsertProject } from '../learner/project-registry.js';
+import { upsertProject, readRegistry } from '../learner/project-registry.js';
+import { createBindingFile, writeBindingFile } from '../license/binding.js';
+import { validateLicense } from '../license/server-client.js';
 import { resolveIdentity } from '../path-resolver/identity.js';
 import { RealGitRunner } from '../path-resolver/git-runner.js';
 import {
@@ -121,6 +123,44 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
       machineIdFull,
       now: opts.now,
     });
+
+    // Step 3b: Project binding — ties license to project + machine
+    const projectAutoSopDir = path.join(opts.projectRoot, '.auto-sop');
+    await fs.mkdir(projectAutoSopDir, { recursive: true });
+    const binding = createBindingFile({
+      licenseKey,
+      projectPath: opts.projectRoot,
+      machineId: machineIdFull,
+    });
+    await writeBindingFile(projectAutoSopDir, binding);
+
+    // Step 3c: Server validation (fail-open for network errors)
+    if (kind !== 'dev') {
+      try {
+        const registry = readRegistry(opts.homeDir);
+        const boundProjects = registry.projects.map((p) => p.project_root);
+        const result = await validateLicense({
+          key: licenseKey,
+          machineId: machineIdFull,
+          boundProjects,
+        });
+        if (!result.success && result.error === 'invalid_key') {
+          throw new PreconditionError(
+            'Invalid license key. Get a free key at https://app.auto-sop.com/signup',
+          );
+        }
+        if (!result.success && result.error !== 'no_cache') {
+          warnings.push(
+            'Could not reach license server. Install will continue with 7-day offline grace period.',
+          );
+        }
+      } catch (err) {
+        if (err instanceof PreconditionError) throw err;
+        warnings.push(
+          'Could not reach license server. Install will continue with 7-day offline grace period.',
+        );
+      }
+    }
 
     // Step 4: Plugin bundle copy
     await copyPluginBundle(opts.pluginBundleSrc, marketplaceDir);
