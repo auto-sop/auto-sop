@@ -285,14 +285,27 @@ export function registerStatsVerb(program: Command): void {
           );
         }
 
-        // V32: Token estimation
-        if (stats.token_estimate !== null && stats.token_estimate.savings_per_session > 0) {
-          const te = stats.token_estimate;
-          process.stdout.write(
-            '\n' +
-              `Est. Token Savings:     ~${te.savings_per_session.toLocaleString()} tokens/session (${formatPct(-te.savings_pct)})\n` +
-              `  Method: ${te.method.replace(/_/g, '-')} (${te.tokens_per_call} tokens/call)\n`,
-          );
+        // V32-P7: Impact Metrics Summary
+        const hasP7Metrics =
+          (stats.token_savings_total !== null && stats.token_savings_total > 0) ||
+          stats.errors_prevented_this_month > 0 ||
+          (stats.duration_time_saved_minutes !== null && stats.duration_time_saved_minutes > 0);
+
+        if (hasP7Metrics) {
+          process.stdout.write('\n' + pc.bold('Measured Impact:') + '\n');
+
+          if (stats.token_savings_total !== null && stats.token_savings_total > 0) {
+            const pctStr = stats.token_savings_pct !== null ? ` (${stats.token_savings_pct.toFixed(1)}% reduction)` : '';
+            process.stdout.write(`  Tokens saved:         ~${Math.round(stats.token_savings_total).toLocaleString()}/session${pctStr}\n`);
+          }
+
+          if (stats.errors_prevented_this_month > 0) {
+            process.stdout.write(`  Errors prevented:     ${stats.errors_prevented_this_month} this month\n`);
+          }
+
+          if (stats.duration_time_saved_minutes !== null && stats.duration_time_saved_minutes > 0) {
+            process.stdout.write(`  Time saved:           ~${formatTimeSaved(Math.round(stats.duration_time_saved_minutes))}\n`);
+          }
         }
       } catch (err) {
         if (jsonMode) {

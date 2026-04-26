@@ -3,7 +3,7 @@
  *
  * Covers:
  * - Token estimation line appears in human output when savings > 0
- * - No token estimation line when token_estimate is null or zero savings
+ * - No token estimation line when no session data or zero savings
  * - sync_queue_size present in JSON output
  * - Backward compat: JSON output includes V32 fields even when absent
  *
@@ -184,26 +184,6 @@ describe('V32 stats display: token estimation + sync_queue_size', () => {
       expect(parsed.sync_queue_size).toBe(0);
     });
 
-    it('token_estimate is null in JSON when no session data exists', async () => {
-      saveHistory(
-        projectRoot,
-        makeHistory([makeDirective('dir-1', 'Some rule text')]),
-      );
-
-      appendFires(stateDir(projectRoot), [
-        makeFire({ t: '2026-04-10T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-1' }),
-      ]);
-
-      await runCli([
-        'node', 'auto-sop', '--json', 'stats',
-        '--project', projectRoot,
-        '--since', '2026-04-01',
-      ]);
-
-      const parsed = JSON.parse(stdout().trim());
-      expect(parsed.ok).toBe(true);
-      expect(parsed.token_estimate).toBeNull();
-    });
   });
 
   // ── Human output: token estimation display ──────────────
@@ -252,7 +232,7 @@ describe('V32 stats display: token estimation + sync_queue_size', () => {
   // ── Backward compat ─────────────────────────────────────
 
   describe('Backward compat: old projects', () => {
-    it('JSON output always includes sync_queue_size and token_estimate fields', async () => {
+    it('JSON output always includes sync_queue_size field', async () => {
       saveHistory(
         projectRoot,
         makeHistory([
@@ -276,10 +256,8 @@ describe('V32 stats display: token estimation + sync_queue_size', () => {
 
       // V32 fields are always present with safe defaults
       expect(parsed).toHaveProperty('sync_queue_size');
-      expect(parsed).toHaveProperty('token_estimate');
       expect(typeof parsed.sync_queue_size).toBe('number');
       expect(parsed.sync_queue_size).toBe(0);
-      expect(parsed.token_estimate).toBeNull();
 
       // V31 fields still present
       expect(parsed).toHaveProperty('fires_by_category');

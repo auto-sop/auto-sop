@@ -5,7 +5,7 @@
  * 1. Sync queue: buildSyncEntry with realistic data → append → read → compact
  * 2. Token estimation: BeforeAfterComparison → estimateTokenSavings math + edge cases
  * 3. M3 verification: error prevention count flows into stats aggregator
- * 4. Stats aggregator: token_estimate + sync_queue_size populated correctly
+ * 4. Stats aggregator: sync_queue_size populated correctly
  * 5. Backward compat: projects without sync-queue.jsonl produce sync_queue_size = 0
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -417,7 +417,7 @@ describe('M3 verification: error prevention count in stats aggregator', () => {
 
 // ─── 4. Stats aggregator: V32 fields ───────────────────────
 
-describe('Stats aggregator: V32 token_estimate + sync_queue_size', () => {
+describe('Stats aggregator: V32 sync_queue_size', () => {
   let root: string;
 
   beforeEach(() => {
@@ -426,22 +426,6 @@ describe('Stats aggregator: V32 token_estimate + sync_queue_size', () => {
 
   afterEach(() => {
     rmSync(root, { recursive: true, force: true });
-  });
-
-  it('token_estimate is null when no session data exists', () => {
-    writeFires(root, [makeFire({ directive_id: 'det-a', t: '2026-04-10T10:00:00.000Z' })]);
-    writeHistory(root, makeHistory({ 'det-a': { rule_text: 'Some rule.' } }));
-
-    const stats = aggregateStats({
-      stateDir: stateDir(root),
-      projectRoot: root,
-      projectSlug: 'no-sessions',
-      since: '2026-04-01T00:00:00.000Z',
-    });
-
-    // Without captures dir / session data, session_comparison is null, so token_estimate is null
-    expect(stats.token_estimate).toBeNull();
-    expect(stats.session_comparison).toBeNull();
   });
 
   it('sync_queue_size reflects number of entries in sync-queue.jsonl', () => {
@@ -493,7 +477,7 @@ describe('Backward compat: projects without V32 files produce valid stats', () =
     rmSync(root, { recursive: true, force: true });
   });
 
-  it('project with fires but no sync-queue.jsonl: sync_queue_size = 0, token_estimate = null', () => {
+  it('project with fires but no sync-queue.jsonl: sync_queue_size = 0', () => {
     const fires = [
       makeFire({ directive_id: 'det-a', t: '2026-04-10T10:00:00.000Z' }),
       makeFire({ directive_id: 'det-b', t: '2026-04-11T10:00:00.000Z' }),
@@ -516,7 +500,6 @@ describe('Backward compat: projects without V32 files produce valid stats', () =
 
     // V32 fields have safe defaults
     expect(stats.sync_queue_size).toBe(0);
-    expect(stats.token_estimate).toBeNull();
 
     // V31 fields still work
     expect(stats.total_fires).toBe(2);
@@ -538,7 +521,6 @@ describe('Backward compat: projects without V32 files produce valid stats', () =
 
     expect(stats.total_fires).toBe(0);
     expect(stats.sync_queue_size).toBe(0);
-    expect(stats.token_estimate).toBeNull();
     expect(stats.real_errors_prevented).toBe(0);
     expect(stats.session_comparison).toBeNull();
   });

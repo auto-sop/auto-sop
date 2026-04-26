@@ -5,36 +5,14 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-26T17:56:00Z · 309 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
-_AI analysis: First batch analysis of 5 turns across architect and jonathan agents. Main findings: a variable rename done via ~10 individual edits instead of replace_all, test fixtures not updated alongside production code changes causing predictable test failures, and a shell script edited extensively with syntax validation deferred to the very end._
+_Data as of: 2026-04-26T19:59:00Z · 339 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
 
 **Learnings** (25 active directives)
 
-- **[warning]** Always verify plan completion status by checking both the plans directory structure and recent git history, since plan file moves and git commits can fall out of sync.
+- **[error]** Before any production deployment to Vercel, verify all required environment variables are configured in the Vercel project. Compare local env vars against Vercel env vars and push any missing ones before deploying, not after discovering failures.
   _(evidence: 3 sessions)_
 
-- **[warning]** Always run build and test suite after creating new files or editing multiple modules before considering the task complete. Never leave a turn with code changes unverified.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Always quote glob patterns passed to vitest --exclude to prevent shell expansion (e.g., --exclude 'test/integration/**'). Use a space separator, not equals sign, before the quoted glob.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Never use hardcoded numeric limits for data loading or processing bounds. Define shared constants in a single location and import them wherever the same limit applies.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Always use the Read tool with offset and limit parameters to read portions of files. Never use Bash with cat, head, or tail to read file contents — the Read tool provides a better experience and avoids unnecessary shell invocations.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Always use the dedicated Grep tool for content search instead of running grep or rg via Bash. The Grep tool is optimized for correct permissions and access. Reserve Bash for shell-only operations that have no dedicated tool equivalent.
-  _(evidence: 3 sessions)_
-
-- **[warning]** When exploring an unfamiliar CLI tool's capabilities, prefer Read and Grep on its source code over repeated Bash invocations. Limit exploratory Bash calls to 3 before switching to source-reading.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before guessing CLI commands, always read the project's source code (CLI entry point, command registration files) or documentation to understand available commands. Never try more than 2 command variations without reading source.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Jonathan agents must never edit source files, commit, or push code. Jonathan creates plans in plans/queued/ only. All code execution, commits, and pushes are Commander's responsibility.
+- **[error]** For Next.js projects deployed on Vercel, never set framework to null or override buildCommand in vercel.json. Let Vercel auto-detect the framework. Remove any framework or buildCommand overrides that conflict with the actual project type.
   _(evidence: 3 sessions)_
 
 - **[warning]** Never push directly to main. Always create a feature branch and open a pull request, even for small changes like config file updates, to preserve review history.
@@ -83,6 +61,27 @@ _AI analysis: First batch analysis of 5 turns across architect and jonathan agen
   _(evidence: 3 sessions)_
 
 - **[warning]** When renaming a variable or identifier across a single file, use the Edit tool with replace_all=true in one call instead of making many individual edit calls for each occurrence.
-  _(evidence: 124 sessions · [view turns](.auto-sop/captures/N2HkHVOsBUz9))_
+  _(evidence: 3 sessions)_
+
+- **[warning]** Before spawning a code-improvement-analyzer agent, check if another analyzer is already running on the same file set. Never run duplicate analysis agents on identical files in the same review cycle.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When editing shell scripts from an agent, always verify tool parameters are fully populated before invocation. Run a syntax check immediately after each edit, not only at the end.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When modifying exported symbols or function signatures in source files, always update corresponding test mocks and fixtures in the same editing pass before running the test suite.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Before deploying to production, run a pre-flight checklist: verify framework detection settings, confirm all environment variables are synced, ensure build config is correct, and check that non-deployment files are excluded. Fix all issues before the first deploy rather than iterating through multiple failed deployments.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When initializing a Vercel-deployed project that has internal or planning directories, create a .vercelignore file early to exclude non-deployment directories like planning files, tool configs, and internal metadata.
+  _(evidence: 3 sessions)_
+
+- **[warning]** The planner agent should focus on research, discussion, and plan creation. Deployment operations, infrastructure debugging, and environment configuration should be handled by the commander or architect agents with appropriate ops tooling.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Never use arbitrary sleep delays to wait for Vercel deployments. Instead, use the Vercel CLI or API to poll deployment status, or use the Monitor tool to watch for completion.
+  _(evidence: 3 sessions)_
 
 <!-- auto-sop:managed-section:end -->

@@ -19,23 +19,28 @@ describe('getMachineId', () => {
     expect(id1).toBe(id2);
   });
 
-  it('fallback path produces a 64-char hex string when node-machine-id throws', async () => {
-    // Mock node-machine-id to throw
-    vi.doMock('node-machine-id', () => {
-      return {
-        machineId: () => {
-          throw new Error('not available');
-        },
-      };
-    });
+  it('fallback path produces a 64-char hex string when platform ID fails', async () => {
+    // Clear module cache so getMachineId starts fresh (no cachedId)
+    vi.resetModules();
 
-    // Re-import to get the module with mocked dependency
+    // Mock execSync to throw (covers macOS ioreg + win32 reg query)
+    vi.doMock('node:child_process', () => ({
+      execSync: () => { throw new Error('not available'); },
+    }));
+
+    // Mock readFileSync for /etc/machine-id (covers Linux path)
+    vi.doMock('node:fs', () => ({
+      readFileSync: () => { throw new Error('not available'); },
+      existsSync: () => false,
+    }));
+
     const { getMachineId } = await import('../../src/config/machine-id.js');
     const id = await getMachineId();
 
     expect(typeof id).toBe('string');
     expect(id).toMatch(/^[0-9a-f]{64}$/); // sha256 hex = 64 chars
 
-    vi.doUnmock('node-machine-id');
+    vi.doUnmock('node:child_process');
+    vi.doUnmock('node:fs');
   });
 });

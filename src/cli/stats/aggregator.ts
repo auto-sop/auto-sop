@@ -22,12 +22,13 @@ import { readPreventedErrors } from '../../learner/error-prevention.js';
 import {
   buildSessionSummaries,
   compareBeforeAfter,
-  estimateTokenSavings,
   type BeforeAfterComparison,
-  type TokenEstimate,
 } from '../../learner/session-metrics.js';
 import { readSyncEntries } from '../../learner/sync-queue.js';
 import { loadTurnsForDetection } from '../../learner/turn-loader.js';
+import { extractTokenSavings } from '../../metrics/token-extractor.js';
+import { countPreventedSince } from '../../metrics/error-prevention.js';
+import { calculateTimeSavings } from '../../metrics/time-savings.js';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -73,10 +74,16 @@ export interface ProjectStats {
   real_errors_prevented: number;
   /** V31: before/after session comparison. Null if insufficient data. */
   session_comparison: BeforeAfterComparison | null;
-  /** V32: estimated token savings from tool call heuristic. Null if insufficient data. */
-  token_estimate: TokenEstimate | null;
   /** V32: number of entries in the sync queue (pending cloud push). */
   sync_queue_size: number;
+  /** V32-P7: errors prevented this month (from error-prevention metrics). */
+  errors_prevented_this_month: number;
+  /** V32-P7: time saved from session duration comparison (minutes). Null if insufficient data. */
+  duration_time_saved_minutes: number | null;
+  /** V32-P7: token savings from session comparison. Null if insufficient data. */
+  token_savings_total: number | null;
+  /** V32-P7: token savings percentage. Null if insufficient data. */
+  token_savings_pct: number | null;
 }
 
 export interface AggregateStatsOptions {
@@ -204,17 +211,19 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
 
   const totalFires = fires.length;
 
-  // V31: Read real error prevention count (filtered by since)
-  let realErrorsPrevented = 0;
+  // Read error prevention data once (reused by V31 + P7 blocks)
+  let preventedErrors: ReturnType<typeof readPreventedErrors> = [];
   try {
-    const preventedErrors = readPreventedErrors(opts.stateDir);
-    const filteredPrevented = since
-      ? preventedErrors.filter((pe) => pe.t >= since)
-      : preventedErrors;
-    realErrorsPrevented = filteredPrevented.length;
+    preventedErrors = readPreventedErrors(opts.stateDir);
   } catch {
     // graceful degradation — no prevention data yet
   }
+
+  // V31: Real error prevention count (filtered by since)
+  const filteredPrevented = since
+    ? preventedErrors.filter((pe) => pe.t >= since)
+    : preventedErrors;
+  const realErrorsPrevented = filteredPrevented.length;
 
   // V31: Build session comparison
   let sessionComparison: BeforeAfterComparison | null = null;
@@ -242,8 +251,9 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     // graceful degradation — no session data yet
   }
 
-  // V32: Token estimation from session comparison
-  const tokenEstimate = estimateTokenSavings(sessionComparison);
+  // V32-P7: metrics from new metrics modules (supersedes old V32 token estimate)
+  const p7TokenSavings = extractTokenSavings(sessionComparison);
+  const p7TimeSavings = calculateTimeSavings(sessionComparison);
 
   // V32: Sync queue size
   let syncQueueSize = 0;
@@ -253,6 +263,10 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   } catch {
     // graceful degradation — no sync queue yet
   }
+
+  // V32-P7: Errors prevented this month (reuses preventedErrors read above)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const errorsPreventedThisMonth = countPreventedSince(preventedErrors, thirtyDaysAgo);
 
   return {
     project_path: opts.projectRoot,
@@ -268,7 +282,10 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     fires_by_category: firesByCategory,
     real_errors_prevented: realErrorsPrevented,
     session_comparison: sessionComparison,
-    token_estimate: tokenEstimate,
     sync_queue_size: syncQueueSize,
+    errors_prevented_this_month: errorsPreventedThisMonth,
+    duration_time_saved_minutes: p7TimeSavings?.total_minutes_saved ?? null,
+    token_savings_total: p7TokenSavings?.total_savings_per_session ?? null,
+    token_savings_pct: p7TokenSavings?.total_savings_pct ?? null,
   };
 }
