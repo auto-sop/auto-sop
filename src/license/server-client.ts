@@ -7,7 +7,8 @@ import {
   validateResponseFreshness,
   type FreshnessPayload,
 } from './ed25519-verify.js';
-import { API_BASE_URL } from './server-public-key.js';
+import { API_BASE_URL, SERVER_X25519_PUBLIC_KEY_B64 } from './server-public-key.js';
+import { encryptRequest } from './x25519-encrypt.js';
 import {
   readCache,
   writeCache,
@@ -67,17 +68,29 @@ export async function validateLicense(opts: ValidateOpts): Promise<ValidateResul
 
     let response: Response;
     try {
+      const rawBody = JSON.stringify({
+        key,
+        machine_id: machineId,
+        bound_projects: boundProjects,
+        binding_hashes: bindingHashes,
+        cli_hash: cliHash,
+        cli_version: cliVersion,
+      });
+
+      let contentType = 'application/json';
+      let finalBody = rawBody;
+      try {
+        const encrypted = encryptRequest(rawBody, SERVER_X25519_PUBLIC_KEY_B64);
+        contentType = 'application/x-asop-encrypted';
+        finalBody = JSON.stringify(encrypted);
+      } catch (err) {
+        console.warn('[BIND-8] Request encryption unavailable, falling back to plaintext:', err instanceof Error ? err.message : String(err));
+      }
+
       response = await fetch(`${API_BASE_URL}/license/validate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key,
-          machine_id: machineId,
-          bound_projects: boundProjects,
-          binding_hashes: bindingHashes,
-          cli_hash: cliHash,
-          cli_version: cliVersion,
-        }),
+        headers: { 'Content-Type': contentType },
+        body: finalBody,
         signal: controller.signal,
       });
     } finally {

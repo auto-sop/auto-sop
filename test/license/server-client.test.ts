@@ -20,6 +20,12 @@ vi.mock('../../src/license/ed25519-verify.js', () => ({
   validateResponseFreshness: vi.fn(),
 }));
 
+vi.mock('../../src/license/x25519-encrypt.js', () => ({
+  encryptRequest: vi.fn(() => {
+    throw new Error('mock: skip encryption for unit tests');
+  }),
+}));
+
 import { validateLicense, getValidationStatus } from '../../src/license/server-client.js';
 import {
   readCache,
@@ -129,7 +135,7 @@ describe('validateLicense', () => {
     expect(written.first_failure_at).toBeUndefined();
   });
 
-  it('sends correct POST body to the server', async () => {
+  it('falls back to correct plain JSON body when encryption unavailable', async () => {
     const body = serverBody();
     mockFetch.mockResolvedValue(mockFetchResponse(200, body));
     mockedVerifySignature.mockReturnValue(true);
