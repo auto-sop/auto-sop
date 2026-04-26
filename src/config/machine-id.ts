@@ -18,7 +18,7 @@ function getPlatformMachineId(): string {
     const os = platform();
     if (os === 'darwin') {
       const out = execSync(
-        'ioreg -rd1 -c IOPlatformExpertDevice',
+        '/usr/sbin/ioreg -rd1 -c IOPlatformExpertDevice',
         { encoding: 'utf8', timeout: 5000 },
       );
       const match = out.match(/"IOPlatformUUID"\s*=\s*"([^"]+)"/);

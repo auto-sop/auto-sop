@@ -56,6 +56,11 @@ export interface PerProjectRecap {
    */
   merge_deduped_count?: number;
   /**
+   * Number of proposals skipped by near-duplicate bigram detection.
+   * These were too similar (Dice > 0.6) to an existing active directive.
+   */
+  near_duplicate_skipped_count?: number;
+  /**
    * (E5) Number of directives the history module pruned from the active
    * set this tick — the difference between "proposals that reached the
    * history stage" and "directives that actually rendered into CLAUDE.md".

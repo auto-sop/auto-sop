@@ -700,9 +700,24 @@ export async function runLearnerTick(
       }
 
       // 11. Feed validated graduated directives into the existing merge pipeline.
-      const mergeResult = mergeProposalsWithDedup(ruleProposals, validGraduated);
+      //     Load existing active directive rule_texts from history so that
+      //     the near-duplicate bigram filter can compare new proposals against
+      //     what is already rendered in CLAUDE.md.
+      let existingRuleTexts: string[] = [];
+      try {
+        const hist = loadHistory(validRoot);
+        existingRuleTexts = Object.values(hist.entries)
+          .filter((e) => !e.pruned)
+          .map((e) => e.rule_text);
+      } catch {
+        // fail-open: dedup runs without existing texts
+      }
+      const mergeResult = mergeProposalsWithDedup(ruleProposals, validGraduated, existingRuleTexts);
       const mergedProposals = mergeResult.proposals;
       result.merge_deduped_count = mergeResult.dedupedCount;
+      if (mergeResult.nearDuplicateSkipped > 0) {
+        result.near_duplicate_skipped_count = mergeResult.nearDuplicateSkipped;
+      }
 
       // E5: Run proposals through the directive history module.
       // Ordering constraint (PLAN-v16): history must happen AFTER the
