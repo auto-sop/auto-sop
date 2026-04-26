@@ -1,6 +1,6 @@
 {
   "name": "auto-sop",
-  "version": "0.0.44",
+  "version": "0.0.45",
   "description": "Make Claude Code self-improving — auto-detect recurring mistakes and write enforced CLAUDE.md directives",
   "author": "Ugur Gokdere <ugokdere@gmail.com>",
   "keywords": [
