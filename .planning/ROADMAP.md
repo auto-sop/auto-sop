@@ -15,9 +15,9 @@
 - [x] **Phase 4: ManagedSectionEditor** — Atomic, hash-checked, git-aware CLAUDE.md writer, never clobbers user edits, revertible. _(v10-v11 light editor, v16 hardening → 100%)_
 - [x] **Phase 5: Inspection CLI + Packaging** — `recent`/`show`/`revert` verbs, npm publish pipeline, README badges, GitHub community files, Homebrew tap staging. _(v17-v22 → 100%)_
 - [x] **Phase 6: Native Windows + Hardening** — Platform abstraction layer, Task Scheduler backend, NTFS ACL, learner drift fix, incremental pattern memory. _(v23-v25 Windows, v26 site, v27 drift fix, v29 incremental patterns)_
-- [ ] **Phase 7: Metrics & Social Proof** — Directive-fire detection, token/time savings tracker, "errors prevented" counter, `auto-sop stats` CLI, side-by-side proof on landing page (RTK format). Launch-critical — without metrics the landing page can't convert. Pure CLI-side work, no cloud needed. _(→ v30-v32)_
-- [ ] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-site/`.** CLI gains 1-project soft cap + feature-touch trial + encrypted sync + X25519 request encryption. Free forever for solo, Pro $12/mo. _(→ v34-v37)_
-- [ ] **Phase 9: First Public Launch + Viral Growth** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF, **referral & rewards system** (Pro trial days for referrals, GitHub star, social shares, CLAUDE.md badge). Everything a developer sees on first contact must be professional + Pro upgrade path + viral loop exists. _(→ v38-v39)_
+- [x] **Phase 7: Metrics & Social Proof** — Directive-fire detection, token/time savings tracker, "errors prevented" counter, `auto-sop stats` CLI. Pure CLI-side work, no cloud needed. _(v30 fire detection, v31 categorization+bigram, v32 token/time/errors — COMPLETE 2026-04-27)_
+- [ ] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-site/`.** CLI gains 1-project soft cap + feature-touch trial + Ed25519 signed validation + X25519 request encryption. Free forever for solo, Pro $12/mo. ~85% done — Stripe billing postponed. _(v34 dashboard, v36 CLI licensing, v37 anti-abuse, v39 BIND-7/8 server. v38 BIND-7 CLI in progress. v35 Stripe postponed.)_
+- [ ] **Phase 9: First Public Launch + Viral Growth** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF, **referral & rewards system**. Everything a developer sees on first contact must be professional + Pro upgrade path + viral loop exists. _(→ after v38 completes)_
 - [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v40+)_
 
 ### Decision: Distribution & licensing model (REVISED 2026-04-26)
@@ -676,16 +676,52 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | 4. ManagedSectionEditor | 2/2 | **COMPLETE** | v10, v11, v16 |
 | 5. Inspection CLI + Packaging | 2/2 | **COMPLETE** | v17-v22 |
 | 6. Native Windows + Hardening | 5/5 | **COMPLETE** | v23-v25 (Windows), v27 (drift fix), v29 (incremental patterns) |
-| 7. Metrics & Social Proof | 2/3 | **IN PROGRESS** — v30+v31 done, v32 next | v30-v32 |
-| 8. SaaS Platform + Monetization | 0/5 | Not started (separate repo `auto-sop-cloud`) | v33-v37 |
-| 9. First Public Launch | 0/1 | Not started — after Metrics + SaaS | v38 |
-| 10. Smart Directive Targeting | 0/3 | Not started — post-launch | v39+ |
+| 7. Metrics & Social Proof | 3/3 | **COMPLETE** | v30 (fire detection), v31 (categorization), v32 (token/time/errors) |
+| 8. SaaS Platform + Monetization | ~85% | **NEAR COMPLETE** — Stripe billing postponed, rest shipped | See breakdown below |
+| 9. First Public Launch | 0/1 | **BLOCKED** on v38 completion + Stripe decision | v38 in progress |
+| 10. Smart Directive Targeting | 0/3 | Not started — post-launch | v40+ |
 
-### Parallel work (separate repo `auto-sop-site/`)
-| Plan | Status | Description |
-|------|--------|-------------|
-| v26 | **DONE** | Landing page website (Next.js, purple brand, owl mascot) |
-| v28 | Queued | Vercel deploy + auto-sop.com domain |
+### Phase 8 Breakdown (two repos)
+
+**CLI repo (`auto-sop/`):**
+| Item | Status | Plan |
+|------|--------|------|
+| BIND-1 Project binding | ✅ Done | v36 |
+| BIND-2 Periodic server validation | ✅ Done | v36 |
+| BIND-3 Ed25519 response verification | ✅ Done | v36 |
+| BIND-4 License cache + grace period | ✅ Done | v36 |
+| BIND-5 Project count enforcement | ✅ Done | v36 |
+| BIND-7 CLI self-hash computation | 🔄 In progress | v38 |
+| BIND-7 tampered_client handling | 🔄 In progress | v38 |
+| BIND-8 CLI request encryption | ❌ Not started | Future (public key embedded, client code TBD) |
+| Trial state machine | ✅ Done | v36 |
+| Soft gate UX | ✅ Done | v36 |
+| Offline grace 7 days | ✅ Done | v36 |
+| Bug cleanup (V36-1/4, D1, E1) | 🔄 In progress | v38 |
+
+**Site repo (`auto-sop-site/`):**
+| Item | Status | Plan |
+|------|--------|------|
+| Landing page | ✅ Done | v26 |
+| Vercel deploy + domain | ✅ Done | v28 |
+| Clerk auth + dashboard | ✅ Done | v34 |
+| License validation API | ✅ Done | v34 |
+| Machine abuse detection | ✅ Done | v37 |
+| Deleted account handling | ✅ Done | v37 |
+| BIND-7 server hash registry | ✅ Done | v39 |
+| BIND-8 X25519 request decryption | ✅ Done | v39 |
+| Stripe billing | ⏳ Queued (launch blocker) | v35 — move from postponed to queued after v38 |
+| Project sync to dashboard | ✅ Done | Manual fix (validate endpoint) |
+
+### What remains before launch
+1. **v38** 🔄 (in progress) — CLI bug cleanup + BIND-7 client self-hash
+2. **v35** ⏳ (launch blocker) — Stripe billing: Checkout, Customer Portal, webhooks, upgrade UI, trial management
+3. **v40** — BIND-8 CLI request encryption (client-side X25519, server ready)
+4. **ELv2 license file** — replace Apache 2.0 in repo (BIND-6)
+5. **npm v0.1.0 publish** with provenance
+6. **Landing page** — real metrics from dogfood, demo GIF/video (M4)
+7. **Homebrew tap** — already staged (v22), activate
+8. **Phase 9 viral** — referral system (R1-R6), Product Hunt prep, CLAUDE.md badge program
 
 ## Execution History
 
@@ -723,8 +759,15 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | v29 | — | Incremental pattern memory — LLM accumulates candidates across ticks |
 | v30 | `5b01df7` | Directive-fire detection + `auto-sop stats` CLI verb |
 | v31 | `1938438` | Fire categorization + bigram matching + session metrics + error prevention tracking |
+| v32 | — | Phase 7 completion: token/time savings tracker + errors prevented counter |
+| v33 | — | Bug fix sprint |
+| v34 | — | SaaS platform: Clerk auth + Supabase dashboard + license validation API (`auto-sop-site/`) |
+| v36 | — | CLI license binding + server validation (BIND-1→6) |
+| v37 | — | Backend anti-abuse: machine abuse detection + deleted account handling (`auto-sop-site/`) |
+| v38 | 🔄 | CLI bug cleanup + BIND-7 self-hash tamper detection (in progress) |
+| v39 | `71d2a6c` | BIND-7 server hash registry + BIND-8 X25519 request decryption (`auto-sop-site/`) |
 
-## Remaining Backlog (39 items — 8 bugs move to v15, I1-I4 done in v13)
+## Remaining Backlog
 
 ### v14 (in progress) — LLM intelligence
 - ~~**I1** First detector~~ ✅ shipped v13

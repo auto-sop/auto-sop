@@ -18,6 +18,7 @@ import { PreconditionError } from '../cli/errors.js';
 import { upsertProject, readRegistry } from '../learner/project-registry.js';
 import { createBindingFile, writeBindingFile } from '../license/binding.js';
 import { validateLicense } from '../license/server-client.js';
+import { computeCliHash } from '../license/self-hash.js';
 import { resolveIdentity } from '../path-resolver/identity.js';
 import { RealGitRunner } from '../path-resolver/git-runner.js';
 import {
@@ -139,14 +140,27 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
       try {
         const registry = readRegistry(opts.homeDir);
         const boundProjects = registry.projects.map((p) => p.project_root);
+        let cliHash: string | undefined;
+        try {
+          cliHash = computeCliHash();
+        } catch {
+          // fail-open
+        }
         const result = await validateLicense({
           key: licenseKey,
           machineId: machineIdFull,
           boundProjects,
+          cliHash,
+          cliVersion: opts.packageVersion,
         });
         if (!result.success && result.error === 'invalid_key') {
           throw new PreconditionError(
             'Invalid license key. Get a free key at https://app.auto-sop.com/signup',
+          );
+        }
+        if (!result.success && result.error === 'tampered_client') {
+          throw new PreconditionError(
+            'CLI integrity check failed. Please reinstall: npm install -g auto-sop',
           );
         }
         if (!result.success && result.error !== 'no_cache') {

@@ -291,7 +291,7 @@ describe('main-with-subagent', () => {
 // ═══════════════════════════════════════════════════════════════════════
 // SCENARIO 3: large-output (CAPT-10 / A4)
 // ═══════════════════════════════════════════════════════════════════════
-describe('large-output', () => {
+describe.sequential('large-output', () => {
   let run: ScenarioRun;
 
   beforeAll(async () => {
@@ -333,7 +333,7 @@ describe('large-output', () => {
 // ═══════════════════════════════════════════════════════════════════════
 // SCENARIO 4: orphan-recovery (CAPT-08 / B1/B2)
 // ═══════════════════════════════════════════════════════════════════════
-describe('orphan-recovery', () => {
+describe.sequential('orphan-recovery', () => {
   let run: ScenarioRun;
 
   beforeAll(async () => {

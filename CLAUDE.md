@@ -5,7 +5,8 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-26T19:59:00Z · 339 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
+_Data as of: 2026-04-26T20:58:00Z · 358 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
+_AI analysis: First batch analysis of 5 turns across 4 agent types. Main actionable finding: two agents use Bash for file operations instead of dedicated tools, and a planner agent is directly editing source code instead of producing plans. Positive patterns include thorough feature removal cleanup and comprehensive security auditing for local-first tools._
 
 **Learnings** (25 active directives)
 
@@ -13,12 +14,6 @@ _Data as of: 2026-04-26T19:59:00Z · 339 turns analyzed · 9 agents: Explore, ap
   _(evidence: 3 sessions)_
 
 - **[error]** For Next.js projects deployed on Vercel, never set framework to null or override buildCommand in vercel.json. Let Vercel auto-detect the framework. Remove any framework or buildCommand overrides that conflict with the actual project type.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Never push directly to main. Always create a feature branch and open a pull request, even for small changes like config file updates, to preserve review history.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Define clear success criteria for auto-sop plugin installation (e.g., specific file or hook that must exist) so agents can verify in one step and stop retrying once the check passes.
   _(evidence: 3 sessions)_
 
 - **[warning]** Document the canonical install command for the auto-sop plugin in the project README or CLAUDE.md so agents do not resort to trial-and-error guessing across multiple invocation styles.
@@ -83,5 +78,11 @@ _Data as of: 2026-04-26T19:59:00Z · 339 turns analyzed · 9 agents: Explore, ap
 
 - **[warning]** Never use arbitrary sleep delays to wait for Vercel deployments. Instead, use the Vercel CLI or API to poll deployment status, or use the Monitor tool to watch for completion.
   _(evidence: 3 sessions)_
+
+- **[warning]** Planner agents must only produce plan documents. Never allow a planner agent to make Edit calls to source or component files — delegate implementation to executor or architect agents.
+  _(evidence: 136 sessions · [view turns](.auto-sop/captures/e0WQemixkBpe))_
+
+- **[warning]** Always use the dedicated Read, Glob, and Grep tools for file reading and searching. Never use cat, find, or grep via Bash when a built-in tool can accomplish the same task.
+  _(evidence: 136 sessions · [view turns](.auto-sop/captures/V9McAqwrZVbE) [+1 more])_
 
 <!-- auto-sop:managed-section:end -->

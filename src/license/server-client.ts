@@ -37,6 +37,7 @@ export interface ValidateResult {
   payload?: LicenseCachePayload | undefined;
   error?: string | undefined;
   fromCache?: boolean | undefined;
+  message?: string | undefined;
 }
 
 export interface ValidationStatus {
@@ -49,7 +50,7 @@ export interface ValidationStatus {
 
 /** Shape of the server's JSON response body. */
 interface ServerResponse {
-  data: FreshnessPayload & LicenseCachePayload;
+  data: FreshnessPayload & LicenseCachePayload & { valid?: boolean; reason?: string };
   signature: string;
 }
 
@@ -115,6 +116,16 @@ export async function validateLicense(opts: ValidateOpts): Promise<ValidateResul
     const lastNonce = existingCache?.last_nonce;
     if (!validateResponseFreshness(body.data, lastNonce)) {
       return { success: false, error: 'replay_detected' };
+    }
+
+    // BIND-7: Handle tampered_client response — hard failure, not cacheable,
+    // not grace-eligible. Do NOT fall back to cache.
+    if (body.data.valid === false && body.data.reason === 'tampered_client') {
+      return {
+        success: false,
+        error: 'tampered_client',
+        message: 'CLI integrity check failed. Please reinstall: npm install -g auto-sop',
+      };
     }
 
     // Success — write fresh cache, using resetFailures() to clear any prior failure streak

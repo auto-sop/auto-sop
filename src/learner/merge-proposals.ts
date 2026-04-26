@@ -38,6 +38,7 @@
  *   directives first, which is the behaviour we want.
  */
 import type { DirectiveProposalType } from './directive-schema.js';
+import { deduplicateProposals } from './dedup.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -72,6 +73,11 @@ export interface MergeResult {
    * Surfaced in per-project recap as `merge_deduped_count`.
    */
   dedupedCount: number;
+  /**
+   * Number of proposals skipped by near-duplicate bigram detection.
+   * These were too similar (Dice > 0.6) to an existing accepted proposal.
+   */
+  nearDuplicateSkipped: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -131,11 +137,17 @@ export function mergeProposals(
  * items dropped by the semantic-fingerprint dedup pass so the caller can
  * record it in the per-project recap (`merge_deduped_count`).
  *
+ * @param existingRuleTexts - Optional list of rule_text strings from
+ *   already-active directives. When provided, new proposals are checked
+ *   against these using bigram Dice similarity (threshold 0.6) and
+ *   near-duplicates are dropped before the final sort+cap.
+ *
  * Pure function. Does not mutate its inputs.
  */
 export function mergeProposalsWithDedup(
   ruleProposals: DirectiveProposalType[],
   llmProposals: DirectiveProposalType[],
+  existingRuleTexts?: string[],
 ): MergeResult {
   // 1. Dedup by id — LLM version wins on collisions.
   const byId = new Map<string, DirectiveProposalType>();
@@ -191,8 +203,20 @@ export function mergeProposalsWithDedup(
     dedupedCount += bucket.length - 1;
   }
 
-  // 3. Final sort and cap.
-  const finalSorted = winners.sort((a, b) => {
+  // 3. Near-duplicate detection via bigram Dice similarity.
+  //    When existingRuleTexts are provided, filter out new proposals that
+  //    are too similar to already-active directives. This prevents the
+  //    managed section from accumulating semantically-redundant entries.
+  let afterDedup = winners;
+  let nearDuplicateSkipped = 0;
+  if (existingRuleTexts !== undefined && existingRuleTexts.length > 0) {
+    const dedupResult = deduplicateProposals(winners, existingRuleTexts);
+    afterDedup = dedupResult.accepted;
+    nearDuplicateSkipped = dedupResult.skippedCount;
+  }
+
+  // 4. Final sort and cap.
+  const finalSorted = afterDedup.sort((a, b) => {
     const sevDiff = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
     if (sevDiff !== 0) return sevDiff;
     const tsDiff = a.created_at.localeCompare(b.created_at);
@@ -203,5 +227,5 @@ export function mergeProposalsWithDedup(
   const proposals =
     finalSorted.length > MAX_DIRECTIVES ? finalSorted.slice(0, MAX_DIRECTIVES) : finalSorted;
 
-  return { proposals, dedupedCount };
+  return { proposals, dedupedCount, nearDuplicateSkipped };
 }

@@ -1,10 +1,13 @@
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { readSecrets } from './storage.js';
 import { readRegistry, type ProjectRegistryEntry } from '../learner/project-registry.js';
 import { readBindingFile, type BindingFile } from './binding.js';
 import { validateLicense, type ValidateResult } from './server-client.js';
 import { getMachineId } from '../config/machine-id.js';
 import { classifyLicense } from '../cli/prompt.js';
+import { computeCliHash } from './self-hash.js';
 
 export interface EnforcementResult {
   allowed: boolean;
@@ -38,6 +41,25 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
 
   const machineId = await getMachineId();
 
+  // BIND-7: compute CLI hash and version for tamper detection
+  let cliHash: string | undefined;
+  let cliVersion: string | undefined;
+  try {
+    cliHash = computeCliHash();
+  } catch {
+    // fail-open: hash computation is non-critical
+  }
+  try {
+    const here = typeof __dirname !== 'undefined'
+      ? __dirname
+      : dirname(fileURLToPath(import.meta.url));
+    const pkgPath = join(here, '..', '..', 'package.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+    cliVersion = pkg.version;
+  } catch {
+    // fail-open: version read is non-critical
+  }
+
   let result: ValidateResult;
   try {
     result = await validateLicense({
@@ -45,6 +67,8 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
       machineId,
       boundProjects,
       bindingHashes,
+      cliHash,
+      cliVersion,
     });
   } catch {
     return { allowed: true, plan: 'unknown' };
@@ -61,6 +85,12 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
       return {
         allowed: false,
         reason: 'Invalid license key. Update with: auto-sop install',
+      };
+    }
+    if (result.error === 'tampered_client') {
+      return {
+        allowed: false,
+        reason: result.message ?? 'CLI integrity check failed. Please reinstall: npm install -g auto-sop',
       };
     }
     return { allowed: true, plan: 'unknown' };

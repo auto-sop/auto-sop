@@ -281,6 +281,38 @@ describe('validateLicense', () => {
       'prev-nonce-42',
     );
   });
+
+  it('returns tampered_client error when server signals tamper', async () => {
+    const data = serverPayload({ valid: false, reason: 'tampered_client' });
+    const body = serverBody(data);
+    mockFetch.mockResolvedValue(mockFetchResponse(200, body));
+    mockedVerifySignature.mockReturnValue(true);
+    mockedValidateFreshness.mockReturnValue(true);
+    mockedReadCache.mockResolvedValue(null);
+
+    const result = await validateLicense(OPTS);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('tampered_client');
+    expect(result.message).toContain('reinstall');
+    // Must NOT write to cache — tamper is not cacheable
+    expect(mockedWriteCache).not.toHaveBeenCalled();
+  });
+
+  it('does not treat normal valid:false as tampered', async () => {
+    const data = serverPayload({ valid: false, reason: 'project_limit' });
+    const body = serverBody(data);
+    mockFetch.mockResolvedValue(mockFetchResponse(200, body));
+    mockedVerifySignature.mockReturnValue(true);
+    mockedValidateFreshness.mockReturnValue(true);
+    mockedReadCache.mockResolvedValue(null);
+
+    const result = await validateLicense(OPTS);
+
+    // Should proceed to success path (write cache) since reason isn't tampered_client
+    expect(result.success).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
 });
 
 /* ─── getValidationStatus ─── */
