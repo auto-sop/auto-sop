@@ -84,8 +84,8 @@ describe('buildSyncEntry', () => {
   it('includes session comparison and token estimate when provided', () => {
     const comparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 15, avg_tool_calls: 20, avg_bash_failures: 4 },
-      after: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 12, avg_bash_failures: 2 },
+      before: { sessions: 5, avg_duration_min: 15, avg_tool_calls: 20, avg_bash_failures: 4, avg_input_bytes: 0, avg_output_bytes: 0 },
+      after: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 12, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
       improvement: { duration_pct: -33.33, tool_calls_pct: -40, bash_failures_pct: -50 },
     };
     const tokenEst = {

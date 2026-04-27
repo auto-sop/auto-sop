@@ -14,8 +14,8 @@ function makeComparison(
 ): BeforeAfterComparison {
   return {
     cutoff: '2026-04-22T00:00:00Z',
-    before: { sessions: beforeSessions, avg_duration_min: 10, avg_tool_calls: beforeAvgCalls, avg_bash_failures: 2 },
-    after: { sessions: afterSessions, avg_duration_min: 8, avg_tool_calls: afterAvgCalls, avg_bash_failures: 1 },
+    before: { sessions: beforeSessions, avg_duration_min: 10, avg_tool_calls: beforeAvgCalls, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
+    after: { sessions: afterSessions, avg_duration_min: 8, avg_tool_calls: afterAvgCalls, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
     improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
   };
 }
@@ -36,6 +36,8 @@ function makeSummary(
     tool_call_count: toolCalls,
     files_changed_count: 2,
     bash_failure_count: 1,
+    total_input_bytes: 0,
+    total_output_bytes: 0,
   };
 }
 

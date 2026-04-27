@@ -22,6 +22,7 @@ import { readPreventedErrors } from '../../learner/error-prevention.js';
 import {
   buildSessionSummaries,
   compareBeforeAfter,
+  estimateTokenSavings,
   type BeforeAfterComparison,
 } from '../../learner/session-metrics.js';
 import { readSyncEntries } from '../../learner/sync-queue.js';
@@ -84,6 +85,8 @@ export interface ProjectStats {
   token_savings_total: number | null;
   /** V32-P7: token savings percentage. Null if insufficient data. */
   token_savings_pct: number | null;
+  /** V44: estimation method used for token savings. */
+  token_estimation_method: 'byte_counted' | 'tool_call_heuristic' | null;
 }
 
 export interface AggregateStatsOptions {
@@ -254,6 +257,8 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   // V32-P7: metrics from new metrics modules (supersedes old V32 token estimate)
   const p7TokenSavings = extractTokenSavings(sessionComparison);
   const p7TimeSavings = calculateTimeSavings(sessionComparison);
+  // V44: byte-counted estimation (preferred when byte data available)
+  const byteCountedEstimate = estimateTokenSavings(sessionComparison);
 
   // V32: Sync queue size
   let syncQueueSize = 0;
@@ -285,7 +290,12 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     sync_queue_size: syncQueueSize,
     errors_prevented_this_month: errorsPreventedThisMonth,
     duration_time_saved_minutes: p7TimeSavings?.total_minutes_saved ?? null,
-    token_savings_total: p7TokenSavings?.total_savings_per_session ?? null,
-    token_savings_pct: p7TokenSavings?.total_savings_pct ?? null,
+    token_savings_total: byteCountedEstimate
+      ? byteCountedEstimate.savings_per_session
+      : (p7TokenSavings?.total_savings_per_session ?? null),
+    token_savings_pct: byteCountedEstimate
+      ? byteCountedEstimate.savings_pct
+      : (p7TokenSavings?.total_savings_pct ?? null),
+    token_estimation_method: byteCountedEstimate?.method ?? (p7TokenSavings ? 'tool_call_heuristic' : null),
   };
 }

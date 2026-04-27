@@ -98,8 +98,8 @@ function makeComparison(
 ): BeforeAfterComparison {
   return {
     cutoff: '2026-04-22T00:00:00Z',
-    before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: beforeAvgToolCalls, avg_bash_failures: 2 },
-    after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: afterAvgToolCalls, avg_bash_failures: 1 },
+    before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: beforeAvgToolCalls, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
+    after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: afterAvgToolCalls, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
     improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
     ...overrides,
   };
@@ -283,14 +283,14 @@ describe('Token estimation integration: math verification', () => {
 
   it('0 sessions in before bucket → returns null', () => {
     const comparison = makeComparison(20, 10, {
-      before: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 20, avg_bash_failures: 0 },
+      before: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 20, avg_bash_failures: 0, avg_input_bytes: 0, avg_output_bytes: 0 },
     });
     expect(estimateTokenSavings(comparison)).toBeNull();
   });
 
   it('0 sessions in after bucket → returns null', () => {
     const comparison = makeComparison(20, 10, {
-      after: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 10, avg_bash_failures: 0 },
+      after: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 10, avg_bash_failures: 0, avg_input_bytes: 0, avg_output_bytes: 0 },
     });
     expect(estimateTokenSavings(comparison)).toBeNull();
   });

@@ -1,7 +1,7 @@
 # Roadmap: auto-sop
 
 **Created:** 2026-04-13
-**Last updated:** 2026-04-26
+**Last updated:** 2026-04-27
 **Depth:** standard
 **Phases:** 10 (restructured: Metrics before SaaS, publish after both)
 **Coverage:** 61/61 v1 requirements mapped
@@ -16,9 +16,9 @@
 - [x] **Phase 5: Inspection CLI + Packaging** — `recent`/`show`/`revert` verbs, npm publish pipeline, README badges, GitHub community files, Homebrew tap staging. _(v17-v22 → 100%)_
 - [x] **Phase 6: Native Windows + Hardening** — Platform abstraction layer, Task Scheduler backend, NTFS ACL, learner drift fix, incremental pattern memory. _(v23-v25 Windows, v26 site, v27 drift fix, v29 incremental patterns)_
 - [x] **Phase 7: Metrics & Social Proof** — Directive-fire detection, token/time savings tracker, "errors prevented" counter, `auto-sop stats` CLI. Pure CLI-side work, no cloud needed. _(v30 fire detection, v31 categorization+bigram, v32 token/time/errors — COMPLETE 2026-04-27)_
-- [ ] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-site/`.** CLI gains 1-project soft cap + feature-touch trial + Ed25519 signed validation + X25519 request encryption. Free forever for solo, Pro $12/mo. ~85% done — Stripe billing postponed. _(v34 dashboard, v36 CLI licensing, v37 anti-abuse, v39 BIND-7/8 server. v38 BIND-7 CLI in progress. v35 Stripe postponed.)_
-- [ ] **Phase 9: First Public Launch + Viral Growth** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF, **referral & rewards system**. Everything a developer sees on first contact must be professional + Pro upgrade path + viral loop exists. _(→ after v38 completes)_
-- [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v40+)_
+- [ ] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-site/`.** CLI gains 1-project soft cap + feature-touch trial + Ed25519 signed validation + X25519 request encryption. Free forever for solo, Pro $12/mo. ~95% done — **only Stripe billing remains.** _(v34 dashboard, v36 CLI licensing, v37 anti-abuse, v38 BIND-7 CLI + bug cleanup, v39 BIND-7/8 server, v40 BIND-8 CLI encryption — all DONE. v35 Stripe queued as launch blocker.)_
+- [ ] **Phase 9: First Public Launch + Viral Growth** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF, **referral & rewards system**. Everything a developer sees on first contact must be professional + Pro upgrade path + viral loop exists. _(→ after v35 Stripe completes)_
+- [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v44+)_
 
 ### Decision: Distribution & licensing model (REVISED 2026-04-26)
 
@@ -677,9 +677,9 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | 5. Inspection CLI + Packaging | 2/2 | **COMPLETE** | v17-v22 |
 | 6. Native Windows + Hardening | 5/5 | **COMPLETE** | v23-v25 (Windows), v27 (drift fix), v29 (incremental patterns) |
 | 7. Metrics & Social Proof | 3/3 | **COMPLETE** | v30 (fire detection), v31 (categorization), v32 (token/time/errors) |
-| 8. SaaS Platform + Monetization | ~85% | **NEAR COMPLETE** — Stripe billing postponed, rest shipped | See breakdown below |
-| 9. First Public Launch | 0/1 | **BLOCKED** on v38 completion + Stripe decision | v38 in progress |
-| 10. Smart Directive Targeting | 0/3 | Not started — post-launch | v40+ |
+| 8. SaaS Platform + Monetization | ~95% | **NEAR COMPLETE** — Stripe billing (v35) in progress, stats sync done | See breakdown below |
+| 9. First Public Launch | 0/1 | **BLOCKED** on v35 Stripe + v43-v48 enhancements | After v48 |
+| 10. Smart Directive Targeting | 0/3 | Not started — post-launch | v50+ |
 
 ### Phase 8 Breakdown (two repos)
 
@@ -691,13 +691,14 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | BIND-3 Ed25519 response verification | ✅ Done | v36 |
 | BIND-4 License cache + grace period | ✅ Done | v36 |
 | BIND-5 Project count enforcement | ✅ Done | v36 |
-| BIND-7 CLI self-hash computation | 🔄 In progress | v38 |
-| BIND-7 tampered_client handling | 🔄 In progress | v38 |
-| BIND-8 CLI request encryption | ❌ Not started | Future (public key embedded, client code TBD) |
+| BIND-7 CLI self-hash computation | ✅ Done | v38 |
+| BIND-7 tampered_client handling | ✅ Done | v38 |
+| BIND-8 CLI request encryption (X25519) | ✅ Done | v40 + d421902 hotfix — E2E verified against prod server |
 | Trial state machine | ✅ Done | v36 |
 | Soft gate UX | ✅ Done | v36 |
 | Offline grace 7 days | ✅ Done | v36 |
-| Bug cleanup (V36-1/4, D1, E1) | 🔄 In progress | v38 |
+| Bug cleanup (V36-1/4, D1, E1) | ✅ Done | v38 |
+| ioreg PATH fix (launchd compat) | ✅ Done | v38 |
 
 **Site repo (`auto-sop-site/`):**
 | Item | Status | Plan |
@@ -710,18 +711,37 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | Deleted account handling | ✅ Done | v37 |
 | BIND-7 server hash registry | ✅ Done | v39 |
 | BIND-8 X25519 request decryption | ✅ Done | v39 |
-| Stripe billing | ⏳ Queued (launch blocker) | v35 — move from postponed to queued after v38 |
+| Clerk UserProfile routing fix | ✅ Done | v39 (routing="hash") |
+| Stripe billing | ⏳ **Queued — ONLY remaining Phase 8 item** | v35 (launch blocker) |
 | Project sync to dashboard | ✅ Done | Manual fix (validate endpoint) |
 
 ### What remains before launch
-1. **v38** 🔄 (in progress) — CLI bug cleanup + BIND-7 client self-hash
-2. **v35** ⏳ (launch blocker) — Stripe billing: Checkout, Customer Portal, webhooks, upgrade UI, trial management
-3. **v40** — BIND-8 CLI request encryption (client-side X25519, server ready)
-4. **ELv2 license file** — replace Apache 2.0 in repo (BIND-6)
-5. **npm v0.1.0 publish** with provenance
-6. **Landing page** — real metrics from dogfood, demo GIF/video (M4)
-7. **Homebrew tap** — already staged (v22), activate
-8. **Phase 9 viral** — referral system (R1-R6), Product Hunt prep, CLAUDE.md badge program
+
+**Done (Phase 8 core):**
+- ~~v38~~ ✅ CLI bug cleanup + BIND-7 self-hash (committed)
+- ~~v40~~ ✅ BIND-8 CLI request encryption (committed + E2E verified against prod server)
+- ~~v41~~ ✅ Encrypted stats sync: CLI → server hourly upload (X25519), tables, dashboard real metrics. **E2E verified: 5 projects syncing, 297K tokens saved showing in DB.**
+- ~~v42~~ ✅ MetricsState persist fix — `saveMetricsState()` wired into tick. Stats sync now fires every hour. (Delivered by v41 ARCHITECT, plan moved to done.)
+
+**In progress:**
+1. **v35** 🔄 (launch blocker, **site**) — Stripe billing: Checkout, Customer Portal, webhooks, upgrade UI, trial management. Plan in `auto-sop-site/plans/queued/`. **Stripe test keys configured, products + prices ($12/mo, $99/yr) created.**
+
+**Queued — site plans (auto-sop-site, execute after v35):**
+2. **v43** ⏳ (**site**) — Dashboard per-project stats + gains charts: Recharts time-series (tokens saved, errors prevented, directives), period filter (24h/7d/30d/all), per-project detail page at `/dashboard/projects/[slug]`, real stats on project cards (replacing fake averages). Plan in `auto-sop-site/plans/queued/`.
+
+**Queued — CLI plans (auto-sop, independent of site):**
+3. **v44** ⏳ (**CLI**) — Deterministic metrics: Replace `TOKENS_PER_CALL = 200` magic number with real byte-counted token estimation from captured tool call input/output sizes. Add `total_input_bytes` + `total_output_bytes` to SessionSummary. Method field: `byte_counted` vs `tool_call_heuristic` (fallback for old data). `auto-sop stats` labels measurement quality per metric. Plan in `auto-sop/plans/queued/`.
+
+**Future (not yet planned):**
+4. **v45** — Full stats payload + ELv2 license: (a) expand CLI stats to send EVERYTHING to server (fires by category, top firing directives, session comparison, token savings), (b) replace Apache 2.0 LICENSE with Elastic License 2.0 (BIND-6).
+5. **v46** — Landing page aggregate stats: Public-facing anonymous numbers from `SUM(asop_stats_summary)`. Hero section: "auto-sop users prevented X errors this month."
+6. **v47** — CLI token consumption transparency: `auto-sop stats --self` showing own token cost per 24h.
+7. **v48** — Dashboard project toggle: Free=1 active project, toggle UI, upgrade prompt → Stripe Checkout.
+
+**Phase 9 (launch prep):**
+8. **v49** — Launch prep — npm v0.1.0 publish with provenance, real metrics on landing page, demo GIF/video (M4)
+9. **Homebrew tap** — already staged (v22), activate on launch day
+10. **Phase 9 viral** (post-launch) — referral system (R1-R6), Product Hunt prep, CLAUDE.md badge program
 
 ## Execution History
 
@@ -764,8 +784,12 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | v34 | — | SaaS platform: Clerk auth + Supabase dashboard + license validation API (`auto-sop-site/`) |
 | v36 | — | CLI license binding + server validation (BIND-1→6) |
 | v37 | — | Backend anti-abuse: machine abuse detection + deleted account handling (`auto-sop-site/`) |
-| v38 | 🔄 | CLI bug cleanup + BIND-7 self-hash tamper detection (in progress) |
+| v38 | `56b9db8` | CLI bug cleanup + BIND-7 self-hash tamper detection + ioreg PATH fix |
 | v39 | `71d2a6c` | BIND-7 server hash registry + BIND-8 X25519 request decryption (`auto-sop-site/`) |
+| v40 | `af0e004` | BIND-8 CLI request encryption (X25519 + AES-256-GCM) |
+| v40-fix | `d421902` | BIND-8 hotfix: align HKDF params + SPKI DER format with server — E2E verified |
+| v41 | `cf737d2` | Encrypted stats sync — X25519 hourly CLI→server upload, stats tables, dashboard real metrics (both repos) |
+| v42 | — | MetricsState persist fix — delivered inside v41, `saveMetricsState()` wired into tick |
 
 ## Remaining Backlog
 
@@ -836,7 +860,7 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **S5** Offline grace (7 days) — `license-cache.json` TTL, learner stops after grace, capture continues
 - ~~**S6** Obfuscation pipeline (CLI source)~~ → **REMOVED** — kod açık (ELv2), obfuscation gereksiz
 - **S7** Node SEA binary (macOS + Linux + **Windows** — Phase 6 req) — **opsiyonel**, convenience only
-- **S8** Stripe Checkout + Customer Portal integration
+- **S8** Stripe Checkout + Customer Portal integration — **Test keys configured in `.env.local`, products created in Stripe dashboard: $12/mo + $99/yr. Plan in `auto-sop-site/plans/queued/PLAN-v35-stripe-billing.md`.**
 - **S9** Pricing page on landing site (`auto-sop.com`)
 - **S10** Dashboard app (`auto-sop-cloud/` repo, Next.js + Vercel)
 - **S11** CLI sync module (encrypted directive push to Supabase Edge Functions)
@@ -848,8 +872,8 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **BIND-4** License cache + grace period — `~/.auto-sop/state/license-cache.json`. 7 gün offline grace, grace sonrası learner durur, capture devam eder.
 - **BIND-5** Project count enforcement — `bound_projects > max_projects` → ilk proje hariç learner durur. Status mesajında upgrade yönlendirmesi.
 - **BIND-6** ELv2 license file — repo'daki Apache 2.0 LICENSE dosyasını Elastic License 2.0 ile değiştir. npm package.json `license` field güncelle.
-- **BIND-7** CLI self-hash tamper detection — build sırasında `dist/` hash'i hesapla ve sunucuya kaydet. Her tick'de CLI kendi hash'ini hesaplar, sunucu bilinen hash ile karşılaştırır. Eşleşmeyen → `tampered_client` reject.
-- **BIND-8** Request encryption (X25519 sealed box) — CLI → Server request confidentiality. Server'ın Ed25519 public key'i CLI'da zaten gömülü (BIND-3). Bu key X25519'a dönüştürülür ve request payload'ı şifrelenir. Flow: (1) CLI, server Ed25519 public → X25519 public dönüştürür, (2) ephemeral X25519 key pair üretir, (3) ECDH: cli_ephemeral_private × server_x25519_public → shared_secret, (4) AES-256-GCM ile payload şifrelenir, (5) gönderir: `{ encrypted_payload, ephemeral_public_key, nonce, tag }`, (6) Server: Ed25519 private → X25519 private dönüştürür, (7) ECDH: server_x25519_private × cli_ephemeral_public → aynı shared_secret, (8) AES-256-GCM decrypt → plaintext request. Tek key pair hem signing (Ed25519) hem encryption (X25519) için kullanılır. Node.js `crypto` modülünde native destekli (v16+). HTTPS üzerine defense-in-depth katmanı — license key, machine_id, binding hash'leri application layer'da da şifrelenir.
+- ~~**BIND-7** CLI self-hash tamper detection~~ ✅ Done (v38 CLI, v39 server) — build sırasında `dist/` hash'i hesapla ve sunucuya kaydet. Her tick'de CLI kendi hash'ini hesaplar, sunucu bilinen hash ile karşılaştırır. Eşleşmeyen → `tampered_client` reject.
+- ~~**BIND-8** Request encryption (X25519 ECDH + AES-256-GCM)~~ ✅ Done (v39 server, v40 CLI, d421902 hotfix — E2E verified) — CLI → Server request confidentiality. Dedicated X25519 keypair (not converted from Ed25519). Ephemeral X25519 key pair per request, HKDF-SHA256 key derivation, AES-256-GCM encryption. Content-Type: `application/x-asop-encrypted`. Server accepts both encrypted and plaintext (fallback). HTTPS üzerine defense-in-depth katmanı.
 
 ### Freemium gating (v33-v37) — Phase 8 F-series
 - **F1** Project count enforcement — Free=1, Pro=∞. `auto-sop install` in 2nd project triggers trial prompt
@@ -857,6 +881,16 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **F3** Soft gate UX — clear messaging when at quota: "You're using 1/1 projects on Free. Upgrade to Pro for unlimited (no credit card on trial)." Existing project keeps working untouched
 - **F4** Curated directive packs — `~/.auto-sop/packs/<framework>.json` (e.g. `nextjs.json`, `rails.json`). Pulled from cloud on Pro tier. Free tier: only learns from own captures, no shared packs
 - **F5** Cross-project pattern detection — when Pro user has ≥2 projects, learner runs an additional "shared learnings" pass that finds patterns appearing in 2+ projects, surfaces as candidates for promotion to a directive pack
+- **F6** Dashboard project toggle (v43) — Free users see ALL bound projects in dashboard but can only ACTIVATE one at a time. Toggle switch per project. Activating 2nd project while on Free → upgrade prompt → Stripe Checkout. Server-enforced: `asop_projects.active` boolean column. Deactivated projects: learner stops, capture continues, data preserved. UX: clean toggle list, not error message. Inspiration: Notion's block limit — limits creation, never destroys.
+
+### Stats sync & transparency (v41-v47) — Phase 8 STATS-series
+- ~~**STATS-1** Encrypted stats sync (v41)~~ ✅ Done — CLI sends project-level totals hourly via X25519 encrypted POST. Server stores in `asop_stats_log` (append) + `asop_stats_summary` (upsert). Dashboard reads real aggregated stats. E2E verified 2026-04-27.
+- ~~**STATS-1b** MetricsState persist (v42)~~ ✅ Done — `saveMetricsState()` wired into tick. Stats sync fires every hour. Delivered by v41 ARCHITECT.
+- **STATS-1c** Deterministic metrics (v44, **CLI**) — Replace `TOKENS_PER_CALL = 200` heuristic with real byte-counted estimation from captured tool call input/output. `SessionSummary` gains `total_input_bytes` + `total_output_bytes`. Token estimation method: `byte_counted` (1 token ≈ 4 chars) with `tool_call_heuristic` fallback for old data. `auto-sop stats` labels measurement quality per metric.
+- **STATS-1d** Dashboard per-project stats + charts (v43, **site**) — Recharts AreaChart with period filter (24h/7d/30d/all). Per-project detail page at `/dashboard/projects/[slug]`. Real stats on project cards. Account-level trend charts on dashboard home.
+- **STATS-2** Full stats payload (v45) — Expand CLI stats to send EVERYTHING: fires by category, top firing directives, session comparison, per-session token savings. Server stores in `asop_stats_log.projects_data` JSONB.
+- **STATS-3** Landing page aggregate stats (v46) — Public API endpoint (`GET /api/v1/public/stats`), anonymous platform-wide aggregates, hero section numbers.
+- **STATS-4** CLI token consumption transparency (v47) — `auto-sop stats --self`, own token cost per 24h.
 
 ### Metrics & Social Proof (v30-v32) — Phase 7 M-series
 - **M1** Directive-fire detection — UserPromptSubmit hook checks if active directives are relevant to current prompt. Heuristic match (keyword) for v31, LLM-based for v33
@@ -919,4 +953,4 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 
 ---
 *Roadmap created: 2026-04-13*
-*Last updated: 2026-04-26 — Distribution model REVISED: Closed source → Open source (ELv2) + 4-layer protection (binding + server validation + Ed25519 signature + legal). BIND-series backlog added. S6 obfuscation removed.*
+*Last updated: 2026-04-27 — Phase 8 ~95% complete. v41 stats sync done + E2E verified (297K tokens saved in DB). v42 MetricsState persist done. v35 Stripe in progress. Plans isolated by repo: CLI plans (v44 deterministic metrics) independent of site plans (v43 dashboard charts). Critical path: v35 Stripe → v43 dashboard charts (site) | v44 deterministic metrics (CLI, parallel) → v45-v49 → launch.*

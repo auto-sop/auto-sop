@@ -242,7 +242,7 @@ export function registerStatsVerb(program: Command): void {
         // Summary metrics
         const timeSaved = formatTimeSaved(stats.estimated_minutes_saved);
         process.stdout.write(
-          `Directive Fires:        ${stats.total_fires}\n` +
+          `Directive Fires:        ${stats.total_fires} ${pc.dim('(keyword match)')}\n` +
             `Unique Directives Hit:  ${stats.unique_directives_fired} / ${stats.active_directives} active\n` +
             `Est. Errors Prevented:  ${stats.estimated_errors_prevented}\n` +
             `Est. Time Saved:        ${timeSaved}\n`,
@@ -296,11 +296,15 @@ export function registerStatsVerb(program: Command): void {
 
           if (stats.token_savings_total !== null && stats.token_savings_total > 0) {
             const pctStr = stats.token_savings_pct !== null ? ` (${stats.token_savings_pct.toFixed(1)}% reduction)` : '';
-            process.stdout.write(`  Tokens saved:         ~${Math.round(stats.token_savings_total).toLocaleString()}/session${pctStr}\n`);
+            const methodLabel = stats.token_estimation_method === 'byte_counted'
+              ? pc.dim(' (measured)')
+              : pc.dim(' (estimated)');
+            process.stdout.write(`  Tokens saved:         ~${Math.round(stats.token_savings_total).toLocaleString()}/session${pctStr}${methodLabel}\n`);
           }
 
           if (stats.errors_prevented_this_month > 0) {
-            process.stdout.write(`  Errors prevented:     ${stats.errors_prevented_this_month} this month\n`);
+            const errLabel = pc.dim(' (correlation-based)');
+            process.stdout.write(`  Errors prevented:     ${stats.errors_prevented_this_month} this month${errLabel}\n`);
           }
 
           if (stats.duration_time_saved_minutes !== null && stats.duration_time_saved_minutes > 0) {

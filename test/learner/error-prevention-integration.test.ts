@@ -150,6 +150,8 @@ function makeSummary(
     tool_call_count: 20,
     files_changed_count: 3,
     bash_failure_count: 4,
+    total_input_bytes: 0,
+    total_output_bytes: 0,
     ...overrides,
   };
 }

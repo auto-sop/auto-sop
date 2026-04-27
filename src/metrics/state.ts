@@ -17,6 +17,7 @@ export interface MetricsState {
   total_errors_prevented: number;
   total_time_saved_minutes: number;
   directive_count?: number;
+  estimation_method?: 'byte_counted' | 'tool_call_heuristic';
   per_directive_attribution: DirectiveAttribution[];
   last_computed_at: string;
 }

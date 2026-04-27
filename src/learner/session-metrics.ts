@@ -17,6 +17,13 @@ import { isBashFailure } from './command-fingerprint.js';
  */
 export const TOKENS_PER_CALL = 200;
 
+/**
+ * Industry-standard approximation: 1 token ≈ 4 characters.
+ * Used by byte_counted token estimation to convert raw byte counts
+ * into approximate token counts.
+ */
+export const CHARS_PER_TOKEN = 4;
+
 // ─── Types ───────────────────────────────────────────────
 
 export interface SessionSummary {
@@ -28,6 +35,8 @@ export interface SessionSummary {
   tool_call_count: number;
   files_changed_count: number;
   bash_failure_count: number;
+  total_input_bytes: number;
+  total_output_bytes: number;
 }
 
 export interface BucketStats {
@@ -35,10 +44,12 @@ export interface BucketStats {
   avg_duration_min: number;
   avg_tool_calls: number;
   avg_bash_failures: number;
+  avg_input_bytes: number;
+  avg_output_bytes: number;
 }
 
 export interface TokenEstimate {
-  method: 'tool_call_heuristic';
+  method: 'tool_call_heuristic' | 'byte_counted';
   tokens_per_call: number;
   before_avg_tokens: number;
   after_avg_tokens: number;
@@ -89,6 +100,8 @@ export function buildSessionSummaries(turns: TurnData[]): SessionSummary[] {
     let toolCallCount = 0;
     let bashFailureCount = 0;
     let filesChangedCount = 0;
+    let totalInputBytes = 0;
+    let totalOutputBytes = 0;
 
     for (const turn of sessionTurns) {
       // Build pre-event index for this turn
@@ -122,6 +135,15 @@ export function buildSessionSummaries(turns: TurnData[]): SessionSummary[] {
           filesChangedCount++;
         }
       }
+
+      // Sum byte sizes from tool call input/output
+      for (const call of turn.tool_calls) {
+        if (call.event === 'pre' && call.input) {
+          totalInputBytes += JSON.stringify(call.input).length;
+        } else if (call.event === 'post' && call.output) {
+          totalOutputBytes += JSON.stringify(call.output).length;
+        }
+      }
     }
 
     summaries.push({
@@ -133,6 +155,8 @@ export function buildSessionSummaries(turns: TurnData[]): SessionSummary[] {
       tool_call_count: toolCallCount,
       files_changed_count: filesChangedCount,
       bash_failure_count: bashFailureCount,
+      total_input_bytes: totalInputBytes,
+      total_output_bytes: totalOutputBytes,
     });
   }
 
@@ -192,17 +216,21 @@ export function compareBeforeAfter(
 
 function computeBucketStats(sessions: SessionSummary[]): BucketStats {
   const n = sessions.length;
-  if (n === 0) return { sessions: 0, avg_duration_min: 0, avg_tool_calls: 0, avg_bash_failures: 0 };
+  if (n === 0) return { sessions: 0, avg_duration_min: 0, avg_tool_calls: 0, avg_bash_failures: 0, avg_input_bytes: 0, avg_output_bytes: 0 };
 
   const totalDurationMin = sessions.reduce((sum, s) => sum + s.duration_ms / 60_000, 0);
   const totalToolCalls = sessions.reduce((sum, s) => sum + s.tool_call_count, 0);
   const totalBashFailures = sessions.reduce((sum, s) => sum + s.bash_failure_count, 0);
+  const totalInputBytes = sessions.reduce((sum, s) => sum + s.total_input_bytes, 0);
+  const totalOutputBytes = sessions.reduce((sum, s) => sum + s.total_output_bytes, 0);
 
   return {
     sessions: n,
     avg_duration_min: round2(totalDurationMin / n),
     avg_tool_calls: round2(totalToolCalls / n),
     avg_bash_failures: round2(totalBashFailures / n),
+    avg_input_bytes: round2(totalInputBytes / n),
+    avg_output_bytes: round2(totalOutputBytes / n),
   };
 }
 
@@ -218,8 +246,50 @@ function round2(n: number): number {
 // ─── Token estimation ─────────────────────────────────────
 
 /**
- * Estimate token savings from a before/after comparison using the
- * tool_call_heuristic method: each tool call ≈ TOKENS_PER_CALL tokens.
+ * Estimate token savings using real byte data from session summaries.
+ * Uses CHARS_PER_TOKEN to convert byte counts into approximate token counts.
+ *
+ * Returns null if:
+ * - comparison is null or has empty buckets
+ * - both buckets have 0 avg bytes (no byte data available — old sessions)
+ */
+export function estimateTokenSavingsByBytes(
+  comparison: BeforeAfterComparison | null,
+): TokenEstimate | null {
+  if (!comparison) return null;
+  if (comparison.before.sessions === 0 || comparison.after.sessions === 0) return null;
+
+  const beforeTotalBytes = comparison.before.avg_input_bytes + comparison.before.avg_output_bytes;
+  const afterTotalBytes = comparison.after.avg_input_bytes + comparison.after.avg_output_bytes;
+
+  // No byte data in either bucket — can't use this method
+  if (beforeTotalBytes === 0 && afterTotalBytes === 0) return null;
+
+  const beforeAvgTokens = Math.ceil(beforeTotalBytes / CHARS_PER_TOKEN);
+  const afterAvgTokens = Math.ceil(afterTotalBytes / CHARS_PER_TOKEN);
+  const savingsPerSession = Math.max(0, beforeAvgTokens - afterAvgTokens);
+  const savingsPct = beforeAvgTokens === 0 ? 0 : round2((savingsPerSession / beforeAvgTokens) * 100);
+
+  const afterTokensPerCall = comparison.after.avg_tool_calls > 0
+    ? Math.ceil(afterAvgTokens / comparison.after.avg_tool_calls)
+    : 0;
+
+  return {
+    method: 'byte_counted',
+    tokens_per_call: afterTokensPerCall,
+    before_avg_tokens: beforeAvgTokens,
+    after_avg_tokens: afterAvgTokens,
+    savings_per_session: savingsPerSession,
+    savings_pct: savingsPct,
+  };
+}
+
+/**
+ * Estimate token savings from a before/after comparison.
+ *
+ * Prefers byte_counted method when byte data is available (sessions have
+ * non-zero total_input_bytes / total_output_bytes). Falls back to
+ * tool_call_heuristic for old sessions that lack byte data.
  *
  * Returns null if the comparison is null or either bucket has 0 sessions
  * (insufficient data for a meaningful estimate).
@@ -230,6 +300,11 @@ export function estimateTokenSavings(
   if (!comparison) return null;
   if (comparison.before.sessions === 0 || comparison.after.sessions === 0) return null;
 
+  // Prefer byte_counted when byte data is available
+  const byteEstimate = estimateTokenSavingsByBytes(comparison);
+  if (byteEstimate) return byteEstimate;
+
+  // Fallback: heuristic for old sessions without byte data
   const beforeAvgTokens = round2(comparison.before.avg_tool_calls * TOKENS_PER_CALL);
   const afterAvgTokens = round2(comparison.after.avg_tool_calls * TOKENS_PER_CALL);
   const savingsPerSession = Math.max(0, round2(beforeAvgTokens - afterAvgTokens));

@@ -981,6 +981,9 @@ export async function runLearnerTick(
             total_errors_prevented: result.errors_prevented_total ?? 0,
             total_time_saved_minutes: Math.round(totalTokensSaved / TOKENS_PER_MINUTE * 10) / 10,
             directive_count: renderProposals.length,
+            ...(tokenEst?.method === 'byte_counted' || tokenEst?.method === 'tool_call_heuristic'
+              ? { estimation_method: tokenEst.method }
+              : {}),
             per_directive_attribution: [],
             last_computed_at: new Date().toISOString(),
           };

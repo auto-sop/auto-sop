@@ -15,8 +15,8 @@ function makeComparison(
 ): BeforeAfterComparison {
   return {
     cutoff: '2026-04-22T00:00:00Z',
-    before: { sessions: 5, avg_duration_min: beforeAvgMin, avg_tool_calls: beforeAvgCalls, avg_bash_failures: 2 },
-    after: { sessions: 5, avg_duration_min: afterAvgMin, avg_tool_calls: afterAvgCalls, avg_bash_failures: 1 },
+    before: { sessions: 5, avg_duration_min: beforeAvgMin, avg_tool_calls: beforeAvgCalls, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
+    after: { sessions: 5, avg_duration_min: afterAvgMin, avg_tool_calls: afterAvgCalls, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
     improvement: { duration_pct: -50, tool_calls_pct: -40, bash_failures_pct: -50 },
   };
 }

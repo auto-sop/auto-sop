@@ -5,7 +5,7 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-26T22:29:00Z · 394 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
+_Data as of: 2026-04-27T19:00:00Z · 439 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
 
 **Learnings** (25 active directives)
 
@@ -15,52 +15,7 @@ _Data as of: 2026-04-26T22:29:00Z · 394 turns analyzed · 9 agents: Explore, ap
 - **[error]** For Next.js projects deployed on Vercel, never set framework to null or override buildCommand in vercel.json. Let Vercel auto-detect the framework. Remove any framework or buildCommand overrides that conflict with the actual project type.
   _(evidence: 3 sessions)_
 
-- **[warning]** When an Explore agent needs to understand a file, read it in chunks of at least 100-200 lines rather than repeatedly reading 5-15 line fragments at scattered offsets. If the file is under 1000 lines, read it in full on the first pass.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Explore agents should target fewer than 30 tool calls per investigation. Before issuing a new read of a file already visited, check if the needed content was already retrieved in a prior read. Plan reads upfront rather than incrementally discovering adjacent lines.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before increasing timeouts to fix deadline misses, investigate why the operation is slow. Increasing timeouts should be a last resort after confirming the operation genuinely requires more time, not a workaround for undiagnosed performance issues.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Jonathan (planner agent) must not directly edit code or scripts. When Jonathan discovers a bug during planning, it should document the bug and fix approach in a plan, then hand off to Commander or Architect for execution.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Always use the Glob tool for file discovery and listing directory contents. Never use Bash with find or ls for locating files by pattern — Glob is purpose-built for this and avoids unnecessary shell invocations.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before writing a new file, fully plan its contents including all imports, types, and edge cases. Never write a file expecting to immediately rewrite it in the same turn — get it right on the first pass.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Do not add multi-line JSDoc comment blocks to new files. Default to no comments, and if a comment is needed, keep it to one short line. Module-level doc blocks describing what the file does are redundant when file and function names are descriptive.
-  _(evidence: 3 sessions)_
-
-- **[warning]** When modifying plans, decide on scope changes before editing the file. Do not add content to a plan and then immediately revert it in the same turn — evaluate cross-repo scope implications before making any edits.
-  _(evidence: 3 sessions)_
-
-- **[warning]** When renaming a variable or identifier across a single file, use the Edit tool with replace_all=true in one call instead of making many individual edit calls for each occurrence.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before spawning a code-improvement-analyzer agent, check if another analyzer is already running on the same file set. Never run duplicate analysis agents on identical files in the same review cycle.
-  _(evidence: 3 sessions)_
-
-- **[warning]** When editing shell scripts from an agent, always verify tool parameters are fully populated before invocation. Run a syntax check immediately after each edit, not only at the end.
-  _(evidence: 3 sessions)_
-
-- **[warning]** When modifying exported symbols or function signatures in source files, always update corresponding test mocks and fixtures in the same editing pass before running the test suite.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before deploying to production, run a pre-flight checklist: verify framework detection settings, confirm all environment variables are synced, ensure build config is correct, and check that non-deployment files are excluded. Fix all issues before the first deploy rather than iterating through multiple failed deployments.
-  _(evidence: 3 sessions)_
-
-- **[warning]** When initializing a Vercel-deployed project that has internal or planning directories, create a .vercelignore file early to exclude non-deployment directories like planning files, tool configs, and internal metadata.
-  _(evidence: 3 sessions)_
-
-- **[warning]** The planner agent should focus on research, discussion, and plan creation. Deployment operations, infrastructure debugging, and environment configuration should be handled by the commander or architect agents with appropriate ops tooling.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Never use arbitrary sleep delays to wait for Vercel deployments. Instead, use the Vercel CLI or API to poll deployment status, or use the Monitor tool to watch for completion.
+- **[error]** When implementing cryptographic protocols that span client and server repos, define shared constants or a protocol spec document that both sides reference, and add a cross-repo integration test that validates parameter agreement before merging.
   _(evidence: 3 sessions)_
 
 - **[warning]** Planner agents must only produce plan documents. Never allow a planner agent to make Edit calls to source or component files — delegate implementation to executor or architect agents.
@@ -82,6 +37,51 @@ _Data as of: 2026-04-26T22:29:00Z · 394 turns analyzed · 9 agents: Explore, ap
   _(evidence: 3 sessions)_
 
 - **[warning]** When dispatching independent quality gate reviews (security audit, code improvement analysis), run them in parallel rather than sequentially to reduce total pipeline duration.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Never create throwaway e2e test scripts in temp directories. Add them as proper test files in the project test suite so they run in CI and catch regressions automatically.
+  _(evidence: 3 sessions)_
+
+- **[warning]** The jonathan-gsd-planner agent must only produce plans and roadmap updates. Source code edits, test modifications, builds, commits, and pushes must be delegated to the appropriate executor or architect agent.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Always confirm with the user before running git push, especially when the committing agent is operating outside its designated role boundaries.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Derive expected test values from source constants rather than hardcoding magic numbers. When a key format or encoding changes, tests that derive expected lengths from the format will fail with clear messages instead of requiring manual grep hunts.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When investigating an unfamiliar area of the codebase that will require more than 3 search queries, delegate to an Explore agent immediately rather than doing extensive manual grep exploration first and then delegating anyway.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Always use the dedicated Grep tool for content search and Glob tool for file discovery. Never invoke grep, rg, or find via Bash — the dedicated tools have optimized permissions and output formatting.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Never read the full contents of environment files containing secrets. Use Grep to check for specific key names or Bash grep -c to count entries without exposing secret values in agent context.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Always use the dedicated Read, Grep, and Glob tools instead of Bash equivalents (cat, grep, ls, find) for file reading, content searching, and file listing. Reserve Bash for shell-only operations like running tests or build commands.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When reading a source file for context, read it in one or two large chunks rather than many small sequential reads. Only use small offset/limit reads when targeting a known specific section.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Never add comments that describe WHAT a function does when the function name already conveys it. A helper named isFiniteNonNegative or isValidProject needs no docstring explaining it checks validity.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Jonathan (planner) must NEVER deploy to production or execute infrastructure changes. Planning agents create plans only — deployment belongs to Commander or Architect.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When implementing API endpoints that accept external input, always include from the start: input length limits, numeric range validation (reject NaN/Infinity/negatives), generic error messages for parse failures, and log output sanitization.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Consider running a lightweight pre-implementation review step where YODA reviews the plan against project conventions before Architect implements, catching structural issues early instead of after full implementation.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Before implementing new features, Architect must read 2-3 similar existing implementations in the codebase to identify project conventions (naming, error handling, structure) that automated checks like tests and tsc will not catch.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Commander should trust Architect's test results within the same workflow dispatch. Only re-run tests if source files were modified after Architect's run, not as a routine verification step.
   _(evidence: 3 sessions)_
 
 <!-- auto-sop:managed-section:end -->
