@@ -12,7 +12,7 @@ import { writeFilesChanged } from '../files-changed.js';
 import { finalizeHooks } from './finalize-hooks.js';
 import { handleSubagentUserPromptSubmit } from './subagent-route.js';
 import { loadHistory } from '../../../managed-section/directive-history.js';
-import { detectDirectiveFires, appendFires } from '../directive-fire.js';
+import { detectDirectiveFires, appendFires, detectSelfReportedFires } from '../directive-fire.js';
 import type { DirectiveInput } from '../directive-fire.js';
 
 export const handleUserPromptSubmit: Handler<UserPromptSubmitPayload> = (event, ctx): void => {
@@ -98,6 +98,15 @@ export const handleStop: Handler<StopPayload> = (event, ctx): void => {
   const responseText = extractLastAssistantMessage(event.transcript_path);
   const responseResult = writeResponseMd(turnDir, responseText, ctx.scrubber);
 
+  // V46: Detect self-reported directive fires from Claude's response.
+  // Parse [sop:applied:ID] markers. Best-effort — never crashes the writer.
+  let selfReportedFires: string[] = [];
+  try {
+    selfReportedFires = detectSelfReportedFires(responseText);
+  } catch {
+    // Best-effort — self-report parsing failure is non-fatal
+  }
+
   // Write files-changed.txt
   const filesResult = writeFilesChanged(turnDir, ctx.projectRoot);
 
@@ -108,6 +117,7 @@ export const handleStop: Handler<StopPayload> = (event, ctx): void => {
     finalization_reason: 'stop',
     files_changed_count: filesResult.count,
     scrubber_hit_count: (currentMeta?.scrubber_hit_count ?? 0) + responseResult.hitCount,
+    self_reported_fires: selfReportedFires,
   });
 
   // Atomically rename: drop .pending

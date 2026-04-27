@@ -291,6 +291,35 @@ export function detectDirectiveFires(
   return fires;
 }
 
+// ─── Self-reported fire detection (V46) ──────────────────
+
+/**
+ * Pattern for Claude's self-reported directive application markers.
+ * Matches [sop:applied:<id>] where id is alphanumeric + hyphens + underscores,
+ * capped at 64 characters to prevent abuse.
+ * Used with String.matchAll to avoid stateful lastIndex issues.
+ */
+const SELF_REPORT_PATTERN = /\[sop:applied:([a-zA-Z0-9_-]{1,64})\]/g;
+
+/**
+ * Parse Claude's text output for self-reported directive fire markers.
+ * Returns a deduplicated array of directive IDs that Claude self-reported
+ * as having influenced its action.
+ *
+ * @param output  Claude's text output (response text from a turn)
+ * @returns Array of unique directive IDs (e.g. ['llm-7ced', 'det-0000'])
+ */
+export function detectSelfReportedFires(output: string): string[] {
+  if (!output || output.length === 0) return [];
+
+  const ids = new Set<string>();
+  for (const match of output.matchAll(SELF_REPORT_PATTERN)) {
+    ids.add(match[1]!);
+  }
+
+  return Array.from(ids);
+}
+
 // ─── File I/O ────────────────────────────────────────────
 
 function firesPath(stateDir: string): string {

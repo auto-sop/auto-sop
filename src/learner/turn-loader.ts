@@ -40,6 +40,8 @@ export interface TurnData {
   agent: string;
   finalized_at: string;
   tool_calls: ToolCall[];
+  /** V46: directive IDs self-reported by Claude via [sop:applied:ID] markers. */
+  self_reported_fires?: string[];
 }
 
 // ── Loader ─────────────────────────────────────────────────
@@ -75,6 +77,7 @@ export function loadTurnsForDetection(captureDir: string, maxTurns: number = 500
       session_id?: unknown;
       agent?: unknown;
       finalized_at?: unknown;
+      self_reported_fires?: unknown;
     };
     try {
       const raw = readFileSync(metaPath, 'utf8');
@@ -97,12 +100,20 @@ export function loadTurnsForDetection(captureDir: string, maxTurns: number = 500
     // Read tool-calls.jsonl (optional — missing → empty tool_calls)
     const toolCalls = readToolCallsNdjson(join(turnDir, 'tool-calls.jsonl'));
 
+    // V46: read self_reported_fires from meta (optional field)
+    const selfReportedFires = Array.isArray(meta.self_reported_fires)
+      ? (meta.self_reported_fires as unknown[]).filter((x): x is string => typeof x === 'string')
+      : undefined;
+
     turns.push({
       turn_id: meta.turn_id,
       session_id: meta.session_id,
       agent: meta.agent,
       finalized_at: meta.finalized_at,
       tool_calls: toolCalls,
+      ...(selfReportedFires !== undefined && selfReportedFires.length > 0
+        ? { self_reported_fires: selfReportedFires }
+        : {}),
     });
   }
 

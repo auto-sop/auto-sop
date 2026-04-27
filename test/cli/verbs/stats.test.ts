@@ -193,7 +193,7 @@ describe('stats verb: human-readable output', () => {
     });
 
     expect(output).toContain('auto-sop stats for:');
-    expect(output).toContain('Directive Fires:');
+    expect(output).toContain('Heuristic Fires:');
     expect(output).toContain('3');
     expect(output).toContain('Unique Directives Hit:');
     expect(output).toContain('2');

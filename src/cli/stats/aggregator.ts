@@ -27,6 +27,7 @@ import {
 } from '../../learner/session-metrics.js';
 import { readSyncEntries } from '../../learner/sync-queue.js';
 import { loadTurnsForDetection } from '../../learner/turn-loader.js';
+import { shortDirectiveId } from '../../learner/directive-builder.js';
 import { countPreventedSince } from '../../metrics/error-prevention.js';
 import { calculateTimeSavings } from '../../metrics/time-savings.js';
 import { existsSync } from 'node:fs';
@@ -86,6 +87,14 @@ export interface ProjectStats {
   token_savings_pct: number | null;
   /** V44: estimation method used for token savings. */
   token_estimation_method: 'byte_counted' | 'tool_call_heuristic' | 'hybrid' | null;
+  /** V46: total confirmed directive fires from Claude self-reports. */
+  confirmed_fires_total: number;
+  /** V46: per-directive confirmed fire counts with rule text. */
+  confirmed_fires_by_directive: Array<{
+    directive_id: string;
+    rule_text_preview: string;
+    fire_count: number;
+  }>;
 }
 
 export interface AggregateStatsOptions {
@@ -159,8 +168,11 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   const ruleTextMap = new Map<string, string>();
   const severityMap = new Map<string, 'error' | 'warning' | 'info'>();
   for (const entry of Object.values(history.entries)) {
+    const shortId = shortDirectiveId(entry.id);
     ruleTextMap.set(entry.id, entry.rule_text);
+    ruleTextMap.set(shortId, entry.rule_text);
     severityMap.set(entry.id, entry.severity);
+    severityMap.set(shortId, entry.severity);
   }
 
   // Group fires by directive_id + count by category
@@ -227,26 +239,33 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     : preventedErrors;
   const realErrorsPrevented = filteredPrevented.length;
 
-  // V31: Build session comparison
-  let sessionComparison: BeforeAfterComparison | null = null;
+  // Load turn data once — shared by session comparison and V46 confirmed fires
+  let sharedTurnData: ReturnType<typeof loadTurnsForDetection> = [];
   try {
     const capturesDir = join(opts.projectRoot, '.auto-sop', 'captures');
     if (existsSync(capturesDir)) {
-      const turnData = loadTurnsForDetection(capturesDir, MAX_TURNS_FOR_STATS);
-      if (turnData.length > 0) {
-        const sessions = buildSessionSummaries(turnData);
-        // Use earliest directive first_seen as the cutoff
-        let earliestFirstSeen: string | null = null;
-        for (const entry of Object.values(history.entries)) {
-          if (!entry.pruned) {
-            if (earliestFirstSeen === null || entry.first_seen < earliestFirstSeen) {
-              earliestFirstSeen = entry.first_seen;
-            }
+      sharedTurnData = loadTurnsForDetection(capturesDir, MAX_TURNS_FOR_STATS);
+    }
+  } catch {
+    // graceful degradation — no capture data yet
+  }
+
+  // V31: Build session comparison
+  let sessionComparison: BeforeAfterComparison | null = null;
+  try {
+    if (sharedTurnData.length > 0) {
+      const sessions = buildSessionSummaries(sharedTurnData);
+      // Use earliest directive first_seen as the cutoff
+      let earliestFirstSeen: string | null = null;
+      for (const entry of Object.values(history.entries)) {
+        if (!entry.pruned) {
+          if (earliestFirstSeen === null || entry.first_seen < earliestFirstSeen) {
+            earliestFirstSeen = entry.first_seen;
           }
         }
-        if (earliestFirstSeen !== null) {
-          sessionComparison = compareBeforeAfter(sessions, earliestFirstSeen);
-        }
+      }
+      if (earliestFirstSeen !== null) {
+        sessionComparison = compareBeforeAfter(sessions, earliestFirstSeen);
       }
     }
   } catch {
@@ -271,6 +290,34 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const errorsPreventedThisMonth = countPreventedSince(preventedErrors, thirtyDaysAgo);
 
+  // V46: Accumulate confirmed fires from shared turn data (self-reported by Claude)
+  let confirmedFiresTotal = 0;
+  const confirmedByDirective = new Map<string, number>();
+  for (const turn of sharedTurnData) {
+    if (Array.isArray(turn.self_reported_fires)) {
+      for (const id of turn.self_reported_fires) {
+        confirmedFiresTotal++;
+        confirmedByDirective.set(id, (confirmedByDirective.get(id) ?? 0) + 1);
+      }
+    }
+  }
+
+  // Build confirmed fires by directive with rule text previews
+  const confirmedFiresByDirective: Array<{
+    directive_id: string;
+    rule_text_preview: string;
+    fire_count: number;
+  }> = [];
+  for (const [directiveId, count] of confirmedByDirective) {
+    const ruleText = ruleTextMap.get(directiveId) ?? '(unknown directive)';
+    confirmedFiresByDirective.push({
+      directive_id: directiveId,
+      rule_text_preview: truncatePreview(ruleText),
+      fire_count: count,
+    });
+  }
+  confirmedFiresByDirective.sort((a, b) => b.fire_count - a.fire_count);
+
   return {
     project_path: opts.projectRoot,
     project_slug: opts.projectSlug,
@@ -291,5 +338,7 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     token_savings_total: tokenEstimate?.savings_per_session ?? null,
     token_savings_pct: tokenEstimate?.savings_pct ?? null,
     token_estimation_method: tokenEstimate?.method ?? null,
+    confirmed_fires_total: confirmedFiresTotal,
+    confirmed_fires_by_directive: confirmedFiresByDirective,
   };
 }

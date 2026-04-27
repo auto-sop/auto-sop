@@ -84,7 +84,11 @@ export default defineConfig([
     target: 'node18',
     bundle: true,
     minify: true,
-    treeshake: true,
+    // FIX: treeshake was stripping saveMetricsState + loadMetricsState because
+    // every call site is inside try/catch with empty catch blocks. The tree-shaker
+    // treats those as dead code (side-effect-free). Disabling tree-shake for
+    // the learner is safe — bundle grows ~10KB but all metrics code survives.
+    treeshake: false,
     noExternal: [/.*/],
     banner: { js: '#!/usr/bin/env node' },
     outExtension() {

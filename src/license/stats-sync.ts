@@ -15,6 +15,14 @@ export interface ProjectStats {
   total_errors_prevented: number;
   total_time_saved_minutes: number;
   directive_count: number;
+  /** V46: total confirmed fires from Claude self-reports. */
+  confirmed_fires_total?: number;
+  /** V46: per-directive confirmed fire counts. */
+  confirmed_fires_by_directive?: Record<string, number>;
+  /** V46: list of active directive short IDs. */
+  directive_ids?: string[];
+  /** V46: estimation method used for token savings. */
+  estimation_method?: string;
 }
 
 export interface SyncStatsOpts {

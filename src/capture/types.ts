@@ -17,6 +17,8 @@ export interface TurnMeta {
   files_changed_count: number;
   tool_call_count: number;
   scrubber_hit_count: number;
+  /** V46: directive IDs self-reported by Claude via [sop:applied:ID] markers. */
+  self_reported_fires?: string[];
 }
 
 export interface ToolCallLinePre {

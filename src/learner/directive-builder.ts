@@ -201,8 +201,41 @@ function sanitizeTurnId(raw: string): string {
 }
 
 /**
+ * Known detector prefixes mapped to short abbreviations.
+ * Used by {@link shortDirectiveId} to produce compact IDs that preserve
+ * uniqueness across detector types (e.g. 'repeated-bash-failure-' and
+ * 'repeated-edit-fail-' map to different abbreviations instead of both
+ * colliding to 'repeated').
+ */
+const DETECTOR_PREFIX_MAP: ReadonlyArray<[prefix: string, short: string]> = [
+  ['llm-inc-', 'llm-'],
+  ['repeated-bash-failure-', 'rbf-'],
+  ['repeated-edit-fail-', 'ref-'],
+];
+
+/**
+ * Derive a short, stable directive ID tag from a proposal id.
+ *
+ * For known detector prefixes, maps to an abbreviation + first 4 chars
+ * of the hash suffix (e.g. 'repeated-bash-failure-7ced4f9a' → 'rbf-7ced').
+ * For unknown patterns, takes the first 8 chars of the raw id.
+ *
+ * This keeps tags compact and deterministic while avoiding collisions
+ * between different detector types that share a common prefix.
+ */
+export function shortDirectiveId(proposalId: string): string {
+  for (const [prefix, short] of DETECTOR_PREFIX_MAP) {
+    if (proposalId.startsWith(prefix)) {
+      const hash = proposalId.slice(prefix.length);
+      return short + hash.slice(0, 4);
+    }
+  }
+  return proposalId.slice(0, 8);
+}
+
+/**
  * Format a single proposal as a markdown bullet.
- * - First line: severity tag + rule_text
+ * - First line: severity tag + rule_text + [sop:ID] directive ID tag
  * - Second line (indented): evidence summary with `[view turns]` pointer
  *
  * E6 (PLAN-v16 Wave 3): the evidence line includes a markdown link to
@@ -211,6 +244,9 @@ function sanitizeTurnId(raw: string): string {
  * empty (defensive — schema requires min(1) but defense-in-depth matters
  * since the managed section is user-facing), we fall back to session
  * count only so a malformed proposal never crashes rendering.
+ *
+ * V46: appends `[sop:ID]` tag at end of rule_text line for directive
+ * transparency (self-reported fire tracking).
  */
 function formatProposalBullet(p: DirectiveProposalType): string {
   const sessionCount = p.evidence.session_ids.length;
@@ -236,7 +272,8 @@ function formatProposalBullet(p: DirectiveProposalType): string {
       `[view turns](${firstTurnPath})${moreSuffix})_`;
   }
 
-  return `- **[${p.severity}]** ${p.rule_text}\n  ${evidenceLine}`;
+  const sopTag = ` [sop:${shortDirectiveId(p.id)}]`;
+  return `- **[${p.severity}]** ${p.rule_text}${sopTag}\n  ${evidenceLine}`;
 }
 
 /**
@@ -275,6 +312,16 @@ export function buildDirectiveBodyFromInput(input: DirectiveInput): ManagedSecti
 
   const sorted = sortProposals(proposals);
 
+  // V46: Transparency instruction — only when there are active directives.
+  // Tells Claude to self-report which directive influenced its action
+  // using [sop:applied:<id>] markers, enabling confirmed fire tracking.
+  const transparencyBlock =
+    sorted.length > 0
+      ? '**Transparency**: When you follow a directive from this section, briefly note which one.\n' +
+        'Format: `[sop:applied:<id>]` — e.g., `[sop:applied:llm-7ced]`. One tag per directive applied.\n' +
+        'Do not force-apply directives — only tag when a directive genuinely influenced your action.\n\n'
+      : '';
+
   let learningsSection: string;
   if (sorted.length > 0) {
     const header =
@@ -299,7 +346,7 @@ export function buildDirectiveBodyFromInput(input: DirectiveInput): ManagedSecti
     learningsSection = '**Learnings**\n\n' + '_No recurring patterns detected yet._';
   }
 
-  const body = statsLine + aiLine + '\n\n' + learningsSection;
+  const body = statsLine + aiLine + '\n\n' + transparencyBlock + learningsSection;
   return { body };
 }
 

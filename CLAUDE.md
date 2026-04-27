@@ -5,7 +5,8 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-27T20:02:00Z · 473 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
+_Data as of: 2026-04-27T21:00:00Z · 508 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
+_AI analysis: Limited data in this batch (3 of 5 turns have no visible tools or responses). The one actionable pattern is an agent restoring CLAUDE.md from a manual backup after a test modification, suggesting a need for safer config-file handling during testing._
 
 **Learnings** (25 active directives)
 
@@ -18,19 +19,7 @@ _Data as of: 2026-04-27T20:02:00Z · 473 turns analyzed · 9 agents: Explore, ap
 - **[error]** When implementing cryptographic protocols that span client and server repos, define shared constants or a protocol spec document that both sides reference, and add a cross-repo integration test that validates parameter agreement before merging.
   _(evidence: 3 sessions)_
 
-- **[warning]** Security auditor agents must stay scoped to the codebase under review. Never explore unrelated directories like messaging inboxes or external agent communication channels during a security audit.
-  _(evidence: 3 sessions)_
-
-- **[warning]** When dispatching independent quality gate reviews (security audit, code improvement analysis), run them in parallel rather than sequentially to reduce total pipeline duration.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Never create throwaway e2e test scripts in temp directories. Add them as proper test files in the project test suite so they run in CI and catch regressions automatically.
-  _(evidence: 3 sessions)_
-
-- **[warning]** The jonathan-gsd-planner agent must only produce plans and roadmap updates. Source code edits, test modifications, builds, commits, and pushes must be delegated to the appropriate executor or architect agent.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Always confirm with the user before running git push, especially when the committing agent is operating outside its designated role boundaries.
+- **[error]** The jonathan-gsd-planner agent must never use the Edit or Write tool on source code or infrastructure scripts. When a fix is identified during planning or investigation, document it in the plan and delegate execution to Architect or an executor agent.
   _(evidence: 3 sessions)_
 
 - **[warning]** Derive expected test values from source constants rather than hardcoding magic numbers. When a key format or encoding changes, tests that derive expected lengths from the format will fail with clear messages instead of requiring manual grep hunts.
@@ -83,5 +72,17 @@ _Data as of: 2026-04-27T20:02:00Z · 473 turns analyzed · 9 agents: Explore, ap
 
 - **[warning]** When the jonathan-gsd-planner agent encounters an operational issue (e.g., metrics not updating, commands not producing expected results), it must document the symptom and recommend delegating to a debugger or executor agent rather than conducting the investigation itself.
   _(evidence: 3 sessions)_
+
+- **[warning]** When jonathan-gsd-planner discovers an operational issue during planning, it must stop investigating after identifying the initial symptom, document it with reproduction steps, and recommend delegating to gsd-debugger or an executor agent. Do not conduct multi-turn root-cause analysis.
+  _(evidence: 3 sessions)_
+
+- **[warning]** In shell scripts that capture agent output, use direct file redirection with background tail instead of pipe-based tee. Pipes with tee can silently fail on macOS, causing complete output loss with no error signal.
+  _(evidence: 3 sessions)_
+
+- **[warning]** All agents must use the dedicated Grep tool for content search and Glob tool for file discovery. Never invoke grep, rg, or find via Bash. This rule applies to all agent types including code-review-master-yoda during review workflows.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Never modify CLAUDE.md directly for testing. Use git stash or a temporary branch to preserve the original, rather than creating manual backup files that may be forgotten or left behind.
+  _(evidence: 178 sessions · [view turns](.auto-sop/captures/s-KGsgSRJ_yR) [+1 more])_
 
 <!-- auto-sop:managed-section:end -->

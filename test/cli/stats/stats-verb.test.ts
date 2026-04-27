@@ -140,7 +140,7 @@ describe('stats verb', () => {
       await runCli(['node', 'auto-sop', 'stats', '--project', projectRoot, '--since', '2026-04-01']);
 
       const out = stdout();
-      expect(out).toContain('Directive Fires:');
+      expect(out).toContain('Heuristic Fires:');
       expect(out).toContain('3');
       expect(out).toContain('Unique Directives Hit:');
       expect(out).toContain('2');

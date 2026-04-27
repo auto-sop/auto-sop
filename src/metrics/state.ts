@@ -19,6 +19,12 @@ export interface MetricsState {
   estimation_method?: 'byte_counted' | 'tool_call_heuristic' | 'hybrid';
   per_directive_attribution: DirectiveAttribution[];
   last_computed_at: string;
+  /** V46: total confirmed directive fires from Claude self-reports. */
+  confirmed_fires_total?: number;
+  /** V46: per-directive confirmed fire counts from Claude self-reports. */
+  confirmed_fires_by_directive?: Record<string, number>;
+  /** V46: list of active directive short IDs (e.g. ['llm-7ced', 'det-0000']). */
+  directive_ids?: string[];
 }
 
 /** Approximate tokens an LLM processes per minute of wall-clock time. */

@@ -23,7 +23,7 @@ import {
   loadHistory,
   type DirectiveHistoryEntry,
 } from '../managed-section/directive-history.js';
-import { buildDirectiveBody } from './directive-builder.js';
+import { buildDirectiveBody, shortDirectiveId } from './directive-builder.js';
 import { loadTurnsForDetection } from './turn-loader.js';
 import {
   detectors,
@@ -871,6 +871,24 @@ export async function runLearnerTick(
         result.directive_fires_total = 0;
       }
 
+      // V46: Accumulate self-reported (confirmed) fires from turn data.
+      // These come from Claude's [sop:applied:ID] markers in response text,
+      // parsed by the capture writer and stored in turn meta.json.
+      let confirmedFiresTotal = 0;
+      const confirmedFiresByDirective: Record<string, number> = {};
+      try {
+        for (const turn of turnData) {
+          if (Array.isArray(turn.self_reported_fires)) {
+            for (const id of turn.self_reported_fires) {
+              confirmedFiresTotal++;
+              confirmedFiresByDirective[id] = (confirmedFiresByDirective[id] ?? 0) + 1;
+            }
+          }
+        }
+      } catch (err) {
+        logError('confirmed_fires_accumulation_failed', err, home);
+      }
+
       // Load history once — shared between error prevention and sync queue blocks.
       // Hoisted to avoid duplicate loadHistory disk reads.
       let history: ReturnType<typeof loadHistory> | null = null;
@@ -980,6 +998,9 @@ export async function runLearnerTick(
           const totalTokensSaved = tokenEst
             ? Math.round(tokenEst.savings_per_session * (syncEntry.session_comparison?.after?.sessions ?? 0))
             : 0;
+          // V46: Build directive_ids from active render proposals
+          const directiveIds = renderProposals.map((p) => shortDirectiveId(p.id));
+
           const metricsState: MetricsState = {
             v: 1,
             project_slug: project.slug,
@@ -992,6 +1013,10 @@ export async function runLearnerTick(
               : {}),
             per_directive_attribution: [],
             last_computed_at: new Date().toISOString(),
+            // V46: confirmed fires from self-reports
+            confirmed_fires_total: confirmedFiresTotal,
+            confirmed_fires_by_directive: confirmedFiresByDirective,
+            directive_ids: directiveIds,
           };
           saveMetricsState(home, project.project_root, metricsState);
         } catch {
@@ -1040,6 +1065,19 @@ export async function runLearnerTick(
               total_errors_prevented: metrics.total_errors_prevented,
               total_time_saved_minutes: metrics.total_time_saved_minutes,
               directive_count: metrics.directive_count ?? metrics.per_directive_attribution.length,
+              // V46: confirmed fires + directive IDs
+              ...(metrics.confirmed_fires_total !== undefined
+                ? { confirmed_fires_total: metrics.confirmed_fires_total }
+                : {}),
+              ...(metrics.confirmed_fires_by_directive !== undefined
+                ? { confirmed_fires_by_directive: metrics.confirmed_fires_by_directive }
+                : {}),
+              ...(metrics.directive_ids !== undefined
+                ? { directive_ids: metrics.directive_ids }
+                : {}),
+              ...(metrics.estimation_method !== undefined
+                ? { estimation_method: metrics.estimation_method }
+                : {}),
             });
           }
         } catch {

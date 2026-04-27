@@ -222,7 +222,7 @@ export function registerStatsVerb(program: Command): void {
           pc.dim(`Period: ${periodFrom} to ${periodTo} (${daysDiff} days)`) + '\n\n',
         );
 
-        if (stats.total_fires === 0) {
+        if (stats.total_fires === 0 && stats.confirmed_fires_total === 0) {
           // Friendly "no fires" message
           process.stdout.write(pc.dim('No fires yet? That is normal for new installs.') + '\n');
           process.stdout.write(
@@ -239,10 +239,30 @@ export function registerStatsVerb(program: Command): void {
           return;
         }
 
+        // V46: Confirmed fires (self-reported by Claude) — displayed first if available
+        if (stats.confirmed_fires_total > 0) {
+          process.stdout.write(
+            pc.bold('Confirmed Directive Hits') + pc.dim(' (self-reported by Claude)') + ':\n',
+          );
+          for (const entry of stats.confirmed_fires_by_directive) {
+            const countStr = padNum(entry.fire_count, 4);
+            const preview =
+              entry.rule_text_preview.length > 50
+                ? entry.rule_text_preview.slice(0, 47) + '...'
+                : entry.rule_text_preview;
+            process.stdout.write(
+              `  ${entry.directive_id.padEnd(10)} ${preview.padEnd(52)} ${countStr} hits\n`,
+            );
+          }
+          process.stdout.write('\n');
+        } else {
+          process.stdout.write(pc.dim('No self-reported fires yet.') + '\n\n');
+        }
+
         // Summary metrics
         const timeSaved = formatTimeSaved(stats.estimated_minutes_saved);
         process.stdout.write(
-          `Directive Fires:        ${stats.total_fires} ${pc.dim('(keyword match)')}\n` +
+          `Heuristic Fires:        ${stats.total_fires} ${pc.dim('(keyword match)')}\n` +
             `Unique Directives Hit:  ${stats.unique_directives_fired} / ${stats.active_directives} active\n` +
             `Est. Errors Prevented:  ${stats.estimated_errors_prevented}\n` +
             `Est. Time Saved:        ${timeSaved}\n`,
