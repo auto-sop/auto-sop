@@ -496,8 +496,12 @@ export async function runLearnerTick(
       // Load turn data ONCE per project per tick (shared across all detectors).
       // Skip entirely when no new turns — avoids reading hundreds of turn
       // dirs on idle ticks (pure I/O savings).
+      // Exception: AUTO_SOP_FORCE_RECOMPUTE=1 forces loading all turns
+      // for metrics recomputation even when turns_new === 0.
+      const forceRecompute = process.env.AUTO_SOP_FORCE_RECOMPUTE === '1';
+      const shouldRunDetectors = result.turns_new > 0;
       let turnData: ReturnType<typeof loadTurnsForDetection> = [];
-      if (result.turns_new > 0) {
+      if (result.turns_new > 0 || forceRecompute) {
         try {
           turnData = loadTurnsForDetection(capturesDir, MAX_TURNS_FIRST_RUN);
         } catch (err) {
@@ -513,7 +517,7 @@ export async function runLearnerTick(
       let detectorsRun = 0;
       let detectorsFailed = 0;
 
-      if (turnData.length > 0) {
+      if (turnData.length > 0 && shouldRunDetectors) {
         for (const detector of detectors) {
           detectorsRun++;
           try {
@@ -877,8 +881,10 @@ export async function runLearnerTick(
       }
 
       // V31: Error prevention detection + compaction
-      // Only run when we have turn data to check. Wrapped in try/catch — never abort the tick.
-      if (turnData.length > 0) {
+      // Only run when we have NEW turn data to check. Guarded by shouldRunDetectors
+      // to prevent double-counting prevented errors during --recompute (which loads
+      // all historical turns but has turns_new === 0).
+      if (turnData.length > 0 && shouldRunDetectors) {
         try {
 
           if (history !== null) {
@@ -981,13 +987,13 @@ export async function runLearnerTick(
             total_errors_prevented: result.errors_prevented_total ?? 0,
             total_time_saved_minutes: Math.round(totalTokensSaved / TOKENS_PER_MINUTE * 10) / 10,
             directive_count: renderProposals.length,
-            ...(tokenEst?.method === 'byte_counted' || tokenEst?.method === 'tool_call_heuristic'
+            ...(tokenEst?.method === 'byte_counted' || tokenEst?.method === 'tool_call_heuristic' || tokenEst?.method === 'hybrid'
               ? { estimation_method: tokenEst.method }
               : {}),
             per_directive_attribution: [],
             last_computed_at: new Date().toISOString(),
           };
-          await saveMetricsState(home, project.project_root, metricsState);
+          saveMetricsState(home, project.project_root, metricsState);
         } catch {
           // Non-blocking — metrics persist failure never aborts the tick
         }

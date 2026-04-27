@@ -152,7 +152,7 @@ describe('Full Metrics Pipeline Integration', () => {
     expect(state.project_slug).toBe('integration-test');
     expect(state.total_errors_prevented).toBe(2);
 
-    await saveMetricsState(tmpHome, '/test/project', state);
+    saveMetricsState(tmpHome, '/test/project', state);
     const loaded = loadMetricsState(tmpHome, '/test/project');
     expect(loaded).not.toBeNull();
     expect(loaded!.total_errors_prevented).toBe(2);

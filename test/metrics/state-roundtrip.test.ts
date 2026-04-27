@@ -35,9 +35,9 @@ describe('MetricsState round-trip', () => {
     };
   }
 
-  it('saves and loads identical data', async () => {
+  it('saves and loads identical data', () => {
     const state = makeState();
-    await saveMetricsState(tempHome, PROJECT_ROOT, state);
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
     expect(loaded).toEqual(state);
@@ -48,22 +48,22 @@ describe('MetricsState round-trip', () => {
     expect(loaded).toBeNull();
   });
 
-  it('preserves empty attribution array', async () => {
+  it('preserves empty attribution array', () => {
     const state = makeState({ per_directive_attribution: [] });
-    await saveMetricsState(tempHome, PROJECT_ROOT, state);
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
     expect(loaded).not.toBeNull();
     expect(loaded!.per_directive_attribution).toEqual([]);
   });
 
-  it('preserves zero values', async () => {
+  it('preserves zero values', () => {
     const state = makeState({
       total_tokens_saved: 0,
       total_errors_prevented: 0,
       total_time_saved_minutes: 0,
     });
-    await saveMetricsState(tempHome, PROJECT_ROOT, state);
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
     expect(loaded).not.toBeNull();
@@ -72,13 +72,13 @@ describe('MetricsState round-trip', () => {
     expect(loaded!.total_time_saved_minutes).toBe(0);
   });
 
-  it('preserves large numbers', async () => {
+  it('preserves large numbers', () => {
     const state = makeState({
       total_tokens_saved: 9_999_999,
       total_errors_prevented: 100_000,
       total_time_saved_minutes: 500_000,
     });
-    await saveMetricsState(tempHome, PROJECT_ROOT, state);
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
     expect(loaded).not.toBeNull();
@@ -87,14 +87,14 @@ describe('MetricsState round-trip', () => {
     expect(loaded!.total_time_saved_minutes).toBe(500_000);
   });
 
-  it('preserves populated attribution array', async () => {
+  it('preserves populated attribution array', () => {
     const state = makeState({
       per_directive_attribution: [
         { directive_id: 'dir-1', tokens_saved: 800, errors_prevented: 2, time_saved_minutes: 10 },
         { directive_id: 'dir-2', tokens_saved: 3400, errors_prevented: 5, time_saved_minutes: 11 },
       ],
     });
-    await saveMetricsState(tempHome, PROJECT_ROOT, state);
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
     expect(loaded).not.toBeNull();
@@ -103,9 +103,9 @@ describe('MetricsState round-trip', () => {
     expect(loaded!.per_directive_attribution[1].tokens_saved).toBe(3400);
   });
 
-  it('returns data shape expected by syncStats', async () => {
+  it('returns data shape expected by syncStats', () => {
     const state = makeState({ directive_count: 5 });
-    await saveMetricsState(tempHome, PROJECT_ROOT, state);
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const loaded = loadMetricsState(tempHome, PROJECT_ROOT)!;
     // syncStats reads these exact fields (see src/license/stats-sync.ts)
@@ -122,42 +122,69 @@ describe('MetricsState round-trip', () => {
     expect(Array.isArray(loaded.per_directive_attribution)).toBe(true);
   });
 
-  it('preserves directive_count when set', async () => {
+  it('preserves directive_count when set', () => {
     const state = makeState({ directive_count: 12 });
-    await saveMetricsState(tempHome, PROJECT_ROOT, state);
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
     expect(loaded).not.toBeNull();
     expect(loaded!.directive_count).toBe(12);
   });
 
-  it('loads without directive_count (backward compat)', async () => {
+  it('loads without directive_count (backward compat)', () => {
     const state = makeState();
     // state has no directive_count (undefined) — simulates pre-v42 data
-    await saveMetricsState(tempHome, PROJECT_ROOT, state);
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
     expect(loaded).not.toBeNull();
     expect(loaded!.directive_count).toBeUndefined();
   });
 
-  it('overwrites previous state on re-save', async () => {
+  it('preserves estimation_method through round-trip', () => {
+    const state = makeState({ estimation_method: 'hybrid' });
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
+
+    const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.estimation_method).toBe('hybrid');
+  });
+
+  it('preserves estimation_method byte_counted through round-trip', () => {
+    const state = makeState({ estimation_method: 'byte_counted' });
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
+
+    const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.estimation_method).toBe('byte_counted');
+  });
+
+  it('preserves estimation_method tool_call_heuristic through round-trip', () => {
+    const state = makeState({ estimation_method: 'tool_call_heuristic' });
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
+
+    const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.estimation_method).toBe('tool_call_heuristic');
+  });
+
+  it('overwrites previous state on re-save', () => {
     const stateA = makeState({ total_tokens_saved: 100 });
-    await saveMetricsState(tempHome, PROJECT_ROOT, stateA);
+    saveMetricsState(tempHome, PROJECT_ROOT, stateA);
 
     const stateB = makeState({ total_tokens_saved: 9999 });
-    await saveMetricsState(tempHome, PROJECT_ROOT, stateB);
+    saveMetricsState(tempHome, PROJECT_ROOT, stateB);
 
     const loaded = loadMetricsState(tempHome, PROJECT_ROOT);
     expect(loaded!.total_tokens_saved).toBe(9999);
   });
 
-  it('isolates different project roots', async () => {
+  it('isolates different project roots', () => {
     const rootA = '/projects/alpha';
     const rootB = '/projects/beta';
 
-    await saveMetricsState(tempHome, rootA, makeState({ project_slug: 'alpha', total_tokens_saved: 100 }));
-    await saveMetricsState(tempHome, rootB, makeState({ project_slug: 'beta', total_tokens_saved: 200 }));
+    saveMetricsState(tempHome, rootA, makeState({ project_slug: 'alpha', total_tokens_saved: 100 }));
+    saveMetricsState(tempHome, rootB, makeState({ project_slug: 'beta', total_tokens_saved: 200 }));
 
     const loadedA = loadMetricsState(tempHome, rootA);
     const loadedB = loadMetricsState(tempHome, rootB);
@@ -168,9 +195,9 @@ describe('MetricsState round-trip', () => {
     expect(loadedB!.total_tokens_saved).toBe(200);
   });
 
-  it('file is written to correct path', async () => {
+  it('file is written to correct path', () => {
     const state = makeState();
-    await saveMetricsState(tempHome, PROJECT_ROOT, state);
+    saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const expectedPath = metricsStatePath(tempHome, PROJECT_ROOT);
     expect(expectedPath).toContain('.auto-sop/state/metrics/');

@@ -49,7 +49,7 @@ export interface BucketStats {
 }
 
 export interface TokenEstimate {
-  method: 'tool_call_heuristic' | 'byte_counted';
+  method: 'tool_call_heuristic' | 'byte_counted' | 'hybrid';
   tokens_per_call: number;
   before_avg_tokens: number;
   after_avg_tokens: number;
@@ -287,9 +287,13 @@ export function estimateTokenSavingsByBytes(
 /**
  * Estimate token savings from a before/after comparison.
  *
- * Prefers byte_counted method when byte data is available (sessions have
- * non-zero total_input_bytes / total_output_bytes). Falls back to
- * tool_call_heuristic for old sessions that lack byte data.
+ * Strategy:
+ * 1. Prefer byte_counted when byte data yields positive savings.
+ * 2. If byte_counted yields savings_per_session <= 0 but tool calls dropped
+ *    by 20%+ (tool_calls_pct < -20), fall back to a hybrid method that
+ *    estimates savings from tool-call reduction using byte-derived cost
+ *    per call when available.
+ * 3. If no byte data at all, fall back to tool_call_heuristic.
  *
  * Returns null if the comparison is null or either bucket has 0 sessions
  * (insufficient data for a meaningful estimate).
@@ -302,7 +306,18 @@ export function estimateTokenSavings(
 
   // Prefer byte_counted when byte data is available
   const byteEstimate = estimateTokenSavingsByBytes(comparison);
-  if (byteEstimate) return byteEstimate;
+  if (byteEstimate) {
+    // Byte-counted produced a positive result — use it directly
+    if (byteEstimate.savings_per_session > 0) return byteEstimate;
+
+    // Byte-counted produced 0 savings (output bytes grew despite improvements).
+    // Check if tool calls dropped significantly — if so, use hybrid.
+    if (comparison.improvement.tool_calls_pct < -20) {
+      return estimateHybridSavings(comparison);
+    }
+    // Tool calls didn't drop enough — return the zero-savings byte estimate
+    return byteEstimate;
+  }
 
   // Fallback: heuristic for old sessions without byte data
   const beforeAvgTokens = round2(comparison.before.avg_tool_calls * TOKENS_PER_CALL);
@@ -313,6 +328,35 @@ export function estimateTokenSavings(
   return {
     method: 'tool_call_heuristic',
     tokens_per_call: TOKENS_PER_CALL,
+    before_avg_tokens: beforeAvgTokens,
+    after_avg_tokens: afterAvgTokens,
+    savings_per_session: savingsPerSession,
+    savings_pct: savingsPct,
+  };
+}
+
+/**
+ * Hybrid estimation: byte_counted showed 0 savings (output bytes grew),
+ * but tool calls dropped significantly. Estimate savings from the
+ * tool-call reduction using byte-derived tokens-per-call when possible,
+ * falling back to the constant TOKENS_PER_CALL.
+ */
+function estimateHybridSavings(comparison: BeforeAfterComparison): TokenEstimate {
+  const beforeTotalBytes = comparison.before.avg_input_bytes + comparison.before.avg_output_bytes;
+
+  // Derive tokens-per-call from before-bucket byte data when available
+  const tokensPerCall = comparison.before.avg_tool_calls > 0 && beforeTotalBytes > 0
+    ? Math.ceil(beforeTotalBytes / CHARS_PER_TOKEN / comparison.before.avg_tool_calls)
+    : TOKENS_PER_CALL;
+
+  const beforeAvgTokens = Math.round(comparison.before.avg_tool_calls * tokensPerCall);
+  const afterAvgTokens = Math.round(comparison.after.avg_tool_calls * tokensPerCall);
+  const savingsPerSession = Math.max(0, beforeAvgTokens - afterAvgTokens);
+  const savingsPct = beforeAvgTokens === 0 ? 0 : round2((savingsPerSession / beforeAvgTokens) * 100);
+
+  return {
+    method: 'hybrid',
+    tokens_per_call: tokensPerCall,
     before_avg_tokens: beforeAvgTokens,
     after_avg_tokens: afterAvgTokens,
     savings_per_session: savingsPerSession,

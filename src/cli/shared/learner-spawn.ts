@@ -15,6 +15,7 @@ export interface LearnerOptions {
   dryRun?: boolean;
   offline?: boolean;
   forceLlm?: boolean;
+  recompute?: boolean;
   limit?: number;
   json?: boolean;
 }
@@ -92,6 +93,9 @@ export async function runLearner(opts: LearnerOptions): Promise<LearnerResult> {
   if (opts.forceLlm) {
     env.AUTO_SOP_FORCE_LLM = '1';
     env.CLAUDE_SOP_FORCE_LLM = '1'; // backward compat
+  }
+  if (opts.recompute) {
+    env.AUTO_SOP_FORCE_RECOMPUTE = '1';
   }
 
   // Spawn

@@ -143,7 +143,7 @@ describe('MetricsState persistence', () => {
     state.total_tokens_saved = 1000;
     state.total_errors_prevented = 5;
 
-    await saveMetricsState(tmpHome, '/test/project', state);
+    saveMetricsState(tmpHome, '/test/project', state);
     const loaded = loadMetricsState(tmpHome, '/test/project');
 
     expect(loaded).not.toBeNull();

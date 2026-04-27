@@ -448,6 +448,63 @@ describe('estimateTokenSavings', () => {
     const result = estimateTokenSavings(comp)!;
     expect(result.method).toBe('tool_call_heuristic');
   });
+
+  it('uses hybrid when byte_counted yields 0 savings but tool calls dropped 50%+', () => {
+    // Scenario: output bytes grew (more verbose responses), but tool calls dropped significantly.
+    // Before: high input bytes, moderate output. After: same input, much higher output (grew).
+    // byte_counted would give 0 savings (after total bytes > before total bytes).
+    // But tool calls dropped from 40 → 10 (75% reduction, tool_calls_pct = -75).
+    const comp: BeforeAfterComparison = {
+      cutoff: '2026-04-22T00:00:00Z',
+      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 40, avg_bash_failures: 4, avg_input_bytes: 8000, avg_output_bytes: 8000 },
+      after: { sessions: 5, avg_duration_min: 6, avg_tool_calls: 10, avg_bash_failures: 1, avg_input_bytes: 10000, avg_output_bytes: 12000 },
+      improvement: { duration_pct: -40, tool_calls_pct: -75, bash_failures_pct: -75 },
+    };
+    const result = estimateTokenSavings(comp)!;
+
+    expect(result).not.toBeNull();
+    expect(result.method).toBe('hybrid');
+    expect(result.savings_per_session).toBeGreaterThan(0);
+    // Tokens per call derived from before-bucket byte data: (8000+8000)/4/40 = 100
+    expect(result.tokens_per_call).toBe(100);
+    // Before: 40 * 100 = 4000, After: 10 * 100 = 1000, Savings: 3000
+    expect(result.before_avg_tokens).toBe(4000);
+    expect(result.after_avg_tokens).toBe(1000);
+    expect(result.savings_per_session).toBe(3000);
+  });
+
+  it('returns byte_counted zero savings when tool calls did NOT drop enough', () => {
+    // Output bytes grew but tool calls only dropped 10% (not enough for hybrid)
+    const comp: BeforeAfterComparison = {
+      cutoff: '2026-04-22T00:00:00Z',
+      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 20, avg_bash_failures: 2, avg_input_bytes: 4000, avg_output_bytes: 4000 },
+      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: 18, avg_bash_failures: 1, avg_input_bytes: 6000, avg_output_bytes: 6000 },
+      improvement: { duration_pct: -20, tool_calls_pct: -10, bash_failures_pct: -50 },
+    };
+    const result = estimateTokenSavings(comp)!;
+
+    expect(result.method).toBe('byte_counted');
+    expect(result.savings_per_session).toBe(0);
+  });
+
+  it('hybrid falls back to TOKENS_PER_CALL constant when no byte data', () => {
+    // No byte data but tool calls dropped significantly (tool_calls_pct < -20)
+    // Since both byte sums are 0, estimateTokenSavingsByBytes returns null,
+    // so we go to tool_call_heuristic path directly. Hybrid only fires when
+    // byte_counted RETURNS but with 0 savings. Test that scenario with
+    // before having 0 bytes:
+    const comp: BeforeAfterComparison = {
+      cutoff: '2026-04-22T00:00:00Z',
+      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 30, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
+      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: 10, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
+      improvement: { duration_pct: -20, tool_calls_pct: -66.67, bash_failures_pct: -50 },
+    };
+    const result = estimateTokenSavings(comp)!;
+
+    // No byte data → estimateTokenSavingsByBytes returns null → falls to heuristic, not hybrid
+    expect(result.method).toBe('tool_call_heuristic');
+    expect(result.savings_per_session).toBeGreaterThan(0);
+  });
 });
 
 // ─── buildSessionSummaries byte counting ────────────────

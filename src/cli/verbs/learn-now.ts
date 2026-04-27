@@ -89,6 +89,7 @@ export function registerLearnNowVerb(program: Command): void {
     .option('--dry-run', 'show what would change without writing')
     .option('--offline', 'disable LLM mode (rule-based detectors only)')
     .option('--force-llm', 'force LLM analysis even if no new turns')
+    .option('--recompute', 'force full metrics recomputation from all turns')
     .option('--limit <n>', 'limit recap entries shown', (v: string) => parseInt(v, 10))
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
@@ -97,6 +98,7 @@ export function registerLearnNowVerb(program: Command): void {
         dryRun: opts.dryRun,
         offline: opts.offline,
         forceLlm: opts.forceLlm,
+        recompute: opts.recompute,
       });
 
       if (result.error === 'learner.cjs not found') {

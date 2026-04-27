@@ -5,7 +5,7 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-27T19:00:00Z · 439 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
+_Data as of: 2026-04-27T20:02:00Z · 473 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
 
 **Learnings** (25 active directives)
 
@@ -16,21 +16,6 @@ _Data as of: 2026-04-27T19:00:00Z · 439 turns analyzed · 9 agents: Explore, ap
   _(evidence: 3 sessions)_
 
 - **[error]** When implementing cryptographic protocols that span client and server repos, define shared constants or a protocol spec document that both sides reference, and add a cross-repo integration test that validates parameter agreement before merging.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Planner agents must only produce plan documents. Never allow a planner agent to make Edit calls to source or component files — delegate implementation to executor or architect agents.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Always use the dedicated Read, Glob, and Grep tools for file reading and searching. Never use cat, find, or grep via Bash when a built-in tool can accomplish the same task.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before issuing a Glob call, check if the same pattern and path combination was already called in the current session. Cache and reuse prior Glob results instead of re-querying.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before launching a code-improvement-analyzer agent, verify that the same review scope has not already been run in the current session to avoid duplicate reviews consuming resources.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Never make test or exploratory HTTP requests to arbitrary domains during a security audit. WebFetch should only be used when checking a specific security-relevant endpoint or fetching vulnerability reference data.
   _(evidence: 3 sessions)_
 
 - **[warning]** Security auditor agents must stay scoped to the codebase under review. Never explore unrelated directories like messaging inboxes or external agent communication channels during a security audit.
@@ -82,6 +67,21 @@ _Data as of: 2026-04-27T19:00:00Z · 439 turns analyzed · 9 agents: Explore, ap
   _(evidence: 3 sessions)_
 
 - **[warning]** Commander should trust Architect's test results within the same workflow dispatch. Only re-run tests if source files were modified after Architect's run, not as a routine verification step.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When a subagent (including jonathan-gsd-planner) performs file exploration or reading, it must use Read, Glob, and Grep tools instead of shell equivalents like cat, ls, find, or for-loop iteration over file paths. Enforce this in agent prompts.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When performing cross-project diagnostics that involve independent checks per project or per file, batch independent tool calls into parallel invocations rather than issuing them one at a time sequentially.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Never invoke grep or rg via Bash for code search. Always use the dedicated Grep tool, which has optimized permissions and output formatting. This applies to all agents including jonathan-gsd-planner.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Use the Read tool to inspect JSON state files rather than Bash with embedded Python or jq scripts. The Read tool provides structured output without shell overhead and keeps file contents visible for analysis.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When the jonathan-gsd-planner agent encounters an operational issue (e.g., metrics not updating, commands not producing expected results), it must document the symptom and recommend delegating to a debugger or executor agent rather than conducting the investigation itself.
   _(evidence: 3 sessions)_
 
 <!-- auto-sop:managed-section:end -->

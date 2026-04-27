@@ -1,7 +1,6 @@
-import { readFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { writeFileAtomic } from '../atomic/index.js';
 
 export interface DirectiveAttribution {
   directive_id: string;
@@ -17,7 +16,7 @@ export interface MetricsState {
   total_errors_prevented: number;
   total_time_saved_minutes: number;
   directive_count?: number;
-  estimation_method?: 'byte_counted' | 'tool_call_heuristic';
+  estimation_method?: 'byte_counted' | 'tool_call_heuristic' | 'hybrid';
   per_directive_attribution: DirectiveAttribution[];
   last_computed_at: string;
 }
@@ -64,18 +63,22 @@ export function loadMetricsState(homeDir: string, projectRoot: string): MetricsS
 }
 
 /**
- * Save metrics state atomically (temp + fsync + rename).
- * Creates directory structure if needed. File mode 0600.
+ * Save metrics state atomically via sync write + rename.
+ * Uses writeFileSync + renameSync (same pattern as appendSyncEntry)
+ * to survive bundler tree-shaking. Creates directory structure if needed.
+ * File mode 0600.
  */
-export async function saveMetricsState(
+export function saveMetricsState(
   homeDir: string,
   projectRoot: string,
   state: MetricsState,
-): Promise<void> {
-  const path = metricsStatePath(homeDir, projectRoot);
+): void {
+  const filePath = metricsStatePath(homeDir, projectRoot);
   const dir = join(homeDir, '.auto-sop', 'state', METRICS_DIR);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
-  await writeFileAtomic(path, JSON.stringify(state));
+  const tmp = filePath + '.tmp';
+  writeFileSync(tmp, JSON.stringify(state), { mode: 0o600 });
+  renameSync(tmp, filePath);
 }
 
 /**

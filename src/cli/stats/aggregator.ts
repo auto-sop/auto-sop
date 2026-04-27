@@ -27,7 +27,6 @@ import {
 } from '../../learner/session-metrics.js';
 import { readSyncEntries } from '../../learner/sync-queue.js';
 import { loadTurnsForDetection } from '../../learner/turn-loader.js';
-import { extractTokenSavings } from '../../metrics/token-extractor.js';
 import { countPreventedSince } from '../../metrics/error-prevention.js';
 import { calculateTimeSavings } from '../../metrics/time-savings.js';
 import { existsSync } from 'node:fs';
@@ -86,7 +85,7 @@ export interface ProjectStats {
   /** V32-P7: token savings percentage. Null if insufficient data. */
   token_savings_pct: number | null;
   /** V44: estimation method used for token savings. */
-  token_estimation_method: 'byte_counted' | 'tool_call_heuristic' | null;
+  token_estimation_method: 'byte_counted' | 'tool_call_heuristic' | 'hybrid' | null;
 }
 
 export interface AggregateStatsOptions {
@@ -255,10 +254,9 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   }
 
   // V32-P7: metrics from new metrics modules (supersedes old V32 token estimate)
-  const p7TokenSavings = extractTokenSavings(sessionComparison);
   const p7TimeSavings = calculateTimeSavings(sessionComparison);
-  // V44: byte-counted estimation (preferred when byte data available)
-  const byteCountedEstimate = estimateTokenSavings(sessionComparison);
+  // V44: unified token estimation (byte_counted → hybrid → tool_call_heuristic)
+  const tokenEstimate = estimateTokenSavings(sessionComparison);
 
   // V32: Sync queue size
   let syncQueueSize = 0;
@@ -290,12 +288,8 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     sync_queue_size: syncQueueSize,
     errors_prevented_this_month: errorsPreventedThisMonth,
     duration_time_saved_minutes: p7TimeSavings?.total_minutes_saved ?? null,
-    token_savings_total: byteCountedEstimate
-      ? byteCountedEstimate.savings_per_session
-      : (p7TokenSavings?.total_savings_per_session ?? null),
-    token_savings_pct: byteCountedEstimate
-      ? byteCountedEstimate.savings_pct
-      : (p7TokenSavings?.total_savings_pct ?? null),
-    token_estimation_method: byteCountedEstimate?.method ?? (p7TokenSavings ? 'tool_call_heuristic' : null),
+    token_savings_total: tokenEstimate?.savings_per_session ?? null,
+    token_savings_pct: tokenEstimate?.savings_pct ?? null,
+    token_estimation_method: tokenEstimate?.method ?? null,
   };
 }
