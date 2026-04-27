@@ -16,9 +16,13 @@ export interface MetricsState {
   total_tokens_saved: number;
   total_errors_prevented: number;
   total_time_saved_minutes: number;
+  directive_count?: number;
   per_directive_attribution: DirectiveAttribution[];
   last_computed_at: string;
 }
+
+/** Approximate tokens an LLM processes per minute of wall-clock time. */
+export const TOKENS_PER_MINUTE = 200;
 
 const METRICS_DIR = 'metrics';
 

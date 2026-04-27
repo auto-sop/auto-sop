@@ -69,7 +69,7 @@ import {
   sortProjectsByAge,
 } from '../license/enforcement.js';
 import { syncStats, type ProjectStats } from '../license/stats-sync.js';
-import { loadMetricsState } from '../metrics/state.js';
+import { loadMetricsState, saveMetricsState, TOKENS_PER_MINUTE, type MetricsState } from '../metrics/state.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -967,6 +967,27 @@ export async function runLearnerTick(
 
         // Use kept count from compaction (+1 for the entry we just appended before compaction)
         result.sync_entries_total = compactResult.kept;
+
+        // ── Persist MetricsState for stats sync ──
+        try {
+          const tokenEst = syncEntry.token_estimate;
+          const totalTokensSaved = tokenEst
+            ? Math.round(tokenEst.savings_per_session * (syncEntry.session_comparison?.after?.sessions ?? 0))
+            : 0;
+          const metricsState: MetricsState = {
+            v: 1,
+            project_slug: project.slug,
+            total_tokens_saved: totalTokensSaved,
+            total_errors_prevented: result.errors_prevented_total ?? 0,
+            total_time_saved_minutes: Math.round(totalTokensSaved / TOKENS_PER_MINUTE * 10) / 10,
+            directive_count: renderProposals.length,
+            per_directive_attribution: [],
+            last_computed_at: new Date().toISOString(),
+          };
+          await saveMetricsState(home, project.project_root, metricsState);
+        } catch {
+          // Non-blocking — metrics persist failure never aborts the tick
+        }
       } catch (err) {
         logError('sync_queue_failed', err, home);
       }
@@ -990,7 +1011,7 @@ export async function runLearnerTick(
   let shouldSync = true;
   try {
     const lastSync = Number(readFileSync(lastSyncPath, 'utf8').trim());
-    if (Date.now() - lastSync < ONE_HOUR_MS) {
+    if (!Number.isNaN(lastSync) && Date.now() - lastSync < ONE_HOUR_MS) {
       shouldSync = false;
     }
   } catch {
@@ -1009,7 +1030,7 @@ export async function runLearnerTick(
               total_tokens_saved: metrics.total_tokens_saved,
               total_errors_prevented: metrics.total_errors_prevented,
               total_time_saved_minutes: metrics.total_time_saved_minutes,
-              directive_count: metrics.per_directive_attribution.length,
+              directive_count: metrics.directive_count ?? metrics.per_directive_attribution.length,
             });
           }
         } catch {
@@ -1027,7 +1048,7 @@ export async function runLearnerTick(
           logError('stats_sync_failed', syncResult.error ?? 'unknown', home);
         } else {
           // Record successful sync timestamp for hourly throttle
-          try { writeFileSync(lastSyncPath, String(Date.now()), { mode: 0o600 }); } catch { /* ignore — first sync, no file yet */ }
+          try { writeFileSync(lastSyncPath, String(Date.now()), { mode: 0o600 }); } catch { /* Write failed — non-critical, next tick retries */ }
         }
       }
     } catch (err) {
