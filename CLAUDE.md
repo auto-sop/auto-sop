@@ -5,8 +5,7 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-26T20:58:00Z · 358 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
-_AI analysis: First batch analysis of 5 turns across 4 agent types. Main actionable finding: two agents use Bash for file operations instead of dedicated tools, and a planner agent is directly editing source code instead of producing plans. Positive patterns include thorough feature removal cleanup and comprehensive security auditing for local-first tools._
+_Data as of: 2026-04-26T22:29:00Z · 394 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
 
 **Learnings** (25 active directives)
 
@@ -14,21 +13,6 @@ _AI analysis: First batch analysis of 5 turns across 4 agent types. Main actiona
   _(evidence: 3 sessions)_
 
 - **[error]** For Next.js projects deployed on Vercel, never set framework to null or override buildCommand in vercel.json. Let Vercel auto-detect the framework. Remove any framework or buildCommand overrides that conflict with the actual project type.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Document the canonical install command for the auto-sop plugin in the project README or CLAUDE.md so agents do not resort to trial-and-error guessing across multiple invocation styles.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Always use the Read tool instead of Bash cat/head/tail for reading files, and Glob instead of Bash ls/find for listing or finding files. Reserve Bash for operations that have no dedicated tool equivalent.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Avoid empty agent turns that produce no tool calls or outputs. If the agent has nothing actionable to do in a turn, it should either complete its task or clearly state what it is blocked on.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Before guessing CLI flag syntax, read the relevant CLI verb source file to determine supported flags and their positions. Never trial-and-error flag combinations via repeated Bash calls.
-  _(evidence: 3 sessions)_
-
-- **[warning]** Always use the Glob tool for file pattern matching instead of running find commands via Bash. Glob is faster, safer, and provides better output formatting.
   _(evidence: 3 sessions)_
 
 - **[warning]** When an Explore agent needs to understand a file, read it in chunks of at least 100-200 lines rather than repeatedly reading 5-15 line fragments at scattered offsets. If the file is under 1000 lines, read it in full on the first pass.
@@ -80,9 +64,24 @@ _AI analysis: First batch analysis of 5 turns across 4 agent types. Main actiona
   _(evidence: 3 sessions)_
 
 - **[warning]** Planner agents must only produce plan documents. Never allow a planner agent to make Edit calls to source or component files — delegate implementation to executor or architect agents.
-  _(evidence: 136 sessions · [view turns](.auto-sop/captures/e0WQemixkBpe))_
+  _(evidence: 3 sessions)_
 
 - **[warning]** Always use the dedicated Read, Glob, and Grep tools for file reading and searching. Never use cat, find, or grep via Bash when a built-in tool can accomplish the same task.
-  _(evidence: 136 sessions · [view turns](.auto-sop/captures/V9McAqwrZVbE) [+1 more])_
+  _(evidence: 3 sessions)_
+
+- **[warning]** Before issuing a Glob call, check if the same pattern and path combination was already called in the current session. Cache and reuse prior Glob results instead of re-querying.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Before launching a code-improvement-analyzer agent, verify that the same review scope has not already been run in the current session to avoid duplicate reviews consuming resources.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Never make test or exploratory HTTP requests to arbitrary domains during a security audit. WebFetch should only be used when checking a specific security-relevant endpoint or fetching vulnerability reference data.
+  _(evidence: 3 sessions)_
+
+- **[warning]** Security auditor agents must stay scoped to the codebase under review. Never explore unrelated directories like messaging inboxes or external agent communication channels during a security audit.
+  _(evidence: 3 sessions)_
+
+- **[warning]** When dispatching independent quality gate reviews (security audit, code improvement analysis), run them in parallel rather than sequentially to reduce total pipeline duration.
+  _(evidence: 3 sessions)_
 
 <!-- auto-sop:managed-section:end -->

@@ -7,8 +7,8 @@ import {
   randomBytes,
 } from 'node:crypto';
 
-export const HKDF_SALT = 'auto-sop-bind8-v1';
-export const HKDF_INFO = 'request-encryption';
+export const HKDF_SALT = '';
+export const HKDF_INFO = 'asop-bind8';
 export const AES_KEY_BYTES = 32;
 export const NONCE_BYTES = 12;
 
@@ -49,12 +49,10 @@ export function encryptRequest(
   ]);
   const authTag = cipher.getAuthTag();
 
-  const rawEphemeralPub = ephemeralPublic
-    .export({ type: 'spki', format: 'der' })
-    .subarray(-32);
+  const fullSpkiDer = ephemeralPublic.export({ type: 'spki', format: 'der' });
 
   return {
-    ephemeral_public: rawEphemeralPub.toString('hex'),
+    ephemeral_public: fullSpkiDer.toString('hex'),
     nonce: nonce.toString('hex'),
     ciphertext: Buffer.concat([encrypted, authTag]).toString('hex'),
   };

@@ -124,7 +124,7 @@ describe('BIND-8 encrypted validate request', () => {
 
     const [, init] = mockFetch.mock.calls[0]!;
     const body = JSON.parse(init.body as string);
-    expect(body.ephemeral_public).toMatch(/^[0-9a-f]{64}$/);
+    expect(body.ephemeral_public).toMatch(/^[0-9a-f]{88}$/);
     expect(body.nonce).toMatch(/^[0-9a-f]{24}$/);
     expect(body.ciphertext).toMatch(/^[0-9a-f]+$/);
   });

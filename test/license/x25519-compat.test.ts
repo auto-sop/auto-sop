@@ -7,7 +7,7 @@ import {
 } from 'node:crypto';
 import { installNoNetworkGuards, restoreNetworkGuards } from '../setup/no-network.js';
 import { encryptRequest, HKDF_SALT, HKDF_INFO, AES_KEY_BYTES } from '../../src/license/x25519-encrypt.js';
-import { X25519_SPKI_PREFIX, serverDecrypt } from '../helpers/x25519-test-utils.js';
+import { serverDecrypt } from '../helpers/x25519-test-utils.js';
 import { createPublicKey } from 'node:crypto';
 
 beforeAll(() => installNoNetworkGuards());
@@ -55,7 +55,7 @@ describe('X25519 CLI-to-server compatibility', () => {
 
   it('tampered ephemeral key prevents decryption', () => {
     const { ephemeral_public, nonce, ciphertext } = encryptRequest('secret', serverPubB64);
-    const badKey = 'ff'.repeat(32);
+    const badKey = 'ff'.repeat(44); // full SPKI DER length (44 bytes = 88 hex)
     expect(() => serverDecrypt(badKey, nonce, ciphertext, serverPrivate)).toThrow();
   });
 
@@ -64,9 +64,9 @@ describe('X25519 CLI-to-server compatibility', () => {
     const { ephemeral_public, nonce, ciphertext } = encryptRequest(plaintext, serverPubB64);
 
     // Reconstruct shared secret manually to verify HKDF params
-    const rawEphemeral = Buffer.from(ephemeral_public, 'hex');
+    const ephDer = Buffer.from(ephemeral_public, 'hex');
     const ephPub = createPublicKey({
-      key: Buffer.concat([X25519_SPKI_PREFIX, rawEphemeral]),
+      key: ephDer,
       format: 'der',
       type: 'spki',
     });

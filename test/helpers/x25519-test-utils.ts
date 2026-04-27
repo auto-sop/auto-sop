@@ -23,9 +23,9 @@ export function serverDecrypt(
   ciphertextHex: string,
   serverPrivateKey: KeyObject,
 ): string {
-  const rawEphemeral = Buffer.from(ephemeralPublicHex, 'hex');
+  const ephemeralDer = Buffer.from(ephemeralPublicHex, 'hex');
   const ephemeralPublic = createPublicKey({
-    key: Buffer.concat([X25519_SPKI_PREFIX, rawEphemeral]),
+    key: ephemeralDer,
     format: 'der',
     type: 'spki',
   });

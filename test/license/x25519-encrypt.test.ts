@@ -38,7 +38,7 @@ describe('encryptRequest', () => {
 
   it('output contains hex-encoded ephemeral_public, nonce, ciphertext', () => {
     const result = encryptRequest('test', b64);
-    expect(result.ephemeral_public).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.ephemeral_public).toMatch(/^[0-9a-f]{88}$/);
     expect(result.nonce).toMatch(/^[0-9a-f]{24}$/);
     expect(result.ciphertext).toMatch(/^[0-9a-f]+$/);
     // ciphertext must be at least 32 hex chars (16 bytes auth tag minimum)
