@@ -6,7 +6,7 @@
  * ~/.auto-sop/logs/errors.log as one-line JSON, then process exits 0.
  * No non-zero exit path anywhere.
  */
-import { existsSync, mkdirSync, appendFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, appendFileSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { lockSync, unlockSync, checkSync } from 'proper-lockfile';
@@ -68,6 +68,8 @@ import {
   shouldProjectRun,
   sortProjectsByAge,
 } from '../license/enforcement.js';
+import { syncStats, type ProjectStats } from '../license/stats-sync.js';
+import { loadMetricsState } from '../metrics/state.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -319,6 +321,8 @@ export async function main(): Promise<void> {
     // Captures continue regardless; only the learner is blocked.
     // Called ONCE; both 'allowed' and 'maxProjects' are extracted from the single result.
     let maxProjects = Infinity;
+    let licenseKey: string | undefined;
+    let machineId: string | undefined;
     try {
       const enforcement = await checkLicenseBeforeTick(home);
       if (!enforcement.allowed) {
@@ -326,6 +330,8 @@ export async function main(): Promise<void> {
         process.exit(0);
       }
       if (enforcement.maxProjects !== undefined) maxProjects = enforcement.maxProjects;
+      licenseKey = enforcement.licenseKey;
+      machineId = enforcement.machineId;
     } catch (err) {
       // Fail-open: if license check itself errors, allow the tick with unlimited projects
       logError('license_check_error', err, home);
@@ -339,7 +345,7 @@ export async function main(): Promise<void> {
     }
 
     try {
-      await runLearnerTick(home, tickId, tickStart, ac.signal, maxProjects);
+      await runLearnerTick(home, tickId, tickStart, ac.signal, maxProjects, licenseKey, machineId);
     } finally {
       releaseLock();
     }
@@ -358,6 +364,8 @@ export async function runLearnerTick(
   tickStart: number,
   signal: AbortSignal,
   maxProjects: number = Infinity,
+  licenseKey?: string,
+  machineId?: string,
 ): Promise<void> {
   const registry = readRegistry(home);
   const now = new Date().toISOString();
@@ -832,7 +840,7 @@ export async function runLearnerTick(
       // V30: Directive-fire compaction + recap fields
       // Wrapped in try/catch — fire compaction failure must NEVER abort the tick.
       // V32: also compute fires_by_category for sync queue entry
-      let tickFiresByCategory = { error_preventing: 0, efficiency: 0, best_practice: 0 };
+      const tickFiresByCategory = { error_preventing: 0, efficiency: 0, best_practice: 0 };
       try {
         const compacted = compactFires(stateDir, 90);
         if (compacted > 0) {
@@ -972,6 +980,58 @@ export async function runLearnerTick(
       errors.push(msg);
       logError('learner_project_error', msg, home);
       projects_skipped++;
+    }
+  }
+
+  // ── Stats sync (fail-open: never aborts tick) ──────────────
+  // Client-side hourly throttle: skip if last successful sync was < 1 hour ago.
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  const lastSyncPath = join(home, '.auto-sop', '.last-stats-sync');
+  let shouldSync = true;
+  try {
+    const lastSync = Number(readFileSync(lastSyncPath, 'utf8').trim());
+    if (Date.now() - lastSync < ONE_HOUR_MS) {
+      shouldSync = false;
+    }
+  } catch {
+    // No file or unreadable = first sync, proceed
+  }
+
+  if (shouldSync) {
+    try {
+      const allProjectStats: ProjectStats[] = [];
+      for (const project of sortedProjects) {
+        try {
+          const metrics = loadMetricsState(home, project.project_root);
+          if (metrics !== null) {
+            allProjectStats.push({
+              project_slug: metrics.project_slug,
+              total_tokens_saved: metrics.total_tokens_saved,
+              total_errors_prevented: metrics.total_errors_prevented,
+              total_time_saved_minutes: metrics.total_time_saved_minutes,
+              directive_count: metrics.per_directive_attribution.length,
+            });
+          }
+        } catch {
+          // Skip individual project metrics on error
+        }
+      }
+
+      if (allProjectStats.length > 0 && licenseKey && machineId) {
+        const syncResult = await syncStats({
+          key: licenseKey,
+          machineId,
+          projects: allProjectStats,
+        });
+        if (!syncResult.success) {
+          logError('stats_sync_failed', syncResult.error ?? 'unknown', home);
+        } else {
+          // Record successful sync timestamp for hourly throttle
+          try { writeFileSync(lastSyncPath, String(Date.now()), { mode: 0o600 }); } catch { /* ignore — first sync, no file yet */ }
+        }
+      }
+    } catch (err) {
+      logError('stats_sync_error', err, home);
     }
   }
 

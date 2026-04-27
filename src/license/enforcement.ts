@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { readSecrets } from './storage.js';
 import { readRegistry, type ProjectRegistryEntry } from '../learner/project-registry.js';
-import { readBindingFile, type BindingFile } from './binding.js';
+import { readBindingFile } from './binding.js';
 import { validateLicense, type ValidateResult } from './server-client.js';
 import { getMachineId } from '../config/machine-id.js';
 import { classifyLicense } from '../cli/prompt.js';
@@ -14,6 +14,10 @@ export interface EnforcementResult {
   reason?: string;
   plan?: string;
   maxProjects?: number;
+  /** License key from secrets — threaded to avoid re-reading secrets.enc */
+  licenseKey?: string;
+  /** Machine ID — threaded to avoid re-computing */
+  machineId?: string;
 }
 
 export async function checkLicenseBeforeTick(home: string): Promise<EnforcementResult> {
@@ -25,7 +29,7 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
 
   const licenseKey = secrets.license.key;
   if (classifyLicense(licenseKey) === 'dev') {
-    return { allowed: true, plan: 'dev' };
+    return { allowed: true, plan: 'dev', licenseKey };
   }
 
   const registry = readRegistry(home);
@@ -71,7 +75,7 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
       cliVersion,
     });
   } catch {
-    return { allowed: true, plan: 'unknown' };
+    return { allowed: true, plan: 'unknown', licenseKey, machineId };
   }
 
   if (!result.success) {
@@ -93,7 +97,7 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
         reason: result.message ?? 'CLI integrity check failed. Please reinstall: npm install -g auto-sop',
       };
     }
-    return { allowed: true, plan: 'unknown' };
+    return { allowed: true, plan: 'unknown', licenseKey, machineId };
   }
 
   const payload = result.payload;
@@ -110,7 +114,7 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
     };
   }
 
-  return { allowed: true, plan, maxProjects };
+  return { allowed: true, plan, maxProjects, licenseKey, machineId };
 }
 
 export function shouldProjectRun(projectIndex: number, maxProjects: number): boolean {
