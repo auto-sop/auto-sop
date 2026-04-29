@@ -32,6 +32,8 @@ import { countPreventedSince } from '../../metrics/error-prevention.js';
 import { calculateTimeSavings } from '../../metrics/time-savings.js';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
+import { loadMetricsState } from '../../metrics/state.js';
 
 // ─── Constants ───────────────────────────────────────────
 
@@ -95,6 +97,8 @@ export interface ProjectStats {
     rule_text_preview: string;
     fire_count: number;
   }>;
+  /** V48: short ID → first ~10 words of rule_text (from MetricsState). */
+  directive_previews: Record<string, string>;
 }
 
 export interface AggregateStatsOptions {
@@ -103,6 +107,8 @@ export interface AggregateStatsOptions {
   projectSlug: string;
   since?: string;
   minutesPerError?: number;
+  /** Home directory for MetricsState lookup. Defaults to os.homedir(). */
+  homeDir?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -318,6 +324,18 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   }
   confirmedFiresByDirective.sort((a, b) => b.fire_count - a.fire_count);
 
+  // V48: Load directive previews from persisted MetricsState
+  let directivePreviews: Record<string, string> = {};
+  try {
+    const home = opts.homeDir ?? homedir();
+    const metrics = loadMetricsState(home, opts.projectRoot);
+    if (metrics?.directive_previews !== undefined) {
+      directivePreviews = metrics.directive_previews;
+    }
+  } catch {
+    // graceful degradation — no previews yet
+  }
+
   return {
     project_path: opts.projectRoot,
     project_slug: opts.projectSlug,
@@ -340,5 +358,6 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     token_estimation_method: tokenEstimate?.method ?? null,
     confirmed_fires_total: confirmedFiresTotal,
     confirmed_fires_by_directive: confirmedFiresByDirective,
+    directive_previews: directivePreviews,
   };
 }

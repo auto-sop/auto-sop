@@ -25,6 +25,8 @@ export interface MetricsState {
   confirmed_fires_by_directive?: Record<string, number>;
   /** V46: list of active directive short IDs (e.g. ['llm-7ced', 'det-0000']). */
   directive_ids?: string[];
+  /** V48: short ID → first ~10 words of rule_text (markdown-stripped). */
+  directive_previews?: Record<string, string>;
 }
 
 /** Approximate tokens an LLM processes per minute of wall-clock time. */

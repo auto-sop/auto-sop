@@ -233,6 +233,42 @@ export function shortDirectiveId(proposalId: string): string {
   return proposalId.slice(0, 8);
 }
 
+/** Max words rendered in a directive preview. */
+export const PREVIEW_WORD_LIMIT = 10;
+
+/**
+ * Strip markdown formatting (bold markers, bracket tags) from rule text.
+ * Returns plain text suitable for a short preview.
+ */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*/g, '')       // bold markers
+    .replace(/\[([^\]]*)\]/g, '$1') // [bracket tags] → inner text
+    .replace(/`([^`]*)`/g, '$1')    // inline code → inner text
+    .trim();
+}
+
+/**
+ * Build a map of short directive ID → first 10 words of rule_text.
+ * Strips markdown formatting and appends '...' when truncated.
+ *
+ * V48: Used by stats-sync to send human-readable previews alongside
+ * directive IDs so the dashboard can display what each directive does.
+ */
+export function extractDirectivePreviews(
+  proposals: ReadonlyArray<{ id: string; rule_text: string }>,
+): Record<string, string> {
+  const previews: Record<string, string> = {};
+  for (const p of proposals) {
+    const plain = stripMarkdown(p.rule_text);
+    const words = plain.split(/\s+/).filter(Boolean);
+    const truncated = words.length > PREVIEW_WORD_LIMIT;
+    const preview = words.slice(0, PREVIEW_WORD_LIMIT).join(' ');
+    previews[shortDirectiveId(p.id)] = truncated ? preview + '...' : preview;
+  }
+  return previews;
+}
+
 /**
  * Format a single proposal as a markdown bullet.
  * - First line: severity tag + rule_text + [sop:ID] directive ID tag

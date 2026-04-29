@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os';
 import { aggregateStats, type ProjectStats } from '../../../src/cli/stats/aggregator.js';
 import type { DirectiveFire } from '../../../src/capture/writer/directive-fire.js';
 import type { DirectiveHistory } from '../../../src/managed-section/directive-history.js';
+import { saveMetricsState, emptyMetricsState } from '../../../src/metrics/state.js';
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -438,5 +439,91 @@ describe('aggregateStats', () => {
     // Same fire count → alphabetical by directive_id
     expect(stats.fires_by_directive[0]!.directive_id).toBe('det-alpha');
     expect(stats.fires_by_directive[1]!.directive_id).toBe('det-zebra');
+  });
+
+  // ─── V48: directive_previews from MetricsState ──────────
+
+  describe('V48: directive_previews', () => {
+    let tmpHome: string;
+
+    beforeEach(() => {
+      tmpHome = mkdtempSync(join(tmpdir(), 'auto-sop-home-'));
+    });
+
+    afterEach(() => {
+      rmSync(tmpHome, { recursive: true, force: true });
+    });
+
+    it('populates directive_previews from persisted MetricsState', () => {
+      writeHistory(root, makeHistory({ 'det-a': { rule_text: 'Some rule.' } }));
+      const state = emptyMetricsState('test-project');
+      state.directive_previews = {
+        'llm-7ced': 'Never add comments that describe WHAT a function...',
+        'det-0000': 'Always validate input before processing external data from...',
+      };
+      saveMetricsState(tmpHome, root, state);
+
+      const stats = aggregateStats({
+        stateDir: stateDir(root),
+        projectRoot: root,
+        projectSlug: 'test-project',
+        since: '2026-04-01T00:00:00.000Z',
+        homeDir: tmpHome,
+      });
+
+      expect(stats.directive_previews).toEqual({
+        'llm-7ced': 'Never add comments that describe WHAT a function...',
+        'det-0000': 'Always validate input before processing external data from...',
+      });
+    });
+
+    it('returns empty directive_previews when MetricsState has no previews', () => {
+      writeHistory(root, makeHistory({ 'det-a': { rule_text: 'Some rule.' } }));
+      const state = emptyMetricsState('test-project');
+      // No directive_previews set (undefined)
+      saveMetricsState(tmpHome, root, state);
+
+      const stats = aggregateStats({
+        stateDir: stateDir(root),
+        projectRoot: root,
+        projectSlug: 'test-project',
+        since: '2026-04-01T00:00:00.000Z',
+        homeDir: tmpHome,
+      });
+
+      expect(stats.directive_previews).toEqual({});
+    });
+
+    it('returns empty directive_previews when no MetricsState file exists', () => {
+      writeHistory(root, makeHistory({ 'det-a': { rule_text: 'Some rule.' } }));
+      // No MetricsState saved — tmpHome has no state directory
+
+      const stats = aggregateStats({
+        stateDir: stateDir(root),
+        projectRoot: root,
+        projectSlug: 'test-project',
+        since: '2026-04-01T00:00:00.000Z',
+        homeDir: tmpHome,
+      });
+
+      expect(stats.directive_previews).toEqual({});
+    });
+
+    it('returns empty directive_previews when directive_previews is empty object', () => {
+      writeHistory(root, makeHistory({ 'det-a': { rule_text: 'Some rule.' } }));
+      const state = emptyMetricsState('test-project');
+      state.directive_previews = {};
+      saveMetricsState(tmpHome, root, state);
+
+      const stats = aggregateStats({
+        stateDir: stateDir(root),
+        projectRoot: root,
+        projectSlug: 'test-project',
+        since: '2026-04-01T00:00:00.000Z',
+        homeDir: tmpHome,
+      });
+
+      expect(stats.directive_previews).toEqual({});
+    });
   });
 });

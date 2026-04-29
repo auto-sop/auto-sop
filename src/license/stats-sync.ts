@@ -21,6 +21,8 @@ export interface ProjectStats {
   confirmed_fires_by_directive?: Record<string, number>;
   /** V46: list of active directive short IDs. */
   directive_ids?: string[];
+  /** V48: short ID → first ~10 words of rule_text (markdown-stripped). */
+  directive_previews?: Record<string, string>;
   /** V46: estimation method used for token savings. */
   estimation_method?: string;
 }

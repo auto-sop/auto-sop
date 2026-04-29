@@ -259,6 +259,28 @@ export function registerStatsVerb(program: Command): void {
           process.stdout.write(pc.dim('No self-reported fires yet.') + '\n\n');
         }
 
+        // V48: Active Directives with previews + hit counts
+        const previews = stats.directive_previews;
+        if (Object.keys(previews).length > 0) {
+          process.stdout.write(pc.bold('Active Directives:') + '\n');
+          // Build confirmed-fire lookup for hit counts
+          const hitsMap = new Map<string, number>();
+          for (const entry of stats.confirmed_fires_by_directive) {
+            hitsMap.set(entry.directive_id, entry.fire_count);
+          }
+          // Sort by hit count descending, then ID ascending
+          const sortedIds = Object.keys(previews).sort((a, b) => {
+            const diff = (hitsMap.get(b) ?? 0) - (hitsMap.get(a) ?? 0);
+            return diff !== 0 ? diff : a.localeCompare(b);
+          });
+          for (const id of sortedIds) {
+            const hits = hitsMap.get(id) ?? 0;
+            const hitsLabel = hits > 0 ? `${hits} ${firePlural(hits)}` : 'no hits';
+            process.stdout.write(`  ${id.padEnd(10)} (${hitsLabel}): ${previews[id]}\n`);
+          }
+          process.stdout.write('\n');
+        }
+
         // Summary metrics
         const timeSaved = formatTimeSaved(stats.estimated_minutes_saved);
         process.stdout.write(

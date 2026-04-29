@@ -229,4 +229,47 @@ describe('syncStats', () => {
 
     expect(result).toEqual({ success: false, error: 'http_418' });
   });
+
+  it('includes directive_previews in payload when provided (V48)', async () => {
+    mockFetch.mockResolvedValue(mockFetchResponse(200));
+
+    const optsWithPreviews: SyncStatsOpts = {
+      ...OPTS,
+      projects: [
+        {
+          project_slug: 'my-project',
+          total_tokens_saved: 1500,
+          total_errors_prevented: 12,
+          total_time_saved_minutes: 45,
+          directive_count: 8,
+          directive_ids: ['llm-7ced', 'llm-abcd'],
+          directive_previews: {
+            'llm-7ced': 'Never add comments that describe WHAT a function...',
+            'llm-abcd': 'Always use the dedicated Read tool to...',
+          },
+        },
+      ],
+    };
+
+    const result = await syncStats(optsWithPreviews);
+
+    expect(result.success).toBe(true);
+    const [plaintext] = mockedEncryptRequest.mock.calls[0]!;
+    const parsed = JSON.parse(plaintext);
+    expect(parsed.projects[0].directive_previews).toEqual({
+      'llm-7ced': 'Never add comments that describe WHAT a function...',
+      'llm-abcd': 'Always use the dedicated Read tool to...',
+    });
+  });
+
+  it('omits directive_previews from payload when not provided (V48)', async () => {
+    mockFetch.mockResolvedValue(mockFetchResponse(200));
+
+    const result = await syncStats(OPTS);
+
+    expect(result.success).toBe(true);
+    const [plaintext] = mockedEncryptRequest.mock.calls[0]!;
+    const parsed = JSON.parse(plaintext);
+    expect(parsed.projects[0].directive_previews).toBeUndefined();
+  });
 });

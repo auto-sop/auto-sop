@@ -23,7 +23,7 @@ import {
   loadHistory,
   type DirectiveHistoryEntry,
 } from '../managed-section/directive-history.js';
-import { buildDirectiveBody, shortDirectiveId } from './directive-builder.js';
+import { buildDirectiveBody, shortDirectiveId, extractDirectivePreviews } from './directive-builder.js';
 import { loadTurnsForDetection } from './turn-loader.js';
 import {
   detectors,
@@ -1000,6 +1000,8 @@ export async function runLearnerTick(
             : 0;
           // V46: Build directive_ids from active render proposals
           const directiveIds = renderProposals.map((p) => shortDirectiveId(p.id));
+          // V48: Build directive previews (short ID → first ~10 words)
+          const directivePreviews = extractDirectivePreviews(renderProposals);
 
           const metricsState: MetricsState = {
             v: 1,
@@ -1017,6 +1019,8 @@ export async function runLearnerTick(
             confirmed_fires_total: confirmedFiresTotal,
             confirmed_fires_by_directive: confirmedFiresByDirective,
             directive_ids: directiveIds,
+            // V48: directive previews for dashboard display
+            directive_previews: directivePreviews,
           };
           saveMetricsState(home, project.project_root, metricsState);
         } catch {
@@ -1074,6 +1078,10 @@ export async function runLearnerTick(
                 : {}),
               ...(metrics.directive_ids !== undefined
                 ? { directive_ids: metrics.directive_ids }
+                : {}),
+              // V48: directive previews
+              ...(metrics.directive_previews !== undefined
+                ? { directive_previews: metrics.directive_previews }
                 : {}),
               ...(metrics.estimation_method !== undefined
                 ? { estimation_method: metrics.estimation_method }

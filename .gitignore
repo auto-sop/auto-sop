@@ -7,3 +7,4 @@ coverage
 *.tgz
 homebrew-tap/
 .auto-sop/
+tmp-test-*.ts
