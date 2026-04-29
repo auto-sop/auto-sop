@@ -1,7 +1,7 @@
 # Roadmap: auto-sop
 
 **Created:** 2026-04-13
-**Last updated:** 2026-04-27
+**Last updated:** 2026-04-28
 **Depth:** standard
 **Phases:** 10 (restructured: Metrics before SaaS, publish after both)
 **Coverage:** 61/61 v1 requirements mapped
@@ -725,21 +725,25 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 
 **In progress:**
 1. **v35** 🔄 (launch blocker, **site**) — Stripe billing: Checkout, Customer Portal, webhooks, upgrade UI, trial management. Plan in `auto-sop-site/plans/queued/`. **Stripe test keys configured, products + prices ($12/mo, $99/yr) created.**
+2. **v46** 🔄 (**CLI**) — Directive transparency: self-reported fires via `[sop:applied:ID]` markers, capture writer parsing, cloud sync of directive IDs + confirmed fires.
 
-**Queued — site plans (auto-sop-site, execute after v35):**
-2. **v43** ⏳ (**site**) — Dashboard per-project stats + gains charts: Recharts time-series (tokens saved, errors prevented, directives), period filter (24h/7d/30d/all), per-project detail page at `/dashboard/projects/[slug]`, real stats on project cards (replacing fake averages). Plan in `auto-sop-site/plans/queued/`.
+**Done (recently completed):**
+- ~~v43~~ ✅ Dashboard per-project stats + gains charts (auto-sop-site, PR #5)
+- ~~v44~~ ✅ Deterministic metrics — real byte-counted token estimation (CLI, `eff3c5b`)
+- ~~v45~~ ✅ Metrics persist fix — treeshake:false for learner bundle + recompute + hybrid savings (CLI, `545a5b8`)
+- ~~v47~~ ✅ Directive hits dashboard — DirectiveHits component, stats-history API, migration 007 (auto-sop-site, PR #6)
 
-**Queued — CLI plans (auto-sop, independent of site):**
-3. **v44** ⏳ (**CLI**) — Deterministic metrics: Replace `TOKENS_PER_CALL = 200` magic number with real byte-counted token estimation from captured tool call input/output sizes. Add `total_input_bytes` + `total_output_bytes` to SessionSummary. Method field: `byte_counted` vs `tool_call_heuristic` (fallback for old data). `auto-sop stats` labels measurement quality per metric. Plan in `auto-sop/plans/queued/`.
+**Queued:**
+3. **v48** ⏳ (**CLI + site**) — Directive previews: CLI sends first 10 words per directive via stats-sync. Site displays directive ID + preview + hit count on directives page. Supabase migration 008.
 
 **Future (not yet planned):**
-4. **v45** — Full stats payload + ELv2 license: (a) expand CLI stats to send EVERYTHING to server (fires by category, top firing directives, session comparison, token savings), (b) replace Apache 2.0 LICENSE with Elastic License 2.0 (BIND-6).
-5. **v46** — Landing page aggregate stats: Public-facing anonymous numbers from `SUM(asop_stats_summary)`. Hero section: "auto-sop users prevented X errors this month."
-6. **v47** — CLI token consumption transparency: `auto-sop stats --self` showing own token cost per 24h.
-7. **v48** — Dashboard project toggle: Free=1 active project, toggle UI, upgrade prompt → Stripe Checkout.
+4. **v49** — Landing page aggregate stats: Public-facing anonymous numbers from `SUM(asop_stats_summary)`. Hero section: "auto-sop users prevented X errors this month."
+5. **v50** — CLI token consumption transparency: `auto-sop stats --self` showing own token cost per 24h.
+6. **v51** — Dashboard project toggle: Free=1 active project, toggle UI, upgrade prompt → Stripe Checkout.
+7. **BUG-METRICS-1** — Time-saved formula calibration: cap at wall-clock, confidence bands, TOKENS_PER_MINUTE adjustment.
 
 **Phase 9 (launch prep):**
-8. **v49** — Launch prep — npm v0.1.0 publish with provenance, real metrics on landing page, demo GIF/video (M4)
+8. **v52** — Launch prep — npm v0.1.0 publish with provenance, real metrics on landing page, demo GIF/video (M4)
 9. **Homebrew tap** — already staged (v22), activate on launch day
 10. **Phase 9 viral** (post-launch) — referral system (R1-R6), Product Hunt prep, CLAUDE.md badge program
 
@@ -790,6 +794,12 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | v40-fix | `d421902` | BIND-8 hotfix: align HKDF params + SPKI DER format with server — E2E verified |
 | v41 | `cf737d2` | Encrypted stats sync — X25519 hourly CLI→server upload, stats tables, dashboard real metrics (both repos) |
 | v42 | — | MetricsState persist fix — delivered inside v41, `saveMetricsState()` wired into tick |
+| v43 | — | Dashboard per-project stats + gains charts + period filter (`auto-sop-site/`, PR #5) |
+| v44 | `eff3c5b` | Deterministic token counting — real bytes replace 200/call heuristic |
+| v45 | `545a5b8` | Metrics persist survives tree-shake + recompute flag + hybrid savings. Root cause: tsup treeshake stripped saveMetricsState from bundle (try/catch with empty catch = dead code). Fix: `treeshake: false` for learner bundle. |
+| v46 | 🔄 | Directive transparency — self-reported fires via `[sop:applied:ID]` markers, capture writer parsing, cloud sync of directive IDs + confirmed fires (auto-sop, in progress) |
+| v47 | — | Directive hits dashboard — DirectiveHits component, DirectiveSummary card, confirmed_fires_total in stats-history API, migration 007 (`auto-sop-site/`, PR #6) |
+| v48 | ⏳ | Directive previews — CLI sends first 10 words per directive via stats-sync (auto-sop, queued) + site displays ID/preview/hits on directives page (auto-sop-site, queued) |
 
 ## Remaining Backlog
 
@@ -886,11 +896,15 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 ### Stats sync & transparency (v41-v47) — Phase 8 STATS-series
 - ~~**STATS-1** Encrypted stats sync (v41)~~ ✅ Done — CLI sends project-level totals hourly via X25519 encrypted POST. Server stores in `asop_stats_log` (append) + `asop_stats_summary` (upsert). Dashboard reads real aggregated stats. E2E verified 2026-04-27.
 - ~~**STATS-1b** MetricsState persist (v42)~~ ✅ Done — `saveMetricsState()` wired into tick. Stats sync fires every hour. Delivered by v41 ARCHITECT.
-- **STATS-1c** Deterministic metrics (v44, **CLI**) — Replace `TOKENS_PER_CALL = 200` heuristic with real byte-counted estimation from captured tool call input/output. `SessionSummary` gains `total_input_bytes` + `total_output_bytes`. Token estimation method: `byte_counted` (1 token ≈ 4 chars) with `tool_call_heuristic` fallback for old data. `auto-sop stats` labels measurement quality per metric.
-- **STATS-1d** Dashboard per-project stats + charts (v43, **site**) — Recharts AreaChart with period filter (24h/7d/30d/all). Per-project detail page at `/dashboard/projects/[slug]`. Real stats on project cards. Account-level trend charts on dashboard home.
-- **STATS-2** Full stats payload (v45) — Expand CLI stats to send EVERYTHING: fires by category, top firing directives, session comparison, per-session token savings. Server stores in `asop_stats_log.projects_data` JSONB.
-- **STATS-3** Landing page aggregate stats (v46) — Public API endpoint (`GET /api/v1/public/stats`), anonymous platform-wide aggregates, hero section numbers.
-- **STATS-4** CLI token consumption transparency (v47) — `auto-sop stats --self`, own token cost per 24h.
+- ~~**STATS-1c** Deterministic metrics (v44)~~ ✅ Done — Real byte-counted token estimation replaces 200/call heuristic. `byte_counted` primary method, `tool_call_heuristic` fallback, hybrid when byte savings = 0 but tool calls dropped >20%.
+- ~~**STATS-1d** Dashboard per-project stats + charts (v43)~~ ✅ Done — Recharts AreaChart, period filter, per-project detail page, real stats on project cards (auto-sop-site PR #5).
+- ~~**STATS-1e** Metrics persist tree-shake fix (v45)~~ ✅ Done — `treeshake: false` for learner bundle. Root cause: tsup tree-shaker stripped `saveMetricsState`/`loadMetricsState` because call sites were in try/catch with empty catch blocks (treated as side-effect-free dead code).
+- **STATS-2** Directive transparency (v46, **CLI**, 🔄 in progress) — Self-reported fires via `[sop:applied:ID]` markers in Claude output, capture writer parsing, cloud sync of `directive_ids` + `confirmed_fires_by_directive` + `estimation_method`.
+- ~~**STATS-2b** Directive hits dashboard (v47)~~ ✅ Done — DirectiveHits component, DirectiveSummary card, confirmed_fires_total in stats-history API, migration 007 (auto-sop-site PR #6).
+- **STATS-2c** Directive previews (v48, **CLI + site**, ⏳ queued) — CLI extracts first 10 words of each directive rule_text, sends as `directive_previews` map in stats-sync. Site accepts, stores in new `directive_previews` JSONB column (migration 008), displays on directives page with hit counts.
+- **STATS-3** Landing page aggregate stats (v49) — Public API endpoint (`GET /api/v1/public/stats`), anonymous platform-wide aggregates, hero section numbers.
+- **STATS-4** CLI token consumption transparency (v50) — `auto-sop stats --self`, own token cost per 24h.
+- **STATS-5** Time-saved formula calibration (BUG-METRICS-1) — Current `TOKENS_PER_MINUTE = 200` produces inflated estimates (68h "saved" in 25h wall-clock). Needs: confidence bands, wall-clock cap, sample size weighting, task complexity normalization.
 
 ### Metrics & Social Proof (v30-v32) — Phase 7 M-series
 - **M1** Directive-fire detection — UserPromptSubmit hook checks if active directives are relevant to current prompt. Heuristic match (keyword) for v31, LLM-based for v33
@@ -901,6 +915,7 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **M6** `auto-sop stats` CLI verb — local-only metric display, free tier (no cloud needed). Shows per-project savings
 
 ### Known bugs (fix when convenient)
+- **BUG-METRICS-1** **Time-saved formula is inflated.** `total_time_saved_minutes = total_tokens_saved / TOKENS_PER_MINUTE` where `TOKENS_PER_MINUTE = 200` (src/metrics/state.ts:31). The formula multiplies per-session token savings by ALL post-directive sessions, assuming every session would have been equally expensive without directives. Result: auto-sop-site shows 68h 57m "time saved" in just 2 days of real usage (~25h wall-clock). Root causes: (a) small "before" sample (9 sessions vs 81 "after"), (b) assumes ALL improvement is from directives (ignores task complexity variance), (c) `TOKENS_PER_MINUTE = 200` converts tokens to time too generously. Fix options: (1) add confidence band based on sample size, (2) cap time_saved at wall-clock elapsed since first directive, (3) increase TOKENS_PER_MINUTE constant, (4) add disclaimer "estimated" label on dashboard, (5) normalize by task complexity (same command/intent comparison). Priority: medium — inflated numbers undermine credibility with sophisticated users.
 - **BUG-V34-1** `validate/route.ts` — Supabase log insert (validation_log) has no error handling; rate limiting silently degrades on DB errors. Add try/catch around log insert, don't let log failure block validation response.
 - **BUG-V34-2** `validate/route.ts` — `select("*")` over-fetches user row. Should be `select("id, plan, max_projects, stripe_customer_id")` — only the fields actually used.
 - **BUG-V34-3** `dashboard.ts` — `patternCandidates` is a magic-number fabrication (`count * 1.6`). Replace with real metric from CLI stats or remove until real data exists.
@@ -953,4 +968,4 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 
 ---
 *Roadmap created: 2026-04-13*
-*Last updated: 2026-04-27 — Phase 8 ~95% complete. v41 stats sync done + E2E verified (297K tokens saved in DB). v42 MetricsState persist done. v35 Stripe in progress. Plans isolated by repo: CLI plans (v44 deterministic metrics) independent of site plans (v43 dashboard charts). Critical path: v35 Stripe → v43 dashboard charts (site) | v44 deterministic metrics (CLI, parallel) → v45-v49 → launch.*
+*Last updated: 2026-04-28 — Phase 8 ~95% complete. v43-v45 + v47 done. v46 directive transparency in progress (CLI). v48 directive previews queued (CLI + site). v35 Stripe still the only Phase 8 launch blocker. Known issue: BUG-METRICS-1 time-saved formula inflated (68h "saved" in 25h wall-clock — TOKENS_PER_MINUTE=200 too generous, small before-sample, no wall-clock cap). Critical path: v35 Stripe → v48 previews → v49 landing page stats → launch.*
