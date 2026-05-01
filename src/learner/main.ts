@@ -69,7 +69,7 @@ import {
   sortProjectsByAge,
 } from '../license/enforcement.js';
 import { syncStats, type ProjectStats } from '../license/stats-sync.js';
-import { loadMetricsState, saveMetricsState, TOKENS_PER_MINUTE, type MetricsState } from '../metrics/state.js';
+import { loadMetricsState, saveMetricsState, TOKENS_PER_MINUTE, capTimeSaved, deriveConfidence, type MetricsState } from '../metrics/state.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -1003,12 +1003,33 @@ export async function runLearnerTick(
           // V48: Build directive previews (short ID → first ~10 words)
           const directivePreviews = extractDirectivePreviews(renderProposals);
 
+          // V53: Derive first_directive_added_at — earliest first_seen across ALL history entries (including pruned)
+          const existingMetrics = loadMetricsState(home, project.project_root);
+          let firstDirectiveAddedAt: string | undefined = existingMetrics?.first_directive_added_at;
+          if (!firstDirectiveAddedAt && history !== null) {
+            let earliest: string | null = null;
+            for (const entry of Object.values(history.entries)) {
+              if (earliest === null || entry.first_seen < earliest) {
+                earliest = entry.first_seen;
+              }
+            }
+            firstDirectiveAddedAt = earliest ?? undefined;
+          }
+
+          // V53: Compute confidence from baseline session count
+          const baselineSessions = tickSessionComparison?.before?.sessions ?? 0;
+          const confidence = deriveConfidence(baselineSessions);
+
+          // V53: Cap time_saved at wall-clock elapsed since first directive
+          const rawTimeSaved = Math.round(totalTokensSaved / TOKENS_PER_MINUTE * 10) / 10;
+          const cappedTimeSaved = capTimeSaved(rawTimeSaved, firstDirectiveAddedAt);
+
           const metricsState: MetricsState = {
             v: 1,
             project_slug: project.slug,
             total_tokens_saved: totalTokensSaved,
             total_errors_prevented: result.errors_prevented_total ?? 0,
-            total_time_saved_minutes: Math.round(totalTokensSaved / TOKENS_PER_MINUTE * 10) / 10,
+            total_time_saved_minutes: cappedTimeSaved,
             directive_count: renderProposals.length,
             ...(tokenEst?.method === 'byte_counted' || tokenEst?.method === 'tool_call_heuristic' || tokenEst?.method === 'hybrid'
               ? { estimation_method: tokenEst.method }
@@ -1021,6 +1042,10 @@ export async function runLearnerTick(
             directive_ids: directiveIds,
             // V48: directive previews for dashboard display
             directive_previews: directivePreviews,
+            // V53: wall-clock cap + confidence
+            ...(firstDirectiveAddedAt !== undefined ? { first_directive_added_at: firstDirectiveAddedAt } : {}),
+            confidence,
+            baseline_sessions: baselineSessions,
           };
           saveMetricsState(home, project.project_root, metricsState);
         } catch {

@@ -27,6 +27,12 @@ export interface MetricsState {
   directive_ids?: string[];
   /** V48: short ID → first ~10 words of rule_text (markdown-stripped). */
   directive_previews?: Record<string, string>;
+  /** V53: ISO timestamp of earliest known directive addition. Used for wall-clock cap on time_saved. Once set, never changes. */
+  first_directive_added_at?: string;
+  /** V53: confidence level for time-saved estimate based on baseline session count. */
+  confidence?: 'low' | 'medium' | 'high';
+  /** V53: number of baseline (pre-directive) sessions used to derive confidence. */
+  baseline_sessions?: number;
 }
 
 /** Approximate tokens an LLM processes per minute of wall-clock time. */
@@ -102,4 +108,27 @@ export function emptyMetricsState(projectSlug: string): MetricsState {
     per_directive_attribution: [],
     last_computed_at: new Date().toISOString(),
   };
+}
+
+/**
+ * V53: Cap computed time-saved at wall-clock elapsed minutes since first directive.
+ * Returns the capped value (min of computed, wall-clock elapsed).
+ */
+export function capTimeSaved(computedMinutes: number, first_directive_added_at: string | undefined, now?: Date): number {
+  if (!first_directive_added_at) return computedMinutes;
+  const firstMs = Date.parse(first_directive_added_at);
+  if (!Number.isFinite(firstMs)) return computedMinutes;
+  const nowMs = (now ?? new Date()).getTime();
+  const elapsedMinutes = Math.max(0, (nowMs - firstMs) / (60 * 1000));
+  return Math.min(computedMinutes, Math.round(elapsedMinutes * 10) / 10);
+}
+
+/**
+ * V53: Derive confidence level from baseline session count.
+ * Low: < 15 sessions, Medium: 15-49, High: >= 50.
+ */
+export function deriveConfidence(baselineSessions: number): 'low' | 'medium' | 'high' {
+  if (baselineSessions >= 50) return 'high';
+  if (baselineSessions >= 15) return 'medium';
+  return 'low';
 }
