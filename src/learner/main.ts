@@ -65,7 +65,7 @@ import {
 } from './session-metrics.js';
 import {
   checkLicenseBeforeTick,
-  shouldProjectRun,
+  isProjectActive,
   sortProjectsByAge,
 } from '../license/enforcement.js';
 import { syncStats, type ProjectStats } from '../license/stats-sync.js';
@@ -321,6 +321,7 @@ export async function main(): Promise<void> {
     // Captures continue regardless; only the learner is blocked.
     // Called ONCE; both 'allowed' and 'maxProjects' are extracted from the single result.
     let maxProjects = Infinity;
+    let activeProjects: string[] | undefined;
     let licenseKey: string | undefined;
     let machineId: string | undefined;
     try {
@@ -330,6 +331,7 @@ export async function main(): Promise<void> {
         process.exit(0);
       }
       if (enforcement.maxProjects !== undefined) maxProjects = enforcement.maxProjects;
+      activeProjects = enforcement.activeProjects;
       licenseKey = enforcement.licenseKey;
       machineId = enforcement.machineId;
     } catch (err) {
@@ -345,7 +347,7 @@ export async function main(): Promise<void> {
     }
 
     try {
-      await runLearnerTick(home, tickId, tickStart, ac.signal, maxProjects, licenseKey, machineId);
+      await runLearnerTick(home, tickId, tickStart, ac.signal, maxProjects, licenseKey, machineId, activeProjects);
     } finally {
       releaseLock();
     }
@@ -366,6 +368,7 @@ export async function runLearnerTick(
   maxProjects: number = Infinity,
   licenseKey?: string,
   machineId?: string,
+  activeProjects?: string[],
 ): Promise<void> {
   const registry = readRegistry(home);
   const now = new Date().toISOString();
@@ -383,9 +386,13 @@ export async function runLearnerTick(
   for (let projectIndex = 0; projectIndex < sortedProjects.length; projectIndex++) {
     const project = sortedProjects[projectIndex]!;
 
-    // Per-project quota gating: skip projects beyond the plan limit
-    if (!shouldProjectRun(projectIndex, maxProjects)) {
-      logError('project_over_quota', `skipping ${project.slug} — over project limit (${projectIndex + 1}/${maxProjects})`, home);
+    // V56: Per-project gating via active_projects list (project toggles),
+    // falling back to index-based quota when list is unavailable.
+    if (!isProjectActive(project.slug, activeProjects, projectIndex, maxProjects)) {
+      const reason = activeProjects && activeProjects.length > 0
+        ? `skipping ${project.slug} — project_inactive (not in active list)`
+        : `skipping ${project.slug} — over project limit (${projectIndex + 1}/${maxProjects})`;
+      logError('project_over_quota', reason, home);
       projects_skipped++;
       continue;
     }

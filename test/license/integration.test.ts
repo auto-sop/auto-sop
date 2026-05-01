@@ -79,6 +79,7 @@ import { validateLicense } from '../../src/license/server-client.js';
 import {
   checkLicenseBeforeTick,
   shouldProjectRun,
+  isProjectActive,
 } from '../../src/license/enforcement.js';
 import { readSecrets } from '../../src/license/storage.js';
 import { readRegistry } from '../../src/learner/project-registry.js';
@@ -589,5 +590,121 @@ describe('Integration: Cache Grace Period Logic', () => {
     const cache = makeCache();
     cache.payload.expires_at = new Date(Date.now() - 1000).toISOString();
     expect(isCacheValid(cache)).toBe(false);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   V56: isProjectActive — Project Toggle Tests
+   ═══════════════════════════════════════════════════════════════ */
+
+describe('Integration: isProjectActive (V56 project toggles)', () => {
+  describe('when active_projects is provided and non-empty', () => {
+    it('returns true when project slug is in the active list', () => {
+      expect(isProjectActive('my-project', ['my-project', 'other-project'], 0, 3)).toBe(true);
+    });
+
+    it('returns false when project slug is NOT in the active list', () => {
+      expect(isProjectActive('unlisted-project', ['proj-a', 'proj-b'], 0, 3)).toBe(false);
+    });
+
+    it('ignores index-based quota when active list is present', () => {
+      // Even though index=5 exceeds maxProjects=3, slug is in the list → active
+      expect(isProjectActive('proj-a', ['proj-a'], 5, 3)).toBe(true);
+    });
+
+    it('respects list even when index is within quota', () => {
+      // Index 0 is within quota, but slug is NOT in active list → inactive
+      expect(isProjectActive('not-active', ['proj-a', 'proj-b'], 0, 10)).toBe(false);
+    });
+  });
+
+  describe('when active_projects is undefined or empty (backward compat)', () => {
+    it('falls back to index-based quota when active_projects is undefined', () => {
+      expect(isProjectActive('any-slug', undefined, 0, 3)).toBe(true);
+      expect(isProjectActive('any-slug', undefined, 2, 3)).toBe(true);
+      expect(isProjectActive('any-slug', undefined, 3, 3)).toBe(false);
+    });
+
+    it('falls back to index-based quota when active_projects is empty array', () => {
+      expect(isProjectActive('any-slug', [], 0, 3)).toBe(true);
+      expect(isProjectActive('any-slug', [], 3, 3)).toBe(false);
+    });
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   V56: active_projects in validation response
+   ═══════════════════════════════════════════════════════════════ */
+
+describe('Integration: active_projects in validation response (V56)', () => {
+  it('validateLicense returns active_projects from server response', async () => {
+    const payload = makeServerPayload({ active_projects: ['proj-a', 'proj-b'] });
+    const serverBody = { data: payload, signature: signPayload(payload) };
+    mockFetch.mockResolvedValue(mockFetchResponse(200, serverBody));
+    mockedReadCache.mockResolvedValue(null);
+
+    const result = await validateLicense({
+      key: LICENSE_KEY,
+      machineId: MACHINE_ID,
+      boundProjects: [PROJECT_PATH],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.active_projects).toEqual(['proj-a', 'proj-b']);
+  });
+
+  it('validateLicense returns undefined active_projects when not in response', async () => {
+    const payload = makeServerPayload(); // no active_projects field
+    const serverBody = { data: payload, signature: signPayload(payload) };
+    mockFetch.mockResolvedValue(mockFetchResponse(200, serverBody));
+    mockedReadCache.mockResolvedValue(null);
+
+    const result = await validateLicense({
+      key: LICENSE_KEY,
+      machineId: MACHINE_ID,
+      boundProjects: [PROJECT_PATH],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.active_projects).toBeUndefined();
+  });
+
+  it('validateLicense returns active_projects from cached payload on fallback', async () => {
+    mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
+    const cachedPayload = makeCache();
+    cachedPayload.payload['active_projects'] = ['cached-proj-a'];
+    mockedReadCache.mockResolvedValue(cachedPayload);
+
+    const result = await validateLicense({
+      key: LICENSE_KEY,
+      machineId: MACHINE_ID,
+      boundProjects: [PROJECT_PATH],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.fromCache).toBe(true);
+    expect(result.active_projects).toEqual(['cached-proj-a']);
+  });
+
+  it('checkLicenseBeforeTick threads activeProjects to EnforcementResult', async () => {
+    const payload = makeServerPayload({ active_projects: ['proj-x'] });
+    const serverBody = { data: payload, signature: signPayload(payload) };
+    mockFetch.mockResolvedValue(mockFetchResponse(200, serverBody));
+    mockedReadCache.mockResolvedValue(null);
+    mockedReadSecrets.mockResolvedValue({ license: { key: LICENSE_KEY } });
+    mockedReadRegistry.mockReturnValue({
+      projects: [{ project_root: PROJECT_PATH, installed_at: '2026-01-01T00:00:00Z' }],
+    });
+    mockedReadBindingFile.mockResolvedValue({
+      license_key_hash: 'abcdef0123456789',
+      machine_id: MACHINE_ID,
+      bound_at: '2026-01-01T00:00:00Z',
+      token: createBindingToken(LICENSE_KEY, PROJECT_PATH, MACHINE_ID),
+    });
+
+    const enforcement = await checkLicenseBeforeTick(HOME);
+
+    expect(enforcement.allowed).toBe(true);
+    expect(enforcement.activeProjects).toEqual(['proj-x']);
   });
 });

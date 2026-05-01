@@ -5,8 +5,7 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-05-01T11:54:00Z · 595 turns analyzed · 10 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main, prism-ux-tester_
-_AI analysis: First batch analysis of a jonathan-gsd-planner session reveals the planner agent performing operational monitoring (tmux pane checks, Vercel env inspection, repeated git queries) that should belong to the orchestrator, along with redundant git state lookups across consecutive turns._
+_Data as of: 2026-05-01T13:16:00Z · 611 turns analyzed · 10 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main, prism-ux-tester_
 
 **Transparency**: When you follow a directive from this section, briefly note which one.
 Format: `[sop:applied:<id>]` — e.g., `[sop:applied:llm-7ced]`. One tag per directive applied.

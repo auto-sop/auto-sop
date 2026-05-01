@@ -15,6 +15,8 @@ export interface EnforcementResult {
   reason?: string;
   plan?: string;
   maxProjects?: number;
+  /** V56: Active project slugs from server (project toggles). */
+  activeProjects?: string[] | undefined;
   /** License key from secrets — threaded to avoid re-reading secrets.enc */
   licenseKey?: string;
   /** Machine ID — threaded to avoid re-computing */
@@ -105,6 +107,7 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
   const valid = payload?.['valid'] as boolean | undefined;
   const plan = (payload?.['plan'] as string) ?? 'free';
   const maxProjects = (payload?.['max_projects'] as number) ?? 1;
+  const activeProjects = result.active_projects;
 
   if (valid === false) {
     return {
@@ -115,11 +118,29 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
     };
   }
 
-  return { allowed: true, plan, maxProjects, licenseKey, machineId };
+  return { allowed: true, plan, maxProjects, activeProjects, licenseKey, machineId };
 }
 
 export function shouldProjectRun(projectIndex: number, maxProjects: number): boolean {
   return projectIndex < maxProjects;
+}
+
+/**
+ * V56: Determine if a project should run based on active_projects list
+ * from the server (project toggles). Falls back to index-based quota
+ * when active_projects is empty or undefined (backward compat with
+ * older servers or failed fetches).
+ */
+export function isProjectActive(
+  slug: string,
+  activeProjects: string[] | undefined,
+  index: number,
+  maxProjects: number,
+): boolean {
+  if (activeProjects && activeProjects.length > 0) {
+    return activeProjects.includes(slug);
+  }
+  return index < maxProjects;
 }
 
 export function sortProjectsByAge(

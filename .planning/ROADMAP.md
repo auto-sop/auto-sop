@@ -1,7 +1,7 @@
 # Roadmap: auto-sop
 
 **Created:** 2026-04-13
-**Last updated:** 2026-04-28
+**Last updated:** 2026-05-01
 **Depth:** standard
 **Phases:** 10 (restructured: Metrics before SaaS, publish after both)
 **Coverage:** 61/61 v1 requirements mapped
@@ -16,9 +16,9 @@
 - [x] **Phase 5: Inspection CLI + Packaging** — `recent`/`show`/`revert` verbs, npm publish pipeline, README badges, GitHub community files, Homebrew tap staging. _(v17-v22 → 100%)_
 - [x] **Phase 6: Native Windows + Hardening** — Platform abstraction layer, Task Scheduler backend, NTFS ACL, learner drift fix, incremental pattern memory. _(v23-v25 Windows, v26 site, v27 drift fix, v29 incremental patterns)_
 - [x] **Phase 7: Metrics & Social Proof** — Directive-fire detection, token/time savings tracker, "errors prevented" counter, `auto-sop stats` CLI. Pure CLI-side work, no cloud needed. _(v30 fire detection, v31 categorization+bigram, v32 token/time/errors — COMPLETE 2026-04-27)_
-- [ ] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-site/`.** CLI gains 1-project soft cap + feature-touch trial + Ed25519 signed validation + X25519 request encryption. Free forever for solo, Pro $12/mo. ~95% done — **only Stripe billing remains.** _(v34 dashboard, v36 CLI licensing, v37 anti-abuse, v38 BIND-7 CLI + bug cleanup, v39 BIND-7/8 server, v40 BIND-8 CLI encryption — all DONE. v35 Stripe queued as launch blocker.)_
-- [ ] **Phase 9: First Public Launch + Viral Growth** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF, **referral & rewards system**. Everything a developer sees on first contact must be professional + Pro upgrade path + viral loop exists. _(→ after v35 Stripe completes)_
-- [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ v44+)_
+- [x] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-site/`.** CLI gains 1-project soft cap + feature-touch trial + Ed25519 signed validation + X25519 request encryption. Free forever for solo, Pro $12/mo. _(v34 dashboard, v35 Stripe billing, v36 CLI licensing, v37 anti-abuse, v38 BIND-7 CLI, v39 BIND-7/8 server, v40 BIND-8 CLI encryption, v41 stats sync, v43-v48 dashboard enhancements, v49 UI polish, v50-v51 env isolation, v52 CLI env routing, v53 bug sprint, v54 env hardening — **100% COMPLETE 2026-05-01**)_
+- [ ] **Phase 9: First Public Launch + Viral Growth** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF, **referral & rewards system**. Everything a developer sees on first contact must be professional + Pro upgrade path + viral loop exists. _(→ ready to start)_
+- [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ post-launch)_
 
 ### Decision: Distribution & licensing model (REVISED 2026-04-26)
 
@@ -677,9 +677,9 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | 5. Inspection CLI + Packaging | 2/2 | **COMPLETE** | v17-v22 |
 | 6. Native Windows + Hardening | 5/5 | **COMPLETE** | v23-v25 (Windows), v27 (drift fix), v29 (incremental patterns) |
 | 7. Metrics & Social Proof | 3/3 | **COMPLETE** | v30 (fire detection), v31 (categorization), v32 (token/time/errors) |
-| 8. SaaS Platform + Monetization | ~95% | **NEAR COMPLETE** — Stripe billing (v35) in progress, stats sync done | See breakdown below |
-| 9. First Public Launch | 0/1 | **BLOCKED** on v35 Stripe + v43-v48 enhancements | After v48 |
-| 10. Smart Directive Targeting | 0/3 | Not started — post-launch | v50+ |
+| 8. SaaS Platform + Monetization | ✅ | **COMPLETE** | v34-v55 (see breakdown) |
+| 9. First Public Launch | 0/1 | **READY TO START** — Phase 8 complete, all blockers cleared | Next |
+| 10. Smart Directive Targeting | 0/3 | Not started — post-launch | After Phase 9 |
 
 ### Phase 8 Breakdown (two repos)
 
@@ -699,6 +699,13 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | Offline grace 7 days | ✅ Done | v36 |
 | Bug cleanup (V36-1/4, D1, E1) | ✅ Done | v38 |
 | ioreg PATH fix (launchd compat) | ✅ Done | v38 |
+| Deterministic token counting | ✅ Done | v44 |
+| Metrics persist fix | ✅ Done | v45 |
+| Directive transparency (self-reported fires) | ✅ Done | v46 |
+| Directive previews sync | ✅ Done | v48 |
+| CLI environment isolation (branch-based URLs) | ✅ Done | v52 |
+| Cross-repo bug fix sprint | ✅ Done | v53 |
+| Restore directive IDs in install path | 🔄 In progress | v55 |
 
 **Site repo (`auto-sop-site/`):**
 | Item | Status | Plan |
@@ -712,41 +719,52 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | BIND-7 server hash registry | ✅ Done | v39 |
 | BIND-8 X25519 request decryption | ✅ Done | v39 |
 | Clerk UserProfile routing fix | ✅ Done | v39 (routing="hash") |
-| Stripe billing | ⏳ **Queued — ONLY remaining Phase 8 item** | v35 (launch blocker) |
+| Stripe billing | ✅ Done | v35 |
 | Project sync to dashboard | ✅ Done | Manual fix (validate endpoint) |
+| Dashboard per-project stats + charts | ✅ Done | v43 |
+| Directive hits dashboard | ✅ Done | v47 |
+| Directive previews sync | ✅ Done | v48 |
+| Dashboard UI polish | ✅ Done | v49 |
+| Environment isolation (staging) | ✅ Done | v50 |
+| Supabase schema isolation | ✅ Done | v51 |
+| Env isolation hardening | ✅ Done | v54 |
 
 ### What remains before launch
 
-**Done (Phase 8 core):**
-- ~~v38~~ ✅ CLI bug cleanup + BIND-7 self-hash (committed)
-- ~~v40~~ ✅ BIND-8 CLI request encryption (committed + E2E verified against prod server)
-- ~~v41~~ ✅ Encrypted stats sync: CLI → server hourly upload (X25519), tables, dashboard real metrics. **E2E verified: 5 projects syncing, 297K tokens saved showing in DB.**
-- ~~v42~~ ✅ MetricsState persist fix — `saveMetricsState()` wired into tick. Stats sync now fires every hour. (Delivered by v41 ARCHITECT, plan moved to done.)
+**Phase 8 — COMPLETE** (all items delivered v34-v55)
 
-**In progress:**
-1. **v35** 🔄 (launch blocker, **site**) — Stripe billing: Checkout, Customer Portal, webhooks, upgrade UI, trial management. Plan in `auto-sop-site/plans/queued/`. **Stripe test keys configured, products + prices ($12/mo, $99/yr) created.**
-2. **v46** 🔄 (**CLI**) — Directive transparency: self-reported fires via `[sop:applied:ID]` markers, capture writer parsing, cloud sync of directive IDs + confirmed fires.
+**In progress / queued:**
+1. **v55** ✅ (**CLI**) — Fix directive IDs + transparency header in install restore path — DONE
+2. **v56** 🔄 (**Both**) — Launch readiness: live stats API, project toggles (free=1/pro=unlimited), billing page, GA analytics, JSON-LD license fix
+3. **v57** 📋 (**Site**) — Legal + SEO + Dashboard foundations: privacy/terms pages, FAQ (10 Qs + schema), loading skeletons (6 routes), error boundary, sitemap fix, /docs + /changelog placeholders, hero GitHub stars + npm downloads
+4. **v58** 📋 (**Site**) — Onboarding + Engagement: first-run wizard, directive notification emails (per-tick batch + first celebration), Heroicons swap for marketing, reduced-motion (WCAG), ProjectsList clickable rows, mobile nav scroll lock
 
-**Done (recently completed):**
-- ~~v43~~ ✅ Dashboard per-project stats + gains charts (auto-sop-site, PR #5)
-- ~~v44~~ ✅ Deterministic metrics — real byte-counted token estimation (CLI, `eff3c5b`)
-- ~~v45~~ ✅ Metrics persist fix — treeshake:false for learner bundle + recompute + hybrid savings (CLI, `545a5b8`)
-- ~~v47~~ ✅ Directive hits dashboard — DirectiveHits component, stats-history API, migration 007 (auto-sop-site, PR #6)
+**Phase 9 (launch — after v56-v58):**
+5. npm v0.1.0 publish with provenance
+6. Homebrew tap — already staged (v22), activate on launch day
+7. robots.txt flip (remove Disallow: /) — currently blocking all crawlers pre-launch
+8. Demo GIF/video (M4) — real terminal recording
+9. Referral system (R1-R6), Product Hunt prep, CLAUDE.md badge program
 
-**Queued:**
-3. **v48** ⏳ (**CLI + site**) — Directive previews: CLI sends first 10 words per directive via stats-sync. Site displays directive ID + preview + hit count on directives page. Supabase migration 008.
+**Done (was previously blocking):**
+- ~~ELv2 license swap~~ — done v18
+- ~~Landing page aggregate stats~~ — v56 (public stats API + landing page live numbers)
+- ~~Dashboard project toggle~~ — v56 (free=1, pro=unlimited, toggle UI)
+- ~~Billing/invoice page~~ — v56 (`/dashboard/billing`)
+- ~~Privacy/Terms pages~~ — v57
+- ~~FAQ section~~ — v57
+- ~~Dashboard loading skeletons~~ — v57
+- ~~Sitemap~~ — v57
+- ~~Onboarding empty state~~ — v58
+- ~~Directive notification emails~~ — v58
+- ~~WCAG reduced-motion~~ — v58
 
-**Future (not yet planned):**
-4. **v49** — Landing page aggregate stats: Public-facing anonymous numbers from `SUM(asop_stats_summary)`. Hero section: "auto-sop users prevented X errors this month."
-5. **v50** — CLI token consumption transparency: `auto-sop stats --self` showing own token cost per 24h.
-6. **v51** — Dashboard project toggle: Free=1 active project, toggle UI, upgrade prompt → Stripe Checkout.
-7. **BUG-METRICS-1** — Time-saved formula calibration: cap at wall-clock, confidence bands, TOKENS_PER_MINUTE adjustment.
-8. **UX-ONBOARD-1** — Dashboard "Getting your dashboard ready..." page should poll (e.g. `/api/v1/me` every 3-5s) and auto-redirect once Clerk webhook creates Supabase user row. Currently static — user must manually refresh after signup.
-
-**Phase 9 (launch prep):**
-8. **v52** — Launch prep — npm v0.1.0 publish with provenance, real metrics on landing page, demo GIF/video (M4)
-9. **Homebrew tap** — already staged (v22), activate on launch day
-10. **Phase 9 viral** (post-launch) — referral system (R1-R6), Product Hunt prep, CLAUDE.md badge program
+**Nice-to-have (not blocking launch):**
+- CLI token consumption transparency: `auto-sop stats --self`
+- Blog (M-05) — content marketing, post-launch
+- Custom Clerk auth pages (M-06) — branded sign-in/sign-up
+- Command palette Cmd+K (D-14) — power user feature
+- Data export CSV/JSON (D-15)
 
 ## Execution History
 
@@ -798,9 +816,16 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | v43 | — | Dashboard per-project stats + gains charts + period filter (`auto-sop-site/`, PR #5) |
 | v44 | `eff3c5b` | Deterministic token counting — real bytes replace 200/call heuristic |
 | v45 | `545a5b8` | Metrics persist survives tree-shake + recompute flag + hybrid savings. Root cause: tsup treeshake stripped saveMetricsState from bundle (try/catch with empty catch = dead code). Fix: `treeshake: false` for learner bundle. |
-| v46 | 🔄 | Directive transparency — self-reported fires via `[sop:applied:ID]` markers, capture writer parsing, cloud sync of directive IDs + confirmed fires (auto-sop, in progress) |
-| v47 | — | Directive hits dashboard — DirectiveHits component, DirectiveSummary card, confirmed_fires_total in stats-history API, migration 007 (`auto-sop-site/`, PR #6) |
-| v48 | ⏳ | Directive previews — CLI sends first 10 words per directive via stats-sync (auto-sop, queued) + site displays ID/preview/hits on directives page (auto-sop-site, queued) |
+| v46 | `6681550` | Directive transparency — self-reported fires via `[sop:applied:ID]` markers, capture writer parsing, cloud sync of directive IDs + confirmed fires |
+| v47 | — | Directive hits dashboard — DirectiveHits component, DirectiveSummary card, confirmed_fires_total in stats-history API, migration 007 (`auto-sop-site/`) |
+| v48 | `cc8ad8c` | Directive previews — CLI sends first 10 words per directive via stats-sync. Site displays ID/preview/hits on directives page + migration 008 |
+| v49 | — | Dashboard UI polish — PRISM UX audit fixes, Clerk prod keys, accessibility, upgrade page (`auto-sop-site/`) |
+| v50 | — | Environment isolation + staging infrastructure — dev branch, staging.auto-sop.com, Clerk/Stripe test config (`auto-sop-site/`) |
+| v51 | — | Supabase schema isolation — asop_prod/asop_test schemas, PostgREST routing, migration 009 (`auto-sop-site/`) |
+| v52 | — | CLI environment isolation — tsup build-time branch detection, staging/prod URL routing (`auto-sop`) |
+| v53 | `d50d8bc` | Cross-repo bug fix sprint — stale PR cleanup, BUG-V34-3 patternCandidates fix, BUG-METRICS-1 wall-clock cap + confidence bands |
+| v54 | — | Environment isolation hardening — migration 010 PostgREST schema exposure, env-check.ts startup validation, AccountPending UX (`auto-sop-site/`) |
+| v55 | 🔄 | Fix directive IDs + transparency header in install restore path (`auto-sop`, in progress) |
 
 ## Remaining Backlog
 
@@ -900,12 +925,12 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - ~~**STATS-1c** Deterministic metrics (v44)~~ ✅ Done — Real byte-counted token estimation replaces 200/call heuristic. `byte_counted` primary method, `tool_call_heuristic` fallback, hybrid when byte savings = 0 but tool calls dropped >20%.
 - ~~**STATS-1d** Dashboard per-project stats + charts (v43)~~ ✅ Done — Recharts AreaChart, period filter, per-project detail page, real stats on project cards (auto-sop-site PR #5).
 - ~~**STATS-1e** Metrics persist tree-shake fix (v45)~~ ✅ Done — `treeshake: false` for learner bundle. Root cause: tsup tree-shaker stripped `saveMetricsState`/`loadMetricsState` because call sites were in try/catch with empty catch blocks (treated as side-effect-free dead code).
-- **STATS-2** Directive transparency (v46, **CLI**, 🔄 in progress) — Self-reported fires via `[sop:applied:ID]` markers in Claude output, capture writer parsing, cloud sync of `directive_ids` + `confirmed_fires_by_directive` + `estimation_method`.
+- ~~**STATS-2** Directive transparency (v46)~~ ✅ Done — Self-reported fires via `[sop:applied:ID]` markers, capture writer parsing, cloud sync of directive IDs + confirmed fires.
 - ~~**STATS-2b** Directive hits dashboard (v47)~~ ✅ Done — DirectiveHits component, DirectiveSummary card, confirmed_fires_total in stats-history API, migration 007 (auto-sop-site PR #6).
-- **STATS-2c** Directive previews (v48, **CLI + site**, ⏳ queued) — CLI extracts first 10 words of each directive rule_text, sends as `directive_previews` map in stats-sync. Site accepts, stores in new `directive_previews` JSONB column (migration 008), displays on directives page with hit counts.
-- **STATS-3** Landing page aggregate stats (v49) — Public API endpoint (`GET /api/v1/public/stats`), anonymous platform-wide aggregates, hero section numbers.
-- **STATS-4** CLI token consumption transparency (v50) — `auto-sop stats --self`, own token cost per 24h.
-- **STATS-5** Time-saved formula calibration (BUG-METRICS-1) — Current `TOKENS_PER_MINUTE = 200` produces inflated estimates (68h "saved" in 25h wall-clock). Needs: confidence bands, wall-clock cap, sample size weighting, task complexity normalization.
+- ~~**STATS-2c** Directive previews (v48)~~ ✅ Done — CLI sends first 10 words per directive via stats-sync. Site displays ID/preview/hits. Migration 008.
+- **STATS-3** Landing page aggregate stats — Public API endpoint (`GET /api/v1/public/stats`), anonymous platform-wide aggregates, hero section numbers. _(Phase 9 item)_
+- **STATS-4** CLI token consumption transparency — `auto-sop stats --self`, own token cost per 24h. _(nice-to-have, not blocking launch)_
+- ~~**STATS-5** Time-saved formula calibration (BUG-METRICS-1)~~ ✅ Done (v53) — wall-clock cap + confidence bands.
 
 ### Metrics & Social Proof (v30-v32) — Phase 7 M-series
 - **M1** Directive-fire detection — UserPromptSubmit hook checks if active directives are relevant to current prompt. Heuristic match (keyword) for v31, LLM-based for v33
@@ -916,18 +941,18 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 - **M6** `auto-sop stats` CLI verb — local-only metric display, free tier (no cloud needed). Shows per-project savings
 
 ### Known bugs (fix when convenient)
-- **BUG-METRICS-1** **Time-saved formula is inflated.** `total_time_saved_minutes = total_tokens_saved / TOKENS_PER_MINUTE` where `TOKENS_PER_MINUTE = 200` (src/metrics/state.ts:31). The formula multiplies per-session token savings by ALL post-directive sessions, assuming every session would have been equally expensive without directives. Result: auto-sop-site shows 68h 57m "time saved" in just 2 days of real usage (~25h wall-clock). Root causes: (a) small "before" sample (9 sessions vs 81 "after"), (b) assumes ALL improvement is from directives (ignores task complexity variance), (c) `TOKENS_PER_MINUTE = 200` converts tokens to time too generously. Fix options: (1) add confidence band based on sample size, (2) cap time_saved at wall-clock elapsed since first directive, (3) increase TOKENS_PER_MINUTE constant, (4) add disclaimer "estimated" label on dashboard, (5) normalize by task complexity (same command/intent comparison). Priority: medium — inflated numbers undermine credibility with sophisticated users.
+- ~~**BUG-METRICS-1**~~ ✅ Fixed (v53) — Wall-clock cap + confidence bands added. Formula no longer inflates beyond real elapsed time.
 - **BUG-V34-1** `validate/route.ts` — Supabase log insert (validation_log) has no error handling; rate limiting silently degrades on DB errors. Add try/catch around log insert, don't let log failure block validation response.
 - **BUG-V34-2** `validate/route.ts` — `select("*")` over-fetches user row. Should be `select("id, plan, max_projects, stripe_customer_id")` — only the fields actually used.
-- **BUG-V34-3** `dashboard.ts` — `patternCandidates` is a magic-number fabrication (`count * 1.6`). Replace with real metric from CLI stats or remove until real data exists.
+- ~~**BUG-V34-3**~~ ✅ Fixed (v53) — Removed `patternCandidates` fabrication, replaced with real candidate count from stats.
 - **BUG-V34-4** Dashboard layout — double-queries `asop_users` table (layout fetches user, page fetches user again). Hoist user fetch to layout, pass via React context or server component prop.
-- **BUG-C1** `auto-sop status` shows "last tick: never" and "directives: 0" even when learner cursor is advancing and CLAUDE.md has active directives. The status verb reads `scheduler.lastTickAt` and `learner.lastRunAt` fields that the tick script never writes to. Actual batch pipeline works correctly — recap log, cursors, and directive generation all function. Display-only issue.
+- ~~**BUG-C1**~~ ✅ Fixed (v33) — `auto-sop status` displays correct tick/directive state.
 - **BUG-D1** **Semantic near-duplicate directives.** The LLM proposes directives per-tick without strong dedup against semantically similar existing ones. The merge logic catches exact ID matches but not near-duplicates. Example: wrbeautiful has two separate directives about "never embed API tokens in inline scripts" and "never pass Shopify access tokens as inline arguments" — same lesson, different wording. Also cross-project overlap on agent efficiency patterns (wrbeautiful + aiagenttr-website both learned review-agent waste lessons independently). Fix: add semantic similarity check during merge step — cosine similarity on rule_text embeddings, or LLM-based "is this the same lesson?" gate before accepting a new directive. Target: <5% duplicate rate across active directives.
 - **BUG-E1** **Flaky e2e integration tests under parallel load.** The large-output and orphan-recovery tests in test/capture/integration/end-to-end.test.ts time out (waitForQuiescence 160s) when running alongside the full test suite. They pass reliably in isolation. Root cause: resource contention under parallel test execution.
 - **BUG-V36-1** `server-client.ts` — Unused `isCacheValid` import. Either call it in `fallbackToCache` or remove the import.
 - **BUG-V36-2** `main.ts` — Double `checkLicenseBeforeTick` call. Refactor to single call, extract both `allowed` and `maxProjects` from one result.
 - **BUG-V36-3** `GRACE_PERIOD_MS` duplicated in `server-client.ts`. Export from `cache.ts` and import instead.
-- **BUG-V36-4** `server-client.ts` — `resetFailures` utility bypassed in success path. Use the existing utility instead of manual reset.
+- ~~**BUG-V36-4**~~ ✅ Fixed (v53) — `resetFailures` now passes existing cache values instead of zeroes.
 - **BUG-S1** **Session inflation from Dev Army agents.** Each subagent (ARCHITECT, YODA, APEX, PRISM, etc.) creates its own `session_id`, so a single 20-minute dev-army run on wrbeautiful-shopify-theme produced 21 sessions from 25 turns. The 3-session graduation threshold is trivially met in one sitting, causing the LLM to graduate all candidates immediately. Real impact: wrbeautiful got 10 directives from what was effectively 1 user work session. Fix options: (a) deduplicate by parent session / transcript_path root, (b) time-window grouping (sessions within same hour = 1 observation), (c) only count `main` agent type sessions toward threshold. This is a **quality issue, not a crash** — directives generated are still valid, but the "evidence: 3 sessions" claim is misleading.
 
 ### dev-army improvements (parallel)
@@ -969,4 +994,4 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 
 ---
 *Roadmap created: 2026-04-13*
-*Last updated: 2026-04-28 — Phase 8 ~95% complete. v43-v45 + v47 done. v46 directive transparency in progress (CLI). v48 directive previews queued (CLI + site). v35 Stripe still the only Phase 8 launch blocker. Known issue: BUG-METRICS-1 time-saved formula inflated (68h "saved" in 25h wall-clock — TOKENS_PER_MINUTE=200 too generous, small before-sample, no wall-clock cap). Critical path: v35 Stripe → v48 previews → v49 landing page stats → launch.*
+*Last updated: 2026-05-01 — **Phase 8 COMPLETE.** v55 done (directive ID restore). v56 in progress (live stats, project toggles, billing page, GA). v57 queued (legal, SEO, dashboard foundations). v58 queued (onboarding, engagement, marketing polish). After v56-v58 complete, Phase 9 launch items remain: npm publish, Homebrew tap, robots.txt flip, demo GIF, referral system.*
