@@ -47,7 +47,11 @@ vi.mock('../../src/license/binding.js', async (importOriginal) => {
 
 vi.mock('../../src/license/server-public-key.js', () => ({
   SERVER_PUBLIC_KEY_B64: testKeys.b64Public,
+}));
+
+vi.mock('../../src/config/environment.js', () => ({
   API_BASE_URL: 'https://test.auto-sop.com/api/v1',
+  APP_BASE_URL: 'https://test.auto-sop.com',
 }));
 
 /* ─── imports (after mocks are declared) ─── */

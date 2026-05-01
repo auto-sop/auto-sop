@@ -1,6 +1,7 @@
 import { join, dirname } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { APP_BASE_URL } from '../config/environment.js';
 import { readSecrets } from './storage.js';
 import { readRegistry, type ProjectRegistryEntry } from '../learner/project-registry.js';
 import { readBindingFile } from './binding.js';
@@ -108,7 +109,7 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
   if (valid === false) {
     return {
       allowed: false,
-      reason: `Project limit exceeded. Your ${plan} plan allows ${maxProjects} project(s). Upgrade at https://app.auto-sop.com/upgrade`,
+      reason: `Project limit exceeded. Your ${plan} plan allows ${maxProjects} project(s). Upgrade at ${APP_BASE_URL}/upgrade`,
       plan,
       maxProjects,
     };

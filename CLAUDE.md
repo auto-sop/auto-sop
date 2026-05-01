@@ -5,7 +5,8 @@ _Project-level instructions for Claude Code._
 <!-- auto-sop:managed-section:begin v1 -->
 <!-- GENERATED - DO NOT EDIT. auto-sop owns this section. -->
 
-_Data as of: 2026-04-27T21:30:00Z · 535 turns analyzed · 9 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main_
+_Data as of: 2026-05-01T11:54:00Z · 595 turns analyzed · 10 agents: Explore, apex-security-auditor, architect-principal-engineer, code-improvement-analyzer, code-review-master-yoda, commander, general-purpose, jonathan-gsd-planner, main, prism-ux-tester_
+_AI analysis: First batch analysis of a jonathan-gsd-planner session reveals the planner agent performing operational monitoring (tmux pane checks, Vercel env inspection, repeated git queries) that should belong to the orchestrator, along with redundant git state lookups across consecutive turns._
 
 **Transparency**: When you follow a directive from this section, briefly note which one.
 Format: `[sop:applied:<id>]` — e.g., `[sop:applied:llm-7ced]`. One tag per directive applied.
@@ -23,18 +24,6 @@ Do not force-apply directives — only tag when a directive genuinely influenced
   _(evidence: 3 sessions)_
 
 - **[error]** The jonathan-gsd-planner agent must never use the Edit or Write tool on source code or infrastructure scripts. When a fix is identified during planning or investigation, document it in the plan and delegate execution to Architect or an executor agent. [sop:llm-38b4]
-  _(evidence: 3 sessions)_
-
-- **[warning]** Derive expected test values from source constants rather than hardcoding magic numbers. When a key format or encoding changes, tests that derive expected lengths from the format will fail with clear messages instead of requiring manual grep hunts. [sop:llm-ea51]
-  _(evidence: 3 sessions)_
-
-- **[warning]** When investigating an unfamiliar area of the codebase that will require more than 3 search queries, delegate to an Explore agent immediately rather than doing extensive manual grep exploration first and then delegating anyway. [sop:llm-773d]
-  _(evidence: 3 sessions)_
-
-- **[warning]** Always use the dedicated Grep tool for content search and Glob tool for file discovery. Never invoke grep, rg, or find via Bash — the dedicated tools have optimized permissions and output formatting. [sop:llm-7c53]
-  _(evidence: 3 sessions)_
-
-- **[warning]** Never read the full contents of environment files containing secrets. Use Grep to check for specific key names or Bash grep -c to count entries without exposing secret values in agent context. [sop:llm-28d1]
   _(evidence: 3 sessions)_
 
 - **[warning]** Always use the dedicated Read, Grep, and Glob tools instead of Bash equivalents (cat, grep, ls, find) for file reading, content searching, and file listing. Reserve Bash for shell-only operations like running tests or build commands. [sop:llm-9ea9]
@@ -86,6 +75,18 @@ Do not force-apply directives — only tag when a directive genuinely influenced
   _(evidence: 3 sessions)_
 
 - **[warning]** Never modify CLAUDE.md directly for testing. Use git stash or a temporary branch to preserve the original, rather than creating manual backup files that may be forgotten or left behind. [sop:llm-5cb5]
+  _(evidence: 3 sessions)_
+
+- **[warning]** When checking if a file is tracked in a git commit, use a single definitive command like 'git ls-files' or 'git show HEAD:<path>' instead of iterating through multiple git status, diff, show, and log commands for the same file. One authoritative check replaces ten exploratory ones. [sop:llm-1b50]
+  _(evidence: 3 sessions)_
+
+- **[warning]** Before dispatching code for YODA review, ARCHITECT must self-check against common review failures: magic numbers in tests, unexported constants used cross-module, and incomplete error handling. A pre-review self-audit reduces costly rejection-and-redispatch cycles. [sop:llm-80c8]
+  _(evidence: 3 sessions)_
+
+- **[warning]** When requesting a UI audit of authenticated pages, either provide test credentials, a pre-authenticated session cookie, or instruct the agent to use the local dev server with auth bypassed — do not expect live site audit of protected routes without auth context [sop:llm-51b3]
+  _(evidence: 3 sessions)_
+
+- **[warning]** When spawning a subagent for project-specific work, always include the exact local project directory path in the prompt so the agent does not waste tool calls discovering it [sop:llm-cf46]
   _(evidence: 3 sessions)_
 
 <!-- auto-sop:managed-section:end -->

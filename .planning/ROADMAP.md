@@ -741,6 +741,7 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 5. **v50** — CLI token consumption transparency: `auto-sop stats --self` showing own token cost per 24h.
 6. **v51** — Dashboard project toggle: Free=1 active project, toggle UI, upgrade prompt → Stripe Checkout.
 7. **BUG-METRICS-1** — Time-saved formula calibration: cap at wall-clock, confidence bands, TOKENS_PER_MINUTE adjustment.
+8. **UX-ONBOARD-1** — Dashboard "Getting your dashboard ready..." page should poll (e.g. `/api/v1/me` every 3-5s) and auto-redirect once Clerk webhook creates Supabase user row. Currently static — user must manually refresh after signup.
 
 **Phase 9 (launch prep):**
 8. **v52** — Launch prep — npm v0.1.0 publish with provenance, real metrics on landing page, demo GIF/video (M4)

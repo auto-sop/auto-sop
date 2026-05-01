@@ -14,6 +14,7 @@ import { ensureGitignore } from './gitignore.js';
 import { recordLicenseOnInstall } from '../license/storage.js';
 import { getMachineId } from '../config/machine-id.js';
 import { promptLicense, classifyLicense } from '../cli/prompt.js';
+import { APP_BASE_URL } from '../config/environment.js';
 import { PreconditionError } from '../cli/errors.js';
 import { upsertProject, readRegistry } from '../learner/project-registry.js';
 import { createBindingFile, writeBindingFile } from '../license/binding.js';
@@ -155,7 +156,7 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
         });
         if (!result.success && result.error === 'invalid_key') {
           throw new PreconditionError(
-            'Invalid license key. Get a free key at https://app.auto-sop.com/signup',
+            `Invalid license key. Get a free key at ${APP_BASE_URL}/signup`,
           );
         }
         if (!result.success && result.error === 'tampered_client') {

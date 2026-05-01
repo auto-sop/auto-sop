@@ -11,8 +11,12 @@ vi.mock('../../src/license/x25519-encrypt.js', () => ({
 }));
 
 vi.mock('../../src/license/server-public-key.js', () => ({
-  API_BASE_URL: 'https://test.auto-sop.com/api/v1',
   SERVER_X25519_PUBLIC_KEY_B64: 'mock-server-key-b64',
+}));
+
+vi.mock('../../src/config/environment.js', () => ({
+  API_BASE_URL: 'https://test.auto-sop.com/api/v1',
+  APP_BASE_URL: 'https://test.auto-sop.com',
 }));
 
 import { syncStats, type SyncStatsOpts } from '../../src/license/stats-sync.js';
