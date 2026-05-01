@@ -28,6 +28,7 @@ import {
   type DirectiveHistoryEntry,
 } from '../managed-section/directive-history.js';
 import { writeManagedSection } from '../managed-section/editor.js';
+import { shortDirectiveId } from '../learner/directive-builder.js';
 
 export interface InstallOptions {
   projectRoot: string;
@@ -321,11 +322,28 @@ export function detectClaudeBinDir(homeDir: string): string | undefined {
  * Simpler than the full buildDirectiveBodyFromInput — no agent roster,
  * LLM summary, or turn statistics needed for a restore.
  */
-function buildRestoredBody(entries: DirectiveHistoryEntry[]): { body: string } {
+export function buildRestoredBody(entries: DirectiveHistoryEntry[]): { body: string } {
   const count = entries.length;
   const label = count === 1 ? 'directive' : 'directives';
   const header = `_Directives restored from previous install._\n`;
-  const learnings = `**Learnings** (${count} active ${label})`;
-  const bullets = entries.map((e) => `- **[${e.severity}]** ${e.rule_text}`).join('\n\n');
-  return { body: `${header}\n${learnings}\n\n${bullets}` };
+
+  const transparencyBlock =
+    count > 0
+      ? '\n**Transparency**: When you follow a directive from this section, briefly note which one.\n' +
+        'Format: `[sop:applied:<id>]` — e.g., `[sop:applied:llm-7ced]`. One tag per directive applied.\n' +
+        'Do not force-apply directives — only tag when a directive genuinely influenced your action.\n'
+      : '';
+
+  const learnings = `\n**Learnings** (${count} active ${label})`;
+
+  const bullets = entries
+    .map((e) => {
+      const sopTag = ` [sop:${shortDirectiveId(e.id)}]`;
+      const sessionsLabel = e.occurrence_count === 1 ? 'session' : 'sessions';
+      const evidenceLine = `  _(evidence: ${e.occurrence_count} ${sessionsLabel})_`;
+      return `- **[${e.severity}]** ${e.rule_text}${sopTag}\n${evidenceLine}`;
+    })
+    .join('\n\n');
+
+  return { body: `${header}${transparencyBlock}${learnings}\n\n${bullets}` };
 }
