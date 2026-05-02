@@ -458,7 +458,7 @@ describe('aggregateStats', () => {
       writeHistory(root, makeHistory({ 'det-a': { rule_text: 'Some rule.' } }));
       const state = emptyMetricsState('test-project');
       state.directive_previews = {
-        'llm-7ced': 'Never add comments that describe WHAT a function...',
+        'sop-7ced': 'Never add comments that describe WHAT a function...',
         'det-0000': 'Always validate input before processing external data from...',
       };
       saveMetricsState(tmpHome, root, state);
@@ -472,7 +472,7 @@ describe('aggregateStats', () => {
       });
 
       expect(stats.directive_previews).toEqual({
-        'llm-7ced': 'Never add comments that describe WHAT a function...',
+        'sop-7ced': 'Never add comments that describe WHAT a function...',
         'det-0000': 'Always validate input before processing external data from...',
       });
     });

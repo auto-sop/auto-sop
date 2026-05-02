@@ -22,7 +22,7 @@ describe('extractDirectivePreviews', () => {
     ];
     const result = extractDirectivePreviews(proposals);
     expect(result).toEqual({
-      'llm-7ced': 'Never add comments that describe WHAT a function does',
+      'sop-7ced': 'Never add comments that describe WHAT a function does',
     });
   });
 
@@ -35,7 +35,7 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-abcd']).toBe(
+    expect(result['sop-abcd']).toBe(
       'Always use the dedicated Read tool to inspect JSON state...',
     );
   });
@@ -49,8 +49,8 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-0000']).toBe(words.join(' '));
-    expect(result['llm-0000']).not.toContain('...');
+    expect(result['sop-0000']).toBe(words.join(' '));
+    expect(result['sop-0000']).not.toContain('...');
   });
 
   it(`does not truncate when fewer than ${PREVIEW_WORD_LIMIT} words`, () => {
@@ -61,7 +61,7 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-1111']).toBe('Short rule text here');
+    expect(result['sop-1111']).toBe('Short rule text here');
   });
 
   it('strips bold markdown markers', () => {
@@ -72,8 +72,8 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-2222']).toBe('Never modify CLAUDE.md directly for testing');
-    expect(result['llm-2222']).not.toContain('**');
+    expect(result['sop-2222']).toBe('Never modify CLAUDE.md directly for testing');
+    expect(result['sop-2222']).not.toContain('**');
   });
 
   it('strips bracket tags and keeps inner text', () => {
@@ -84,10 +84,10 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-3333']).toBe(
+    expect(result['sop-3333']).toBe(
       'Before any production deployment to Vercel verify env vars',
     );
-    expect(result['llm-3333']).not.toContain('[');
+    expect(result['sop-3333']).not.toContain('[');
   });
 
   it('strips inline code backticks', () => {
@@ -98,8 +98,8 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-4444']).toBe('Always use the Grep tool for content search');
-    expect(result['llm-4444']).not.toContain('`');
+    expect(result['sop-4444']).toBe('Always use the Grep tool for content search');
+    expect(result['sop-4444']).not.toContain('`');
   });
 
   it('handles empty rule_text', () => {
@@ -110,7 +110,7 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-5555']).toBe('');
+    expect(result['sop-5555']).toBe('');
   });
 
   it('handles rule_text with only whitespace', () => {
@@ -121,7 +121,7 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-6666']).toBe('');
+    expect(result['sop-6666']).toBe('');
   });
 
   it('handles very long rule_text', () => {
@@ -133,7 +133,7 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    const preview = result['llm-7777']!;
+    const preview = result['sop-7777']!;
     expect(preview.endsWith('...')).toBe(true);
     // Should be exactly first PREVIEW_WORD_LIMIT words + '...'
     const expectedWords = words.slice(0, PREVIEW_WORD_LIMIT).join(' ') + '...';
@@ -148,7 +148,7 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-8888']).toBe('Don\'t use "echo" > for file writing & redirection');
+    expect(result['sop-8888']).toBe('Don\'t use "echo" > for file writing & redirection');
   });
 
   it('produces correct short IDs for different detector prefixes', () => {
@@ -159,7 +159,7 @@ describe('extractDirectivePreviews', () => {
     ];
     const result = extractDirectivePreviews(proposals);
     expect(Object.keys(result)).toEqual(
-      expect.arrayContaining(['rbf-abcd', 'ref-ef56', 'llm-1111']),
+      expect.arrayContaining(['rbf-abcd', 'ref-ef56', 'sop-1111']),
     );
   });
 
@@ -171,9 +171,9 @@ describe('extractDirectivePreviews', () => {
     ];
     const result = extractDirectivePreviews(proposals);
     expect(Object.keys(result)).toHaveLength(3);
-    expect(result['llm-aaaa']).toBe('First rule text');
-    expect(result['llm-bbbb']).toBe('Second rule text');
-    expect(result['llm-cccc']).toBe('Third rule text');
+    expect(result['sop-aaaa']).toBe('First rule text');
+    expect(result['sop-bbbb']).toBe('Second rule text');
+    expect(result['sop-cccc']).toBe('Third rule text');
   });
 
   it('returns empty object for empty proposals array', () => {
@@ -189,6 +189,6 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['llm-comb']).toBe('Never run grep via Bash for code search tasks');
+    expect(result['sop-comb']).toBe('Never run grep via Bash for code search tasks');
   });
 });

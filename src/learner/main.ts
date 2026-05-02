@@ -878,22 +878,41 @@ export async function runLearnerTick(
         result.directive_fires_total = 0;
       }
 
-      // V46: Accumulate self-reported (confirmed) fires from turn data.
+      // V58: Load existing metrics early — needed for fallback when no new turns
+      // and for accumulating confirmed fires across ticks. Previously loaded at
+      // line ~1015 but only used for first_directive_added_at.
+      const existingMetrics = loadMetricsState(home, project.project_root);
+
+      // V46 + V58: Accumulate self-reported (confirmed) fires from turn data.
       // These come from Claude's [sop:applied:ID] markers in response text,
       // parsed by the capture writer and stored in turn meta.json.
-      let confirmedFiresTotal = 0;
-      const confirmedFiresByDirective: Record<string, number> = {};
+      // V58 fix: Accumulate across ticks instead of resetting on each tick.
+      const prevConfirmedFires = existingMetrics?.confirmed_fires_total ?? 0;
+      // V58: Migrate llm- prefix to sop- prefix in cached confirmed_fires_by_directive keys
+      const rawPrevFiresByDirective: Record<string, number> = existingMetrics?.confirmed_fires_by_directive ?? {};
+      const prevFiresByDirective: Record<string, number> = {};
+      for (const [key, val] of Object.entries(rawPrevFiresByDirective)) {
+        const newKey = key.startsWith('llm-') ? 'sop-' + key.slice(4) : key;
+        prevFiresByDirective[newKey] = (prevFiresByDirective[newKey] ?? 0) + (val as number);
+      }
+      let newFiresThisTick = 0;
+      const newFiresByDirective: Record<string, number> = {};
       try {
         for (const turn of turnData) {
           if (Array.isArray(turn.self_reported_fires)) {
             for (const id of turn.self_reported_fires) {
-              confirmedFiresTotal++;
-              confirmedFiresByDirective[id] = (confirmedFiresByDirective[id] ?? 0) + 1;
+              newFiresThisTick++;
+              newFiresByDirective[id] = (newFiresByDirective[id] ?? 0) + 1;
             }
           }
         }
       } catch (err) {
         logError('confirmed_fires_accumulation_failed', err, home);
+      }
+      const confirmedFiresTotal = prevConfirmedFires + newFiresThisTick;
+      const confirmedFiresByDirective: Record<string, number> = { ...prevFiresByDirective };
+      for (const [id, count] of Object.entries(newFiresByDirective)) {
+        confirmedFiresByDirective[id] = (confirmedFiresByDirective[id] ?? 0) + count;
       }
 
       // Load history once — shared between error prevention and sync queue blocks.
@@ -1002,16 +1021,17 @@ export async function runLearnerTick(
         // ── Persist MetricsState for stats sync ──
         try {
           const tokenEst = syncEntry.token_estimate;
+          // V58 fix: When no token estimate (no new turns), preserve previous value
           const totalTokensSaved = tokenEst
             ? Math.round(tokenEst.savings_per_session * (syncEntry.session_comparison?.after?.sessions ?? 0))
-            : 0;
+            : (existingMetrics?.total_tokens_saved ?? 0);
           // V46: Build directive_ids from active render proposals
           const directiveIds = renderProposals.map((p) => shortDirectiveId(p.id));
           // V48: Build directive previews (short ID → first ~10 words)
           const directivePreviews = extractDirectivePreviews(renderProposals);
 
           // V53: Derive first_directive_added_at — earliest first_seen across ALL history entries (including pruned)
-          const existingMetrics = loadMetricsState(home, project.project_root);
+          // V58: existingMetrics already loaded earlier for fallback + accumulation
           let firstDirectiveAddedAt: string | undefined = existingMetrics?.first_directive_added_at;
           if (!firstDirectiveAddedAt && history !== null) {
             let earliest: string | null = null;
@@ -1027,15 +1047,19 @@ export async function runLearnerTick(
           const baselineSessions = tickSessionComparison?.before?.sessions ?? 0;
           const confidence = deriveConfidence(baselineSessions);
 
-          // V53: Cap time_saved at wall-clock elapsed since first directive
-          const rawTimeSaved = Math.round(totalTokensSaved / TOKENS_PER_MINUTE * 10) / 10;
+          // V53 + V58: Cap time_saved at wall-clock elapsed since first directive
+          // V58 fix: When no token estimate, preserve previous time_saved value
+          const rawTimeSaved = tokenEst
+            ? Math.round(totalTokensSaved / TOKENS_PER_MINUTE * 10) / 10
+            : (existingMetrics?.total_time_saved_minutes ?? 0);
           const cappedTimeSaved = capTimeSaved(rawTimeSaved, firstDirectiveAddedAt);
 
           const metricsState: MetricsState = {
             v: 1,
             project_slug: project.slug,
             total_tokens_saved: totalTokensSaved,
-            total_errors_prevented: result.errors_prevented_total ?? 0,
+            // V58 fix: Preserve errors_prevented when no new turns
+            total_errors_prevented: (result.errors_prevented_total ?? 0) || (existingMetrics?.total_errors_prevented ?? 0),
             total_time_saved_minutes: cappedTimeSaved,
             directive_count: renderProposals.length,
             ...(tokenEst?.method === 'byte_counted' || tokenEst?.method === 'tool_call_heuristic' || tokenEst?.method === 'hybrid'

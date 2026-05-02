@@ -330,8 +330,15 @@ export function buildRestoredBody(entries: DirectiveHistoryEntry[]): { body: str
   const transparencyBlock =
     count > 0
       ? '\n**Transparency**: When you follow a directive from this section, briefly note which one.\n' +
-        'Format: `[sop:applied:<id>]` — e.g., `[sop:applied:llm-7ced]`. One tag per directive applied.\n' +
+        'Format: `[sop:applied:<id>]` — e.g., `[sop:applied:sop-7ced]`. One tag per directive applied.\n' +
         'Do not force-apply directives — only tag when a directive genuinely influenced your action.\n'
+      : '';
+
+  const planningGateBlock =
+    count > 0
+      ? '\n**Planning gate**: Before creating implementation plans or making architectural decisions, read all directives below. ' +
+        'Plans must respect these learned patterns — they exist because past sessions exposed real issues. ' +
+        'Tag `[sop:applied:<id>]` in plan tasks when a directive influenced the decision.\n'
       : '';
 
   const learnings = `\n**Learnings** (${count} active ${label})`;
@@ -345,5 +352,5 @@ export function buildRestoredBody(entries: DirectiveHistoryEntry[]): { body: str
     })
     .join('\n\n');
 
-  return { body: `${header}${transparencyBlock}${learnings}\n\n${bullets}` };
+  return { body: `${header}${transparencyBlock}${planningGateBlock}${learnings}\n\n${bullets}` };
 }

@@ -208,7 +208,7 @@ function sanitizeTurnId(raw: string): string {
  * colliding to 'repeated').
  */
 const DETECTOR_PREFIX_MAP: ReadonlyArray<[prefix: string, short: string]> = [
-  ['llm-inc-', 'llm-'],
+  ['llm-inc-', 'sop-'],
   ['repeated-bash-failure-', 'rbf-'],
   ['repeated-edit-fail-', 'ref-'],
 ];
@@ -354,8 +354,16 @@ export function buildDirectiveBodyFromInput(input: DirectiveInput): ManagedSecti
   const transparencyBlock =
     sorted.length > 0
       ? '**Transparency**: When you follow a directive from this section, briefly note which one.\n' +
-        'Format: `[sop:applied:<id>]` — e.g., `[sop:applied:llm-7ced]`. One tag per directive applied.\n' +
+        'Format: `[sop:applied:<id>]` — e.g., `[sop:applied:sop-7ced]`. One tag per directive applied.\n' +
         'Do not force-apply directives — only tag when a directive genuinely influenced your action.\n\n'
+      : '';
+
+  // V58: Planning gate — instructs planning agents to read directives before making plans.
+  const planningGateBlock =
+    sorted.length > 0
+      ? '**Planning gate**: Before creating implementation plans or making architectural decisions, read all directives below. ' +
+        'Plans must respect these learned patterns — they exist because past sessions exposed real issues. ' +
+        'Tag `[sop:applied:<id>]` in plan tasks when a directive influenced the decision.\n\n'
       : '';
 
   let learningsSection: string;
@@ -382,7 +390,7 @@ export function buildDirectiveBodyFromInput(input: DirectiveInput): ManagedSecti
     learningsSection = '**Learnings**\n\n' + '_No recurring patterns detected yet._';
   }
 
-  const body = statsLine + aiLine + '\n\n' + transparencyBlock + learningsSection;
+  const body = statsLine + aiLine + '\n\n' + transparencyBlock + planningGateBlock + learningsSection;
   return { body };
 }
 
