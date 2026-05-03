@@ -187,7 +187,7 @@ export function registerRevertVerb(program: Command): void {
       const tmpPath = claudeMdPath + '.revert.tmp';
       try {
         writeFileSync(tmpPath, backupContent, { mode: 0o644 });
-        const fd = openSync(tmpPath, 'r');
+        const fd = openSync(tmpPath, 'r+');
         try {
           fsyncSync(fd);
         } finally {

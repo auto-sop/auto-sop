@@ -259,7 +259,7 @@ export function compactPreventedErrors(stateDir: string, maxAgeDays: number): nu
   try {
     const content = keep.length > 0 ? keep.join('\n') + '\n' : '';
     writeFileSync(tmpPath, content, { mode: 0o600 });
-    const fd = openSync(tmpPath, 'r');
+    const fd = openSync(tmpPath, 'r+');
     try {
       fsyncSync(fd);
     } finally {
