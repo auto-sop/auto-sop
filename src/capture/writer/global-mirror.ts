@@ -2,7 +2,7 @@
  * Global mirror: JSONL index only (NOT full copy of capture content).
  *
  * On every turn finalization, one JSON line is appended to
- * `~/.claude/sop/<hash12>/index.jsonl` (or the dev-army variant).
+ * `~/.claude/sop/<hash12>/index.jsonl` (or the per-agent namespace variant).
  *
  * Also handles project-move migration: when PathResolver detects the
  * project was moved, rename the global dir atomically and rewrite
@@ -36,10 +36,10 @@ export interface GlobalIndexLine {
 export function resolveGlobalTargetDir(
   paths: CapturePaths,
   projectRoot: string,
-  detectDevArmyAgent: (root: string) => string | null,
+  detectAgent: (root: string) => string | null,
 ): string {
-  const devArmyAgent = detectDevArmyAgent(projectRoot);
-  return devArmyAgent ? paths.devArmyGlobalDir(devArmyAgent) : paths.globalProjectDir;
+  const agentName = detectAgent(projectRoot);
+  return agentName ? paths.agentGlobalDir(agentName) : paths.globalProjectDir;
 }
 
 export function appendGlobalIndexLine(
@@ -47,9 +47,9 @@ export function appendGlobalIndexLine(
   projectRoot: string,
   meta: TurnMeta,
   turnDirAbs: string,
-  detectDevArmyAgent: (root: string) => string | null,
+  detectAgent: (root: string) => string | null,
 ): void {
-  const targetDir = resolveGlobalTargetDir(paths, projectRoot, detectDevArmyAgent);
+  const targetDir = resolveGlobalTargetDir(paths, projectRoot, detectAgent);
   const indexPath = join(targetDir, 'index.jsonl');
   mkdirSync(targetDir, { recursive: true, mode: 0o700 });
   if (!existsSync(indexPath)) {

@@ -85,12 +85,12 @@ function setDirMtime(dirPath: string, mtime: Date): void {
 
 describe('orphan-sweep', () => {
   let capturesDir: string;
-  let yarimKalanDir: string;
+  let pendingCaptureDir: string;
 
   beforeEach(() => {
     const base = makeTmpDir();
     capturesDir = join(base, 'captures');
-    yarimKalanDir = join(base, 'captures', 'yarim-kalan');
+    pendingCaptureDir = join(base, 'captures', 'pending-capture');
     mkdirSync(capturesDir, { recursive: true });
   });
 
@@ -100,7 +100,7 @@ describe('orphan-sweep', () => {
       const pendingPath = createPendingDir(capturesDir, 'fresh-turn.pending');
       // mtime is "now" by default
 
-      const result = sweepOrphanedTurns(capturesDir, yarimKalanDir, now);
+      const result = sweepOrphanedTurns(capturesDir, pendingCaptureDir, now);
 
       expect(result.finalized).toBe(0);
       expect(result.quarantined).toBe(0);
@@ -114,7 +114,7 @@ describe('orphan-sweep', () => {
       const pendingPath = createPendingDir(capturesDir, 'stale-turn.pending', staleTime);
       setDirMtime(pendingPath, staleTime);
 
-      const result = sweepOrphanedTurns(capturesDir, yarimKalanDir, now);
+      const result = sweepOrphanedTurns(capturesDir, pendingCaptureDir, now);
 
       expect(result.finalized).toBe(1);
       expect(result.quarantined).toBe(0);
@@ -130,20 +130,20 @@ describe('orphan-sweep', () => {
       expect(meta.finalized_at).toBeTruthy();
     });
 
-    it('quarantines a very old pending dir (age 45 min) to yarim-kalan', () => {
+    it('quarantines a very old pending dir (age 45 min) to pending-capture', () => {
       const now = Date.now();
       const oldTime = new Date(now - 45 * 60_000); // 45 minutes old
       const pendingPath = createPendingDir(capturesDir, 'ancient-turn.pending', oldTime);
       setDirMtime(pendingPath, oldTime);
 
-      const result = sweepOrphanedTurns(capturesDir, yarimKalanDir, now);
+      const result = sweepOrphanedTurns(capturesDir, pendingCaptureDir, now);
 
       expect(result.quarantined).toBe(1);
       expect(result.finalized).toBe(0);
       // Original should be gone
       expect(existsSync(pendingPath)).toBe(false);
-      // Should be in yarim-kalan/
-      expect(existsSync(join(yarimKalanDir, 'ancient-turn.pending'))).toBe(true);
+      // Should be in pending-capture/
+      expect(existsSync(join(pendingCaptureDir, 'ancient-turn.pending'))).toBe(true);
     });
 
     it('handles multiple dirs with mixed ages correctly', () => {
@@ -163,7 +163,7 @@ describe('orphan-sweep', () => {
       const ancientPath = createPendingDir(capturesDir, 'ancient.pending', ancientTime);
       setDirMtime(ancientPath, ancientTime);
 
-      const result = sweepOrphanedTurns(capturesDir, yarimKalanDir, now);
+      const result = sweepOrphanedTurns(capturesDir, pendingCaptureDir, now);
 
       expect(result.finalized).toBe(1);
       expect(result.quarantined).toBe(1);
@@ -176,7 +176,7 @@ describe('orphan-sweep', () => {
       expect(existsSync(stalePath.replace('.pending', ''))).toBe(true);
       // Ancient is quarantined
       expect(existsSync(ancientPath)).toBe(false);
-      expect(existsSync(join(yarimKalanDir, 'ancient.pending'))).toBe(true);
+      expect(existsSync(join(pendingCaptureDir, 'ancient.pending'))).toBe(true);
     });
 
     it('continues sweeping even if one dir errors', () => {
@@ -193,7 +193,7 @@ describe('orphan-sweep', () => {
       // No meta.json → finalizeMeta will throw
       utimesSync(badDir, staleTime, staleTime);
 
-      const result = sweepOrphanedTurns(capturesDir, yarimKalanDir, now);
+      const result = sweepOrphanedTurns(capturesDir, pendingCaptureDir, now);
 
       // One succeeded, one errored
       expect(result.finalized).toBe(1);
@@ -201,7 +201,7 @@ describe('orphan-sweep', () => {
     });
 
     it('returns zeros when capturesDir does not exist', () => {
-      const result = sweepOrphanedTurns('/tmp/nonexistent-dir-' + randomUUID(), yarimKalanDir);
+      const result = sweepOrphanedTurns('/tmp/nonexistent-dir-' + randomUUID(), pendingCaptureDir);
       expect(result).toEqual({ finalized: 0, quarantined: 0, errors: 0 });
     });
   });

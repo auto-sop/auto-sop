@@ -8,7 +8,7 @@ vi.mock('node:os', () => ({
 }));
 
 // Import after mock is set up
-const { getCapturePaths, detectDevArmyAgent } = await import('../../src/capture/paths.js');
+const { getCapturePaths, detectAgent } = await import('../../src/capture/paths.js');
 
 describe('getCapturePaths', () => {
   const PROJECT_ROOT = '/tmp/my-project';
@@ -20,13 +20,13 @@ describe('getCapturePaths', () => {
     expect(paths).toHaveProperty('projectStateDir');
     expect(paths).toHaveProperty('projectErrorsLog');
     expect(paths).toHaveProperty('projectPausedFlag');
-    expect(paths).toHaveProperty('projectYarimKalan');
+    expect(paths).toHaveProperty('projectPendingCapture');
     expect(paths).toHaveProperty('tmpPayloadDir');
     expect(paths).toHaveProperty('globalSopHome');
     expect(paths).toHaveProperty('globalProjectDir');
     expect(paths).toHaveProperty('globalIndexJsonl');
     expect(paths).toHaveProperty('globalErrorsLog');
-    expect(paths).toHaveProperty('devArmyGlobalDir');
+    expect(paths).toHaveProperty('agentGlobalDir');
   });
 
   it('project paths are under projectRoot/.auto-sop', () => {
@@ -38,10 +38,10 @@ describe('getCapturePaths', () => {
     expect(paths.projectPausedFlag).toBe(join(claudeSopDir, 'paused.flag'));
   });
 
-  it('yarim-kalan is under captures', () => {
+  it('pending-capture is under captures', () => {
     const paths = getCapturePaths(PROJECT_ROOT, PROJECT_ID);
-    expect(paths.projectYarimKalan).toBe(
-      join(PROJECT_ROOT, '.auto-sop', 'captures', 'yarim-kalan'),
+    expect(paths.projectPendingCapture).toBe(
+      join(PROJECT_ROOT, '.auto-sop', 'captures', 'pending-capture'),
     );
   });
 
@@ -62,10 +62,10 @@ describe('getCapturePaths', () => {
     );
   });
 
-  it('devArmyGlobalDir returns correct agent path', () => {
+  it('agentGlobalDir returns correct agent path', () => {
     const paths = getCapturePaths(PROJECT_ROOT, PROJECT_ID);
-    expect(paths.devArmyGlobalDir('commander')).toBe(
-      join(FAKE_HOME, '.claude', 'sop', 'dev-army', 'commander'),
+    expect(paths.agentGlobalDir('commander')).toBe(
+      join(FAKE_HOME, '.claude', 'sop', 'agents', 'commander'),
     );
   });
 
@@ -75,7 +75,7 @@ describe('getCapturePaths', () => {
     expect(isAbsolute(paths.projectStateDir)).toBe(true);
     expect(isAbsolute(paths.projectErrorsLog)).toBe(true);
     expect(isAbsolute(paths.projectPausedFlag)).toBe(true);
-    expect(isAbsolute(paths.projectYarimKalan)).toBe(true);
+    expect(isAbsolute(paths.projectPendingCapture)).toBe(true);
     expect(isAbsolute(paths.tmpPayloadDir)).toBe(true);
     expect(isAbsolute(paths.globalSopHome)).toBe(true);
     expect(isAbsolute(paths.globalProjectDir)).toBe(true);
@@ -84,27 +84,27 @@ describe('getCapturePaths', () => {
   });
 });
 
-describe('detectDevArmyAgent', () => {
+describe('detectAgent', () => {
   it('returns agent name for dev-army project path', () => {
     const projectRoot = join(FAKE_HOME, '.claude', 'dev-army', 'commander');
-    expect(detectDevArmyAgent(projectRoot)).toBe('commander');
+    expect(detectAgent(projectRoot)).toBe('commander');
   });
 
   it('returns agent name for nested dev-army path', () => {
     const projectRoot = join(FAKE_HOME, '.claude', 'dev-army', 'architect', 'subdir');
-    expect(detectDevArmyAgent(projectRoot)).toBe('architect');
+    expect(detectAgent(projectRoot)).toBe('architect');
   });
 
   it('returns null for non-dev-army project', () => {
-    expect(detectDevArmyAgent(join(FAKE_HOME, 'other-project'))).toBeNull();
+    expect(detectAgent(join(FAKE_HOME, 'other-project'))).toBeNull();
   });
 
   it('returns null for partial prefix match', () => {
-    expect(detectDevArmyAgent(join(FAKE_HOME, '.claude', 'dev-army-fake', 'x'))).toBeNull();
+    expect(detectAgent(join(FAKE_HOME, '.claude', 'dev-army-fake', 'x'))).toBeNull();
   });
 
   it('returns null when path equals prefix without agent segment', () => {
     // Path exactly matches the prefix dir (no agent after it)
-    expect(detectDevArmyAgent(join(FAKE_HOME, '.claude', 'dev-army'))).toBeNull();
+    expect(detectAgent(join(FAKE_HOME, '.claude', 'dev-army'))).toBeNull();
   });
 });

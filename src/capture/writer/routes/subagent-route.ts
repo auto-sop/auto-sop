@@ -34,7 +34,7 @@ import { getErrorWriter } from '../errors.js';
 registerPreStartHook((event, ctx) => {
   if (event.hook_event_name !== 'UserPromptSubmit') return { abort: false };
   try {
-    sweepOrphanedTurns(ctx.paths.projectCaptureDir, ctx.paths.projectYarimKalan);
+    sweepOrphanedTurns(ctx.paths.projectCaptureDir, ctx.paths.projectPendingCapture);
     sweepOrphanTmpPayloads(ctx.paths.tmpPayloadDir);
   } catch (err) {
     getErrorWriter()?.('orphan_sweep_failed', null, err);

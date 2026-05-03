@@ -11,13 +11,13 @@ import { join } from 'node:path';
 import { registerFinalizeHook } from './finalize-hooks.js';
 import { registerPreStartHook } from './pre-start-hooks.js';
 import { appendGlobalIndexLine, migrateGlobalDirOnMove } from '../global-mirror.js';
-import { detectDevArmyAgent, getCapturePaths } from '../../paths.js';
+import { detectAgent, getCapturePaths } from '../../paths.js';
 import { getErrorWriter } from '../errors.js';
 
 // ── Finalize hook: append one index line per turn ────────────────────
 registerFinalizeHook((finalizedDir, meta, ctx) => {
   try {
-    appendGlobalIndexLine(ctx.paths, ctx.projectRoot, meta, finalizedDir, detectDevArmyAgent);
+    appendGlobalIndexLine(ctx.paths, ctx.projectRoot, meta, finalizedDir, detectAgent);
   } catch (err) {
     getErrorWriter()?.('global_mirror_failed', meta.turn_id, err);
   }
@@ -61,12 +61,12 @@ registerPreStartHook((_event, ctx) => {
 
 /**
  * Resolve the global dir for a given paths + projectRoot combo,
- * taking dev-army namespace into account.
+ * taking the agent namespace into account.
  */
 function resolveGlobalDirForCtx(
   paths: ReturnType<typeof getCapturePaths>,
   projectRoot: string,
 ): string {
-  const agent = detectDevArmyAgent(projectRoot);
-  return agent ? paths.devArmyGlobalDir(agent) : paths.globalProjectDir;
+  const agent = detectAgent(projectRoot);
+  return agent ? paths.agentGlobalDir(agent) : paths.globalProjectDir;
 }

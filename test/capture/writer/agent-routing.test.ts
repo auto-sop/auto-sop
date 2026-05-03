@@ -16,13 +16,13 @@ function makePaths(projectId: string): CapturePaths {
     projectStateDir: '',
     projectErrorsLog: '',
     projectPausedFlag: '',
-    projectYarimKalan: '',
+    projectPendingCapture: '',
     tmpPayloadDir: '',
     globalSopHome,
     globalProjectDir,
     globalIndexJsonl: join(globalProjectDir, 'index.jsonl'),
     globalErrorsLog: join(globalProjectDir, 'errors.jsonl'),
-    devArmyGlobalDir: (agent: string) => join(globalSopHome, 'dev-army', agent),
+    agentGlobalDir: (agent: string) => join(globalSopHome, 'agents', agent),
   };
 }
 
@@ -49,20 +49,20 @@ function makeMeta(overrides: Partial<TurnMeta> = {}): TurnMeta {
 }
 
 /**
- * Simulate detectDevArmyAgent logic without importing os.homedir,
+ * Simulate detectAgent logic without importing os.homedir,
  * so we can control the fake home path in tests.
  */
 function makeDetector(fakeHome: string) {
   return (projectRoot: string): string | null => {
-    const devArmyPrefix = join(fakeHome, '.claude', 'dev-army') + sep;
-    if (!projectRoot.startsWith(devArmyPrefix)) return null;
-    const remainder = projectRoot.slice(devArmyPrefix.length);
+    const agentPrefix = join(fakeHome, '.claude', 'dev-army') + sep;
+    if (!projectRoot.startsWith(agentPrefix)) return null;
+    const remainder = projectRoot.slice(agentPrefix.length);
     const firstSegment = remainder.split(sep)[0];
     return firstSegment || null;
   };
 }
 
-describe('dev-army namespace routing', () => {
+describe('agent namespace routing', () => {
   const projectId = 'abc123def456';
   let paths: CapturePaths;
   let detect: (root: string) => string | null;
@@ -81,7 +81,7 @@ describe('dev-army namespace routing', () => {
     expect(targetDir).toContain(projectId);
   });
 
-  it('dev-army project routes to dev-army namespace', () => {
+  it('agent workspace project routes to agent namespace', () => {
     const projectRoot = join(FAKE_HOME, '.claude', 'dev-army', 'commander');
 
     expect(detect(projectRoot)).toBe('commander');
@@ -89,8 +89,8 @@ describe('dev-army namespace routing', () => {
     // Append a line and verify it lands in the dev-army dir
     appendGlobalIndexLine(paths, projectRoot, makeMeta(), '/some/turn/dir', detect);
 
-    const devArmyDir = paths.devArmyGlobalDir('commander');
-    const indexPath = join(devArmyDir, 'index.jsonl');
+    const agentDir = paths.agentGlobalDir('commander');
+    const indexPath = join(agentDir, 'index.jsonl');
     expect(existsSync(indexPath)).toBe(true);
 
     const line = JSON.parse(readFileSync(indexPath, 'utf8').trim());
@@ -100,16 +100,16 @@ describe('dev-army namespace routing', () => {
     expect(existsSync(join(paths.globalProjectDir, 'index.jsonl'))).toBe(false);
   });
 
-  it('nested dev-army path extracts first segment as agent', () => {
+  it('nested agent workspace path extracts first segment as agent', () => {
     const projectRoot = join(FAKE_HOME, '.claude', 'dev-army', 'architect', 'some-subdir');
     expect(detect(projectRoot)).toBe('architect');
 
     const targetDir = resolveGlobalTargetDir(paths, projectRoot, detect);
-    expect(targetDir).toBe(paths.devArmyGlobalDir('architect'));
-    expect(targetDir).toContain(`dev-army${sep}architect`);
+    expect(targetDir).toBe(paths.agentGlobalDir('architect'));
+    expect(targetDir).toContain(`agents${sep}architect`);
   });
 
-  it('non-dev-army claude path falls back to hash-based namespace', () => {
+  it('non-agent claude path falls back to hash-based namespace', () => {
     const projectRoot = join(FAKE_HOME, '.claude', 'other', 'thing');
     expect(detect(projectRoot)).toBeNull();
 
@@ -117,13 +117,13 @@ describe('dev-army namespace routing', () => {
     expect(targetDir).toBe(paths.globalProjectDir);
   });
 
-  it('dev-army index and hash-based index are separate', () => {
-    const devArmyRoot = join(FAKE_HOME, '.claude', 'dev-army', 'commander');
+  it('agent index and hash-based index are separate', () => {
+    const agentRoot = join(FAKE_HOME, '.claude', 'dev-army', 'commander');
     const normalRoot = '/tmp/normal-project';
 
     appendGlobalIndexLine(
       paths,
-      devArmyRoot,
+      agentRoot,
       makeMeta({ turn_id: 'dev-turn' }),
       '/dev/dir',
       detect,
@@ -136,7 +136,7 @@ describe('dev-army namespace routing', () => {
       detect,
     );
 
-    const devLines = readFileSync(join(paths.devArmyGlobalDir('commander'), 'index.jsonl'), 'utf8')
+    const devLines = readFileSync(join(paths.agentGlobalDir('commander'), 'index.jsonl'), 'utf8')
       .trim()
       .split('\n');
     const normalLines = readFileSync(join(paths.globalProjectDir, 'index.jsonl'), 'utf8')

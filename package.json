@@ -1,6 +1,6 @@
 {
   "name": "auto-sop",
-  "version": "0.0.74",
+  "version": "0.1.0",
   "description": "Make Claude Code self-improving — auto-detect recurring mistakes and write enforced CLAUDE.md directives",
   "author": "Ugur Gokdere <ugokdere@gmail.com>",
   "keywords": [
@@ -21,7 +21,7 @@
     "type": "git",
     "url": "git+https://github.com/auto-sop/auto-sop.git"
   },
-  "homepage": "https://github.com/auto-sop/auto-sop#readme",
+  "homepage": "https://auto-sop.com",
   "bugs": {
     "url": "https://github.com/auto-sop/auto-sop/issues"
   },
