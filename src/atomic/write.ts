@@ -15,7 +15,7 @@ export async function writeFileAtomic(path: string, content: string | Buffer): P
   try {
     await fs.writeFile(tmp, content, { mode: 0o600 });
 
-    const fh = await fs.open(tmp, 'r');
+    const fh = await fs.open(tmp, 'r+');
     try {
       await fh.sync();
     } finally {
