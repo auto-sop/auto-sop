@@ -43,7 +43,7 @@ const baseOpts = {
   user: 'alice',
 };
 
-describe('renderServiceUnit', () => {
+describe.skipIf(isWindows)('renderServiceUnit', () => {
   it('contains ExecStart with tick.sh path', () => {
     const unit = renderServiceUnit({
       tickScriptPath: '/home/alice/.auto-sop/bin/tick.sh',
@@ -82,7 +82,7 @@ describe('renderServiceUnit', () => {
   });
 });
 
-describe('renderTimerUnit', () => {
+describe.skipIf(isWindows)('renderTimerUnit', () => {
   it('contains OnBootSec=5min', () => {
     expect(renderTimerUnit()).toContain('OnBootSec=5min');
   });
