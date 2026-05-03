@@ -77,9 +77,10 @@ EXCLUDE_DIRS=("src/learner" "src/license" "src/metrics" "src/scrubber")
 
 for dir in "${EXCLUDE_DIRS[@]}"; do
   module_name=$(basename "$dir")
+  module_title=$(printf '%s' "$module_name" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
   mkdir -p "$DEST_DIR/$dir"
   cat > "$DEST_DIR/$dir/README.md" << STUB
-# ${module_name^} Module
+# $module_title Module
 
 This module's source code is proprietary and not included in the public repository.
 The compiled version is distributed via the official npm package.
