@@ -184,9 +184,7 @@ describe('validateLicense', () => {
       first_failure_at: new Date(Date.now() - 8 * DAY_MS).toISOString(),
     });
     mockedReadCache.mockResolvedValue(cache);
-    mockedIncrementFailure.mockReturnValue(
-      makeCache({ consecutive_failures: 101 }),
-    );
+    mockedIncrementFailure.mockReturnValue(makeCache({ consecutive_failures: 101 }));
     mockedIsGraceExpired.mockReturnValue(true);
 
     const result = await validateLicense(OPTS);
@@ -259,9 +257,7 @@ describe('validateLicense', () => {
     mockFetch.mockResolvedValue(mockFetchResponse(500));
     const cache = makeCache();
     mockedReadCache.mockResolvedValue(cache);
-    mockedIncrementFailure.mockReturnValue(
-      makeCache({ consecutive_failures: 1 }),
-    );
+    mockedIncrementFailure.mockReturnValue(makeCache({ consecutive_failures: 1 }));
     mockedIsGraceExpired.mockReturnValue(false);
 
     const result = await validateLicense(OPTS);
@@ -282,10 +278,7 @@ describe('validateLicense', () => {
 
     await validateLicense(OPTS);
 
-    expect(mockedValidateFreshness).toHaveBeenCalledWith(
-      body.data,
-      'prev-nonce-42',
-    );
+    expect(mockedValidateFreshness).toHaveBeenCalledWith(body.data, 'prev-nonce-42');
   });
 
   it('returns tampered_client error when server signals tamper', async () => {

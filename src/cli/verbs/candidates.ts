@@ -172,9 +172,7 @@ export function registerCandidatesVerb(program: Command): void {
           process.stdout.write(row + '\n');
         }
 
-        process.stdout.write(
-          '\n' + pc.dim(`Total: ${candidates.length} candidate(s)`) + '\n',
-        );
+        process.stdout.write('\n' + pc.dim(`Total: ${candidates.length} candidate(s)`) + '\n');
       } catch (err) {
         if (jsonMode) {
           emit({

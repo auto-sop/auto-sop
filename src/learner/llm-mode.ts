@@ -31,7 +31,10 @@ import { DirectiveProposal, type DirectiveProposalType } from './directive-schem
 import { serializeTurnsForLlm } from './llm-serializer.js';
 import { buildAnalysisPrompt } from './llm-prompt.js';
 import { buildIncrementalPrompt } from './llm-prompt-incremental.js';
-import { parseIncrementalResponse, type IncrementalParseResult } from './llm-response-incremental.js';
+import {
+  parseIncrementalResponse,
+  type IncrementalParseResult,
+} from './llm-response-incremental.js';
 import type { PatternCandidate } from './pattern-store.js';
 import type { TurnData } from './turn-loader.js';
 
@@ -305,7 +308,11 @@ export async function runIncrementalLlmAnalysis(
   sessionId: string,
   options?: { timeout?: number; offline?: boolean },
 ): Promise<IncrementalLlmResult> {
-  const emptyParsed: IncrementalParseResult = { newCandidates: [], matchedExisting: [], summary: '' };
+  const emptyParsed: IncrementalParseResult = {
+    newCandidates: [],
+    matchedExisting: [],
+    summary: '',
+  };
 
   if (options?.offline === true) {
     return { parsed: emptyParsed, summary: '', durationMs: 0, error: null };
@@ -314,7 +321,12 @@ export async function runIncrementalLlmAnalysis(
   const start = Date.now();
 
   if (!isClaudeOnPath()) {
-    return { parsed: emptyParsed, summary: '', durationMs: Date.now() - start, error: 'claude_not_found' };
+    return {
+      parsed: emptyParsed,
+      summary: '',
+      durationMs: Date.now() - start,
+      error: 'claude_not_found',
+    };
   }
 
   // Build incremental prompt
@@ -335,7 +347,12 @@ export async function runIncrementalLlmAnalysis(
       reject: false,
     });
   } catch {
-    return { parsed: emptyParsed, summary: '', durationMs: Date.now() - start, error: 'spawn_failed' };
+    return {
+      parsed: emptyParsed,
+      summary: '',
+      durationMs: Date.now() - start,
+      error: 'spawn_failed',
+    };
   }
 
   const durationMs = Date.now() - start;

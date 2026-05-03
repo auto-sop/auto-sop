@@ -34,12 +34,7 @@ function makeTurn(
   };
 }
 
-function makeBashCallPair(
-  useId: string,
-  command: string,
-  success: boolean,
-  t: string,
-): ToolCall[] {
+function makeBashCallPair(useId: string, command: string, success: boolean, t: string): ToolCall[] {
   return [
     {
       event: 'pre',
@@ -108,9 +103,7 @@ describe('buildSessionSummaries', () => {
   });
 
   it('single-turn session has 0 duration', () => {
-    const turns: TurnData[] = [
-      makeTurn('t1', 's1', '2026-04-25T10:00:00Z'),
-    ];
+    const turns: TurnData[] = [makeTurn('t1', 's1', '2026-04-25T10:00:00Z')];
 
     const summaries = buildSessionSummaries(turns);
     expect(summaries[0]!.duration_ms).toBe(0);
@@ -237,10 +230,26 @@ describe('compareBeforeAfter', () => {
 
   it('calculates averages correctly', () => {
     const sessions: SessionSummary[] = [
-      makeSummary('s1', '2026-04-20T10:00:00Z', { duration_ms: 600_000, tool_call_count: 10, bash_failure_count: 2 }),
-      makeSummary('s2', '2026-04-21T10:00:00Z', { duration_ms: 1_200_000, tool_call_count: 30, bash_failure_count: 6 }),
-      makeSummary('s3', '2026-04-22T10:00:00Z', { duration_ms: 300_000, tool_call_count: 5, bash_failure_count: 1 }),
-      makeSummary('s4', '2026-04-23T10:00:00Z', { duration_ms: 300_000, tool_call_count: 15, bash_failure_count: 1 }),
+      makeSummary('s1', '2026-04-20T10:00:00Z', {
+        duration_ms: 600_000,
+        tool_call_count: 10,
+        bash_failure_count: 2,
+      }),
+      makeSummary('s2', '2026-04-21T10:00:00Z', {
+        duration_ms: 1_200_000,
+        tool_call_count: 30,
+        bash_failure_count: 6,
+      }),
+      makeSummary('s3', '2026-04-22T10:00:00Z', {
+        duration_ms: 300_000,
+        tool_call_count: 5,
+        bash_failure_count: 1,
+      }),
+      makeSummary('s4', '2026-04-23T10:00:00Z', {
+        duration_ms: 300_000,
+        tool_call_count: 15,
+        bash_failure_count: 1,
+      }),
     ];
 
     const result = compareBeforeAfter(sessions, '2026-04-22T00:00:00Z')!;
@@ -258,10 +267,26 @@ describe('compareBeforeAfter', () => {
 
   it('calculates percentage improvement', () => {
     const sessions: SessionSummary[] = [
-      makeSummary('s1', '2026-04-20T10:00:00Z', { duration_ms: 600_000, tool_call_count: 20, bash_failure_count: 4 }),
-      makeSummary('s2', '2026-04-21T10:00:00Z', { duration_ms: 600_000, tool_call_count: 20, bash_failure_count: 4 }),
-      makeSummary('s3', '2026-04-22T10:00:00Z', { duration_ms: 300_000, tool_call_count: 10, bash_failure_count: 2 }),
-      makeSummary('s4', '2026-04-23T10:00:00Z', { duration_ms: 300_000, tool_call_count: 10, bash_failure_count: 2 }),
+      makeSummary('s1', '2026-04-20T10:00:00Z', {
+        duration_ms: 600_000,
+        tool_call_count: 20,
+        bash_failure_count: 4,
+      }),
+      makeSummary('s2', '2026-04-21T10:00:00Z', {
+        duration_ms: 600_000,
+        tool_call_count: 20,
+        bash_failure_count: 4,
+      }),
+      makeSummary('s3', '2026-04-22T10:00:00Z', {
+        duration_ms: 300_000,
+        tool_call_count: 10,
+        bash_failure_count: 2,
+      }),
+      makeSummary('s4', '2026-04-23T10:00:00Z', {
+        duration_ms: 300_000,
+        tool_call_count: 10,
+        bash_failure_count: 2,
+      }),
     ];
 
     const result = compareBeforeAfter(sessions, '2026-04-22T00:00:00Z')!;
@@ -318,10 +343,26 @@ describe('compareBeforeAfter', () => {
 
   it('handles zero before metrics gracefully', () => {
     const sessions: SessionSummary[] = [
-      makeSummary('s1', '2026-04-20T10:00:00Z', { duration_ms: 0, tool_call_count: 0, bash_failure_count: 0 }),
-      makeSummary('s2', '2026-04-21T10:00:00Z', { duration_ms: 0, tool_call_count: 0, bash_failure_count: 0 }),
-      makeSummary('s3', '2026-04-22T10:00:00Z', { duration_ms: 600_000, tool_call_count: 10, bash_failure_count: 2 }),
-      makeSummary('s4', '2026-04-23T10:00:00Z', { duration_ms: 600_000, tool_call_count: 10, bash_failure_count: 2 }),
+      makeSummary('s1', '2026-04-20T10:00:00Z', {
+        duration_ms: 0,
+        tool_call_count: 0,
+        bash_failure_count: 0,
+      }),
+      makeSummary('s2', '2026-04-21T10:00:00Z', {
+        duration_ms: 0,
+        tool_call_count: 0,
+        bash_failure_count: 0,
+      }),
+      makeSummary('s3', '2026-04-22T10:00:00Z', {
+        duration_ms: 600_000,
+        tool_call_count: 10,
+        bash_failure_count: 2,
+      }),
+      makeSummary('s4', '2026-04-23T10:00:00Z', {
+        duration_ms: 600_000,
+        tool_call_count: 10,
+        bash_failure_count: 2,
+      }),
     ];
 
     const result = compareBeforeAfter(sessions, '2026-04-22T00:00:00Z')!;
@@ -351,8 +392,22 @@ describe('estimateTokenSavings', () => {
   ): BeforeAfterComparison {
     return {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: beforeAvgToolCalls, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
-      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: afterAvgToolCalls, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
+      before: {
+        sessions: 5,
+        avg_duration_min: 10,
+        avg_tool_calls: beforeAvgToolCalls,
+        avg_bash_failures: 2,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
+      after: {
+        sessions: 5,
+        avg_duration_min: 8,
+        avg_tool_calls: afterAvgToolCalls,
+        avg_bash_failures: 1,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
       improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
       ...overrides,
     };
@@ -364,14 +419,28 @@ describe('estimateTokenSavings', () => {
 
   it('returns null if before bucket has 0 sessions', () => {
     const comp = makeComparison(20, 10, {
-      before: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 20, avg_bash_failures: 0, avg_input_bytes: 0, avg_output_bytes: 0 },
+      before: {
+        sessions: 0,
+        avg_duration_min: 0,
+        avg_tool_calls: 20,
+        avg_bash_failures: 0,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
     });
     expect(estimateTokenSavings(comp)).toBeNull();
   });
 
   it('returns null if after bucket has 0 sessions', () => {
     const comp = makeComparison(20, 10, {
-      after: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 10, avg_bash_failures: 0, avg_input_bytes: 0, avg_output_bytes: 0 },
+      after: {
+        sessions: 0,
+        avg_duration_min: 0,
+        avg_tool_calls: 10,
+        avg_bash_failures: 0,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
     });
     expect(estimateTokenSavings(comp)).toBeNull();
   });
@@ -430,8 +499,22 @@ describe('estimateTokenSavings', () => {
   it('prefers byte_counted when byte data is available', () => {
     const comp: BeforeAfterComparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 20, avg_bash_failures: 2, avg_input_bytes: 4000, avg_output_bytes: 4000 },
-      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: 12, avg_bash_failures: 1, avg_input_bytes: 2000, avg_output_bytes: 2000 },
+      before: {
+        sessions: 5,
+        avg_duration_min: 10,
+        avg_tool_calls: 20,
+        avg_bash_failures: 2,
+        avg_input_bytes: 4000,
+        avg_output_bytes: 4000,
+      },
+      after: {
+        sessions: 5,
+        avg_duration_min: 8,
+        avg_tool_calls: 12,
+        avg_bash_failures: 1,
+        avg_input_bytes: 2000,
+        avg_output_bytes: 2000,
+      },
       improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
     };
     const result = estimateTokenSavings(comp)!;
@@ -456,8 +539,22 @@ describe('estimateTokenSavings', () => {
     // But tool calls dropped from 40 → 10 (75% reduction, tool_calls_pct = -75).
     const comp: BeforeAfterComparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 40, avg_bash_failures: 4, avg_input_bytes: 8000, avg_output_bytes: 8000 },
-      after: { sessions: 5, avg_duration_min: 6, avg_tool_calls: 10, avg_bash_failures: 1, avg_input_bytes: 10000, avg_output_bytes: 12000 },
+      before: {
+        sessions: 5,
+        avg_duration_min: 10,
+        avg_tool_calls: 40,
+        avg_bash_failures: 4,
+        avg_input_bytes: 8000,
+        avg_output_bytes: 8000,
+      },
+      after: {
+        sessions: 5,
+        avg_duration_min: 6,
+        avg_tool_calls: 10,
+        avg_bash_failures: 1,
+        avg_input_bytes: 10000,
+        avg_output_bytes: 12000,
+      },
       improvement: { duration_pct: -40, tool_calls_pct: -75, bash_failures_pct: -75 },
     };
     const result = estimateTokenSavings(comp)!;
@@ -477,8 +574,22 @@ describe('estimateTokenSavings', () => {
     // Output bytes grew but tool calls only dropped 10% (not enough for hybrid)
     const comp: BeforeAfterComparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 20, avg_bash_failures: 2, avg_input_bytes: 4000, avg_output_bytes: 4000 },
-      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: 18, avg_bash_failures: 1, avg_input_bytes: 6000, avg_output_bytes: 6000 },
+      before: {
+        sessions: 5,
+        avg_duration_min: 10,
+        avg_tool_calls: 20,
+        avg_bash_failures: 2,
+        avg_input_bytes: 4000,
+        avg_output_bytes: 4000,
+      },
+      after: {
+        sessions: 5,
+        avg_duration_min: 8,
+        avg_tool_calls: 18,
+        avg_bash_failures: 1,
+        avg_input_bytes: 6000,
+        avg_output_bytes: 6000,
+      },
       improvement: { duration_pct: -20, tool_calls_pct: -10, bash_failures_pct: -50 },
     };
     const result = estimateTokenSavings(comp)!;
@@ -495,8 +606,22 @@ describe('estimateTokenSavings', () => {
     // before having 0 bytes:
     const comp: BeforeAfterComparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 30, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
-      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: 10, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
+      before: {
+        sessions: 5,
+        avg_duration_min: 10,
+        avg_tool_calls: 30,
+        avg_bash_failures: 2,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
+      after: {
+        sessions: 5,
+        avg_duration_min: 8,
+        avg_tool_calls: 10,
+        avg_bash_failures: 1,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
       improvement: { duration_pct: -20, tool_calls_pct: -66.67, bash_failures_pct: -50 },
     };
     const result = estimateTokenSavings(comp)!;
@@ -561,10 +686,36 @@ describe('buildSessionSummaries byte counting', () => {
 
     const turns: TurnData[] = [
       makeTurn('t1', 's1', '2026-04-25T10:00:00Z', [
-        { event: 'pre', tool_use_id: 'tu1', tool: 'Bash', input: input1, t: '2026-04-25T10:00:00Z' },
-        { event: 'post', tool_use_id: 'tu1', tool: 'Bash', output: output1, success: true, t: '2026-04-25T10:00:00Z' },
-        { event: 'pre', tool_use_id: 'tu2', tool: 'Edit', input: input2, t: '2026-04-25T10:01:00Z' },
-        { event: 'post', tool_use_id: 'tu2', tool: 'Edit', output: output2, success: true, t: '2026-04-25T10:01:00Z' },
+        {
+          event: 'pre',
+          tool_use_id: 'tu1',
+          tool: 'Bash',
+          input: input1,
+          t: '2026-04-25T10:00:00Z',
+        },
+        {
+          event: 'post',
+          tool_use_id: 'tu1',
+          tool: 'Bash',
+          output: output1,
+          success: true,
+          t: '2026-04-25T10:00:00Z',
+        },
+        {
+          event: 'pre',
+          tool_use_id: 'tu2',
+          tool: 'Edit',
+          input: input2,
+          t: '2026-04-25T10:01:00Z',
+        },
+        {
+          event: 'post',
+          tool_use_id: 'tu2',
+          tool: 'Edit',
+          output: output2,
+          success: true,
+          t: '2026-04-25T10:01:00Z',
+        },
       ]),
     ];
 
@@ -591,7 +742,13 @@ describe('buildSessionSummaries byte counting', () => {
   it('handles post events without output (0 bytes)', () => {
     const turns: TurnData[] = [
       makeTurn('t1', 's1', '2026-04-25T10:00:00Z', [
-        { event: 'post', tool_use_id: 'tu1', tool: 'Read', success: true, t: '2026-04-25T10:00:00Z' },
+        {
+          event: 'post',
+          tool_use_id: 'tu1',
+          tool: 'Read',
+          success: true,
+          t: '2026-04-25T10:00:00Z',
+        },
       ]),
     ];
 
@@ -610,8 +767,22 @@ describe('estimateTokenSavingsByBytes', () => {
   it('returns null when both buckets have 0 bytes', () => {
     const comp: BeforeAfterComparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 20, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
-      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: 12, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
+      before: {
+        sessions: 5,
+        avg_duration_min: 10,
+        avg_tool_calls: 20,
+        avg_bash_failures: 2,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
+      after: {
+        sessions: 5,
+        avg_duration_min: 8,
+        avg_tool_calls: 12,
+        avg_bash_failures: 1,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
       improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
     };
     expect(estimateTokenSavingsByBytes(comp)).toBeNull();
@@ -623,8 +794,22 @@ describe('estimateTokenSavingsByBytes', () => {
     // savings: 1500 tokens, 50%
     const comp: BeforeAfterComparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 20, avg_bash_failures: 2, avg_input_bytes: 8000, avg_output_bytes: 4000 },
-      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: 12, avg_bash_failures: 1, avg_input_bytes: 4000, avg_output_bytes: 2000 },
+      before: {
+        sessions: 5,
+        avg_duration_min: 10,
+        avg_tool_calls: 20,
+        avg_bash_failures: 2,
+        avg_input_bytes: 8000,
+        avg_output_bytes: 4000,
+      },
+      after: {
+        sessions: 5,
+        avg_duration_min: 8,
+        avg_tool_calls: 12,
+        avg_bash_failures: 1,
+        avg_input_bytes: 4000,
+        avg_output_bytes: 2000,
+      },
       improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
     };
     const result = estimateTokenSavingsByBytes(comp)!;
@@ -642,8 +827,22 @@ describe('estimateTokenSavingsByBytes', () => {
     // after has more bytes than before
     const comp: BeforeAfterComparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 10, avg_bash_failures: 2, avg_input_bytes: 1000, avg_output_bytes: 1000 },
-      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: 15, avg_bash_failures: 1, avg_input_bytes: 5000, avg_output_bytes: 5000 },
+      before: {
+        sessions: 5,
+        avg_duration_min: 10,
+        avg_tool_calls: 10,
+        avg_bash_failures: 2,
+        avg_input_bytes: 1000,
+        avg_output_bytes: 1000,
+      },
+      after: {
+        sessions: 5,
+        avg_duration_min: 8,
+        avg_tool_calls: 15,
+        avg_bash_failures: 1,
+        avg_input_bytes: 5000,
+        avg_output_bytes: 5000,
+      },
       improvement: { duration_pct: -20, tool_calls_pct: 50, bash_failures_pct: -50 },
     };
     const result = estimateTokenSavingsByBytes(comp)!;
@@ -656,8 +855,22 @@ describe('estimateTokenSavingsByBytes', () => {
     // 5 bytes / 4 = 1.25 → ceil → 2 tokens
     const comp: BeforeAfterComparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 2, avg_duration_min: 10, avg_tool_calls: 1, avg_bash_failures: 0, avg_input_bytes: 5, avg_output_bytes: 0 },
-      after: { sessions: 2, avg_duration_min: 8, avg_tool_calls: 1, avg_bash_failures: 0, avg_input_bytes: 1, avg_output_bytes: 0 },
+      before: {
+        sessions: 2,
+        avg_duration_min: 10,
+        avg_tool_calls: 1,
+        avg_bash_failures: 0,
+        avg_input_bytes: 5,
+        avg_output_bytes: 0,
+      },
+      after: {
+        sessions: 2,
+        avg_duration_min: 8,
+        avg_tool_calls: 1,
+        avg_bash_failures: 0,
+        avg_input_bytes: 1,
+        avg_output_bytes: 0,
+      },
       improvement: { duration_pct: -20, tool_calls_pct: 0, bash_failures_pct: 0 },
     };
     const result = estimateTokenSavingsByBytes(comp)!;
@@ -670,8 +883,22 @@ describe('estimateTokenSavingsByBytes', () => {
     // Heuristic: 20*200 = 4000, 12*200 = 2400
     const comp: BeforeAfterComparison = {
       cutoff: '2026-04-22T00:00:00Z',
-      before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: 20, avg_bash_failures: 2, avg_input_bytes: 8000, avg_output_bytes: 4000 },
-      after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: 12, avg_bash_failures: 1, avg_input_bytes: 2000, avg_output_bytes: 1000 },
+      before: {
+        sessions: 5,
+        avg_duration_min: 10,
+        avg_tool_calls: 20,
+        avg_bash_failures: 2,
+        avg_input_bytes: 8000,
+        avg_output_bytes: 4000,
+      },
+      after: {
+        sessions: 5,
+        avg_duration_min: 8,
+        avg_tool_calls: 12,
+        avg_bash_failures: 1,
+        avg_input_bytes: 2000,
+        avg_output_bytes: 1000,
+      },
       improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
     };
     const byteResult = estimateTokenSavingsByBytes(comp)!;

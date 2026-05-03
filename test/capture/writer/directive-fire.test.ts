@@ -13,11 +13,8 @@ import {
   compactFires,
   escapeRegExp,
   FIRES_FILENAME,
-  MIN_KEYWORD_LENGTH,
-  MIN_COMBINED_HITS,
-  MIN_COMBINED_SCORE,
 } from '~/capture/writer/directive-fire.js';
-import type { DirectiveFire, DirectiveInput, FireCategory } from '~/capture/writer/directive-fire.js';
+import type { DirectiveFire, DirectiveInput } from '~/capture/writer/directive-fire.js';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `auto-sop-test-${randomUUID()}`);
@@ -189,7 +186,11 @@ describe('matchDirective', () => {
     const keywords = ['validate', 'input', 'database', 'queries'];
     const bigrams = ['validate input', 'database queries'];
     // Prompt contains "validate input" and "database queries" as substrings
-    const result = matchDirective('please validate input before running database queries', keywords, bigrams);
+    const result = matchDirective(
+      'please validate input before running database queries',
+      keywords,
+      bigrams,
+    );
     expect(result).not.toBeNull();
     expect(result!.hits).toBe(4); // 4 unigram hits
     expect(result!.total).toBe(4);
@@ -298,7 +299,11 @@ describe('detectDirectiveFires', () => {
 
   it('returns fires for matching directives with category', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Always validate input before database queries', severity: 'error' },
+      {
+        id: 'dir-1',
+        rule_text: 'Always validate input before database queries',
+        severity: 'error',
+      },
     ];
     const fires = detectDirectiveFires(
       'make sure to validate user input before running database queries',
@@ -323,7 +328,10 @@ describe('detectDirectiveFires', () => {
   it('skips directives that do not match', () => {
     const directives: DirectiveInput[] = [
       { id: 'dir-1', rule_text: 'Always validate input before database queries' },
-      { id: 'dir-2', rule_text: 'Use TypeScript strict mode everywhere in the project configuration' },
+      {
+        id: 'dir-2',
+        rule_text: 'Use TypeScript strict mode everywhere in the project configuration',
+      },
     ];
     const fires = detectDirectiveFires(
       'please enable typescript strict mode in the project configuration',
@@ -338,7 +346,10 @@ describe('detectDirectiveFires', () => {
 
   it('can match multiple directives', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Validate all user input parameters carefully in the form handler' },
+      {
+        id: 'dir-1',
+        rule_text: 'Validate all user input parameters carefully in the form handler',
+      },
       { id: 'dir-2', rule_text: 'Validate form input fields correctly before saving to database' },
     ];
     const fires = detectDirectiveFires(
@@ -365,7 +376,11 @@ describe('detectDirectiveFires', () => {
 
   it('populates all required fields in DirectiveFire including v31 fields', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Always validate input before database queries securely', severity: 'warning' },
+      {
+        id: 'dir-1',
+        rule_text: 'Always validate input before database queries securely',
+        severity: 'warning',
+      },
     ];
     const fires = detectDirectiveFires(
       'validate input database queries check securely always',
@@ -389,7 +404,11 @@ describe('detectDirectiveFires', () => {
 
   it('assigns error-preventing category for error severity', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Never commit secrets or credentials to the repository', severity: 'error' },
+      {
+        id: 'dir-1',
+        rule_text: 'Never commit secrets or credentials to the repository',
+        severity: 'error',
+      },
     ];
     const fires = detectDirectiveFires(
       'make sure to never commit secrets or credentials to the repository',
@@ -403,7 +422,11 @@ describe('detectDirectiveFires', () => {
 
   it('assigns efficiency category for warning severity', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Always run tests before committing changes to the branch', severity: 'warning' },
+      {
+        id: 'dir-1',
+        rule_text: 'Always run tests before committing changes to the branch',
+        severity: 'warning',
+      },
     ];
     const fires = detectDirectiveFires(
       'run tests before committing changes to the branch always',
@@ -417,7 +440,11 @@ describe('detectDirectiveFires', () => {
 
   it('assigns best-practice category for info severity', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Prefer named exports over default exports in modules', severity: 'info' },
+      {
+        id: 'dir-1',
+        rule_text: 'Prefer named exports over default exports in modules',
+        severity: 'info',
+      },
     ];
     const fires = detectDirectiveFires(
       'prefer named exports over default exports in modules always',
@@ -431,7 +458,10 @@ describe('detectDirectiveFires', () => {
 
   it('defaults to best-practice when severity is not provided', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-1', rule_text: 'Keep functions short and focused on single responsibility always' },
+      {
+        id: 'dir-1',
+        rule_text: 'Keep functions short and focused on single responsibility always',
+      },
     ];
     const fires = detectDirectiveFires(
       'keep functions short and focused on single responsibility always',
@@ -494,7 +524,9 @@ describe('appendFires / readFires', () => {
 
   it('never throws on append errors', () => {
     // Pass an invalid path — should not throw
-    expect(() => appendFires('/nonexistent/invalid/path/that/does/not/exist', [makeFire()])).not.toThrow();
+    expect(() =>
+      appendFires('/nonexistent/invalid/path/that/does/not/exist', [makeFire()]),
+    ).not.toThrow();
   });
 
   it('returns empty for missing file', () => {
@@ -636,10 +668,7 @@ describe('compactFires', () => {
 
   it('drops malformed lines during compaction', () => {
     const good = makeFire(new Date().toISOString());
-    writeFileSync(
-      join(stateDir, FIRES_FILENAME),
-      `${JSON.stringify(good)}\nnot-valid-json\n`,
-    );
+    writeFileSync(join(stateDir, FIRES_FILENAME), `${JSON.stringify(good)}\nnot-valid-json\n`);
 
     const removed = compactFires(stateDir, 90);
     expect(removed).toBe(1); // malformed line removed
@@ -648,10 +677,7 @@ describe('compactFires', () => {
 
   it('performs atomic rewrite (file remains valid after compaction)', () => {
     const fire = makeFire(new Date().toISOString());
-    writeFileSync(
-      join(stateDir, FIRES_FILENAME),
-      `${JSON.stringify(fire)}\n`,
-    );
+    writeFileSync(join(stateDir, FIRES_FILENAME), `${JSON.stringify(fire)}\n`);
 
     compactFires(stateDir, 90);
 
@@ -699,15 +725,17 @@ describe('edge cases', () => {
 
   it('appendFires creates parent directories if needed', () => {
     const deepDir = join(makeTmpDir(), 'nested', 'state');
-    appendFires(deepDir, [{
-      t: new Date().toISOString(),
-      directive_id: 'dir-1',
-      session_id: 'sess',
-      project_id: 'proj',
-      keyword_hits: 2,
-      keyword_total: 4,
-      match_ratio: 0.5,
-    }]);
+    appendFires(deepDir, [
+      {
+        t: new Date().toISOString(),
+        directive_id: 'dir-1',
+        session_id: 'sess',
+        project_id: 'proj',
+        keyword_hits: 2,
+        keyword_total: 4,
+        match_ratio: 0.5,
+      },
+    ]);
     expect(existsSync(join(deepDir, FIRES_FILENAME))).toBe(true);
   });
 

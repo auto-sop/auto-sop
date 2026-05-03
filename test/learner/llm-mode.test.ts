@@ -453,13 +453,9 @@ function validIncrementalResponse(): unknown {
 
 describe('runIncrementalLlmAnalysis', () => {
   it('options.offline=true → returns immediately with no spawn', async () => {
-    const result = await runIncrementalLlmAnalysis(
-      fakeTurns(5),
-      'proj',
-      [],
-      'sess-001',
-      { offline: true },
-    );
+    const result = await runIncrementalLlmAnalysis(fakeTurns(5), 'proj', [], 'sess-001', {
+      offline: true,
+    });
 
     expect(result.parsed.newCandidates).toEqual([]);
     expect(result.parsed.matchedExisting).toEqual([]);
@@ -472,12 +468,7 @@ describe('runIncrementalLlmAnalysis', () => {
   it('claude not on PATH → graceful empty result with claude_not_found', async () => {
     mockedSpawnSync.mockReturnValue(whichReturn(false));
 
-    const result = await runIncrementalLlmAnalysis(
-      fakeTurns(5),
-      'proj',
-      [],
-      'sess-001',
-    );
+    const result = await runIncrementalLlmAnalysis(fakeTurns(5), 'proj', [], 'sess-001');
 
     expect(result.parsed.newCandidates).toEqual([]);
     expect(result.parsed.matchedExisting).toEqual([]);
@@ -551,9 +542,7 @@ describe('runIncrementalLlmAnalysis', () => {
     // When existing candidates are provided, they should be included in the
     // prompt sent to claude. We verify by checking that execa was called
     // with input that mentions the existing candidate pattern.
-    const existing = [
-      makeExistingCandidate({ pattern: 'unique-test-pattern-xyz' }),
-    ];
+    const existing = [makeExistingCandidate({ pattern: 'unique-test-pattern-xyz' })];
     mockedExeca.mockResolvedValue(
       execaReturn({ stdout: wrapClaude({ new_candidates: [], matched_existing: [] }) }),
     );

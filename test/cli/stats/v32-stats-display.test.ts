@@ -37,11 +37,7 @@ vi.mock('../../../src/path-resolver/index.js', () => ({
 
 // ── Helpers ─────────────────────────────────────────────────
 
-function makeDirective(
-  id: string,
-  ruleText: string,
-  pruned = false,
-): DirectiveHistoryEntry {
+function makeDirective(id: string, ruleText: string, pruned = false): DirectiveHistoryEntry {
   const now = new Date().toISOString();
   return {
     id,
@@ -124,10 +120,7 @@ describe('V32 stats display: token estimation + sync_queue_size', () => {
 
   describe('JSON output: V32 fields', () => {
     it('includes sync_queue_size in JSON output', async () => {
-      saveHistory(
-        projectRoot,
-        makeHistory([makeDirective('dir-1', 'Some rule text')]),
-      );
+      saveHistory(projectRoot, makeHistory([makeDirective('dir-1', 'Some rule text')]));
 
       appendFires(stateDir(projectRoot), [
         makeFire({ t: '2026-04-10T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-1' }),
@@ -153,9 +146,14 @@ describe('V32 stats display: token estimation + sync_queue_size', () => {
       }
 
       await runCli([
-        'node', 'auto-sop', '--json', 'stats',
-        '--project', projectRoot,
-        '--since', '2026-04-01',
+        'node',
+        'auto-sop',
+        '--json',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-04-01',
       ]);
 
       const parsed = JSON.parse(stdout().trim());
@@ -164,45 +162,47 @@ describe('V32 stats display: token estimation + sync_queue_size', () => {
     });
 
     it('sync_queue_size = 0 when no sync-queue.jsonl exists', async () => {
-      saveHistory(
-        projectRoot,
-        makeHistory([makeDirective('dir-1', 'Some rule text')]),
-      );
+      saveHistory(projectRoot, makeHistory([makeDirective('dir-1', 'Some rule text')]));
 
       appendFires(stateDir(projectRoot), [
         makeFire({ t: '2026-04-10T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-1' }),
       ]);
 
       await runCli([
-        'node', 'auto-sop', '--json', 'stats',
-        '--project', projectRoot,
-        '--since', '2026-04-01',
+        'node',
+        'auto-sop',
+        '--json',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-04-01',
       ]);
 
       const parsed = JSON.parse(stdout().trim());
       expect(parsed.ok).toBe(true);
       expect(parsed.sync_queue_size).toBe(0);
     });
-
   });
 
   // ── Human output: token estimation display ──────────────
 
   describe('Human output: token estimation line', () => {
     it('does not show token estimation when no session data exists', async () => {
-      saveHistory(
-        projectRoot,
-        makeHistory([makeDirective('dir-1', 'Some rule text')]),
-      );
+      saveHistory(projectRoot, makeHistory([makeDirective('dir-1', 'Some rule text')]));
 
       appendFires(stateDir(projectRoot), [
         makeFire({ t: '2026-04-10T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-1' }),
       ]);
 
       await runCli([
-        'node', 'auto-sop', 'stats',
-        '--project', projectRoot,
-        '--since', '2026-04-01',
+        'node',
+        'auto-sop',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-04-01',
       ]);
 
       const out = stdout();
@@ -212,15 +212,9 @@ describe('V32 stats display: token estimation + sync_queue_size', () => {
     });
 
     it('does not show token estimation when no fires exist (zero-fire output)', async () => {
-      saveHistory(
-        projectRoot,
-        makeHistory([makeDirective('dir-1', 'Some rule text')]),
-      );
+      saveHistory(projectRoot, makeHistory([makeDirective('dir-1', 'Some rule text')]));
 
-      await runCli([
-        'node', 'auto-sop', 'stats',
-        '--project', projectRoot,
-      ]);
+      await runCli(['node', 'auto-sop', 'stats', '--project', projectRoot]);
 
       const out = stdout();
       expect(out).toContain('No fires yet');
@@ -235,10 +229,7 @@ describe('V32 stats display: token estimation + sync_queue_size', () => {
     it('JSON output always includes sync_queue_size field', async () => {
       saveHistory(
         projectRoot,
-        makeHistory([
-          makeDirective('dir-1', 'Rule A'),
-          makeDirective('dir-2', 'Rule B'),
-        ]),
+        makeHistory([makeDirective('dir-1', 'Rule A'), makeDirective('dir-2', 'Rule B')]),
       );
 
       appendFires(stateDir(projectRoot), [
@@ -247,9 +238,14 @@ describe('V32 stats display: token estimation + sync_queue_size', () => {
       ]);
 
       await runCli([
-        'node', 'auto-sop', '--json', 'stats',
-        '--project', projectRoot,
-        '--since', '2026-04-01',
+        'node',
+        'auto-sop',
+        '--json',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-04-01',
       ]);
 
       const parsed = JSON.parse(stdout().trim());

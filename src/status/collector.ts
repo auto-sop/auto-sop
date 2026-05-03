@@ -314,9 +314,7 @@ async function pathExists(p: string): Promise<boolean> {
   }
 }
 
-async function collectServerValidation(
-  homeDir: string,
-): Promise<StatusReport['serverValidation']> {
+async function collectServerValidation(homeDir: string): Promise<StatusReport['serverValidation']> {
   try {
     const status = await getValidationStatus();
     const registry = readRegistry(homeDir);

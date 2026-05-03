@@ -82,11 +82,7 @@ export function loadMetricsState(homeDir: string, projectRoot: string): MetricsS
  * to survive bundler tree-shaking. Creates directory structure if needed.
  * File mode 0600.
  */
-export function saveMetricsState(
-  homeDir: string,
-  projectRoot: string,
-  state: MetricsState,
-): void {
+export function saveMetricsState(homeDir: string, projectRoot: string, state: MetricsState): void {
   const filePath = metricsStatePath(homeDir, projectRoot);
   const dir = join(homeDir, '.auto-sop', 'state', METRICS_DIR);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -114,7 +110,11 @@ export function emptyMetricsState(projectSlug: string): MetricsState {
  * V53: Cap computed time-saved at wall-clock elapsed minutes since first directive.
  * Returns the capped value (min of computed, wall-clock elapsed).
  */
-export function capTimeSaved(computedMinutes: number, first_directive_added_at: string | undefined, now?: Date): number {
+export function capTimeSaved(
+  computedMinutes: number,
+  first_directive_added_at: string | undefined,
+  now?: Date,
+): number {
   if (!first_directive_added_at) return computedMinutes;
   const firstMs = Date.parse(first_directive_added_at);
   if (!Number.isFinite(firstMs)) return computedMinutes;

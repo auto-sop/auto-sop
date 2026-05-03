@@ -44,21 +44,15 @@ describe('dedup integration — real-world directive pairs', () => {
     ],
   ];
 
-  it.each(NEAR_DUPLICATE_PAIRS)(
-    'detects near-duplicate: "%s" vs "%s"',
-    (a, b) => {
-      const sim = diceSimilarity(a, b);
-      expect(sim).toBeGreaterThan(DEDUP_THRESHOLD);
-    },
-  );
+  it.each(NEAR_DUPLICATE_PAIRS)('detects near-duplicate: "%s" vs "%s"', (a, b) => {
+    const sim = diceSimilarity(a, b);
+    expect(sim).toBeGreaterThan(DEDUP_THRESHOLD);
+  });
 
-  it.each(DISTINCT_PAIRS)(
-    'allows distinct pair: "%s" vs "%s"',
-    (a, b) => {
-      const sim = diceSimilarity(a, b);
-      expect(sim).toBeLessThanOrEqual(DEDUP_THRESHOLD);
-    },
-  );
+  it.each(DISTINCT_PAIRS)('allows distinct pair: "%s" vs "%s"', (a, b) => {
+    const sim = diceSimilarity(a, b);
+    expect(sim).toBeLessThanOrEqual(DEDUP_THRESHOLD);
+  });
 
   it('filters duplicates from a batch of mixed proposals', () => {
     const existing = [
@@ -107,9 +101,7 @@ describe('dedup integration — real-world directive pairs', () => {
       'Use git hooks for pre-commit linting with husky and lint-staged',
     ];
 
-    const proposals = distinctDirectives.map((text, i) =>
-      makeProposal(text, `d-${i}`),
-    );
+    const proposals = distinctDirectives.map((text, i) => makeProposal(text, `d-${i}`));
     const result = deduplicateProposals(proposals, []);
 
     const duplicateRate = result.skippedCount / proposals.length;

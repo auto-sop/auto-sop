@@ -14,7 +14,7 @@
  *   - Invalid --minutes-per-error error
  *   - Null-byte path injection guard
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -283,9 +283,12 @@ describe('stats verb: JSON output', () => {
     registerStatsVerb(program);
 
     const output = await captureStdout(async () => {
-      await program.parseAsync(['--json', 'stats', '--project', tmpProject, '--since', '2026-04-01'], {
-        from: 'user',
-      });
+      await program.parseAsync(
+        ['--json', 'stats', '--project', tmpProject, '--since', '2026-04-01'],
+        {
+          from: 'user',
+        },
+      );
     });
 
     const parsed = JSON.parse(output.trim());
@@ -333,7 +336,16 @@ describe('stats verb: --minutes-per-error', () => {
 
     const output = await captureStdout(async () => {
       await program.parseAsync(
-        ['--json', 'stats', '--project', tmpProject, '--since', '2026-04-01', '--minutes-per-error', '30'],
+        [
+          '--json',
+          'stats',
+          '--project',
+          tmpProject,
+          '--since',
+          '2026-04-01',
+          '--minutes-per-error',
+          '30',
+        ],
         { from: 'user' },
       );
     });
@@ -423,9 +435,12 @@ describe('stats verb: error handling', () => {
     registerStatsVerb(program);
 
     const output = await captureStdout(async () => {
-      await program.parseAsync(['--json', 'stats', '--project', tmpProject, '--since', 'not-a-date'], {
-        from: 'user',
-      });
+      await program.parseAsync(
+        ['--json', 'stats', '--project', tmpProject, '--since', 'not-a-date'],
+        {
+          from: 'user',
+        },
+      );
     });
 
     const parsed = JSON.parse(output.trim());

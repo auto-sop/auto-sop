@@ -39,10 +39,7 @@ export function extractTokenSavings(
     comparison.before.avg_tool_calls,
     0, // turn count not in BucketStats; use tool calls only
   );
-  const afterAvg = estimateSessionTokens(
-    comparison.after.avg_tool_calls,
-    0,
-  );
+  const afterAvg = estimateSessionTokens(comparison.after.avg_tool_calls, 0);
 
   const savings = Math.max(0, round2(beforeAvg - afterAvg));
   const pct = beforeAvg === 0 ? 0 : round2((savings / beforeAvg) * 100);

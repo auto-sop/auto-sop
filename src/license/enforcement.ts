@@ -57,9 +57,8 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
     // fail-open: hash computation is non-critical
   }
   try {
-    const here = typeof __dirname !== 'undefined'
-      ? __dirname
-      : dirname(fileURLToPath(import.meta.url));
+    const here =
+      typeof __dirname !== 'undefined' ? __dirname : dirname(fileURLToPath(import.meta.url));
     const pkgPath = join(here, '..', '..', 'package.json');
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
     cliVersion = pkg.version;
@@ -97,7 +96,8 @@ export async function checkLicenseBeforeTick(home: string): Promise<EnforcementR
     if (result.error === 'tampered_client') {
       return {
         allowed: false,
-        reason: result.message ?? 'CLI integrity check failed. Please reinstall: npm install -g auto-sop',
+        reason:
+          result.message ?? 'CLI integrity check failed. Please reinstall: npm install -g auto-sop',
       };
     }
     return { allowed: true, plan: 'unknown', licenseKey, machineId };
@@ -143,9 +143,7 @@ export function isProjectActive(
   return index < maxProjects;
 }
 
-export function sortProjectsByAge(
-  projects: ProjectRegistryEntry[],
-): ProjectRegistryEntry[] {
+export function sortProjectsByAge(projects: ProjectRegistryEntry[]): ProjectRegistryEntry[] {
   return [...projects].sort((a, b) => {
     const aTime = new Date(a.installed_at).getTime();
     const bTime = new Date(b.installed_at).getTime();

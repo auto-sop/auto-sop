@@ -18,10 +18,7 @@ export interface EncryptedPayload {
   ciphertext: string;
 }
 
-export function encryptRequest(
-  plaintext: string,
-  serverPublicKeyB64: string,
-): EncryptedPayload {
+export function encryptRequest(plaintext: string, serverPublicKeyB64: string): EncryptedPayload {
   const { publicKey: ephemeralPublic, privateKey: ephemeralPrivate } =
     generateKeyPairSync('x25519');
 
@@ -36,17 +33,12 @@ export function encryptRequest(
     publicKey: serverPublicKey,
   });
 
-  const aesKey = Buffer.from(
-    hkdfSync('sha256', sharedSecret, HKDF_SALT, HKDF_INFO, AES_KEY_BYTES),
-  );
+  const aesKey = Buffer.from(hkdfSync('sha256', sharedSecret, HKDF_SALT, HKDF_INFO, AES_KEY_BYTES));
 
   const nonce = randomBytes(NONCE_BYTES);
 
   const cipher = createCipheriv('aes-256-gcm', aesKey, nonce);
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, 'utf8'),
-    cipher.final(),
-  ]);
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
   const fullSpkiDer = ephemeralPublic.export({ type: 'spki', format: 'der' });

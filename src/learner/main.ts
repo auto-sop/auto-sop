@@ -23,7 +23,11 @@ import {
   loadHistory,
   type DirectiveHistoryEntry,
 } from '../managed-section/directive-history.js';
-import { buildDirectiveBody, shortDirectiveId, extractDirectivePreviews } from './directive-builder.js';
+import {
+  buildDirectiveBody,
+  shortDirectiveId,
+  extractDirectivePreviews,
+} from './directive-builder.js';
 import { loadTurnsForDetection } from './turn-loader.js';
 import {
   detectors,
@@ -51,11 +55,7 @@ import {
   type DirectiveFingerprint,
 } from './error-prevention.js';
 // V32: sync queue + token estimation
-import {
-  buildSyncEntry,
-  appendSyncEntry,
-  compactSyncQueue,
-} from './sync-queue.js';
+import { buildSyncEntry, appendSyncEntry, compactSyncQueue } from './sync-queue.js';
 import {
   estimateTokenSavings,
   buildSessionSummaries,
@@ -69,7 +69,14 @@ import {
   sortProjectsByAge,
 } from '../license/enforcement.js';
 import { syncStats, type ProjectStats } from '../license/stats-sync.js';
-import { loadMetricsState, saveMetricsState, TOKENS_PER_MINUTE, capTimeSaved, deriveConfidence, type MetricsState } from '../metrics/state.js';
+import {
+  loadMetricsState,
+  saveMetricsState,
+  TOKENS_PER_MINUTE,
+  capTimeSaved,
+  deriveConfidence,
+  type MetricsState,
+} from '../metrics/state.js';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -347,7 +354,16 @@ export async function main(): Promise<void> {
     }
 
     try {
-      await runLearnerTick(home, tickId, tickStart, ac.signal, maxProjects, licenseKey, machineId, activeProjects);
+      await runLearnerTick(
+        home,
+        tickId,
+        tickStart,
+        ac.signal,
+        maxProjects,
+        licenseKey,
+        machineId,
+        activeProjects,
+      );
     } finally {
       releaseLock();
     }
@@ -389,9 +405,10 @@ export async function runLearnerTick(
     // V56: Per-project gating via active_projects list (project toggles),
     // falling back to index-based quota when list is unavailable.
     if (!isProjectActive(project.slug, activeProjects, projectIndex, maxProjects)) {
-      const reason = activeProjects && activeProjects.length > 0
-        ? `skipping ${project.slug} — project_inactive (not in active list)`
-        : `skipping ${project.slug} — over project limit (${projectIndex + 1}/${maxProjects})`;
+      const reason =
+        activeProjects && activeProjects.length > 0
+          ? `skipping ${project.slug} — project_inactive (not in active list)`
+          : `skipping ${project.slug} — over project limit (${projectIndex + 1}/${maxProjects})`;
       logError('project_over_quota', reason, home);
       projects_skipped++;
       continue;
@@ -639,7 +656,8 @@ export async function runLearnerTick(
             // 5. For new candidates, populate session_ids with ALL
             // sessions present in the current turn batch.
             for (const nc of llmResult.parsed.newCandidates) {
-              nc.session_ids = currentSessionIds.length > 0 ? [...currentSessionIds] : [primarySessionId];
+              nc.session_ids =
+                currentSessionIds.length > 0 ? [...currentSessionIds] : [primarySessionId];
             }
 
             // 6. Merge new candidate evidence into existing store (BUG-S1: pass window map)
@@ -889,7 +907,8 @@ export async function runLearnerTick(
       // V58 fix: Accumulate across ticks instead of resetting on each tick.
       const prevConfirmedFires = existingMetrics?.confirmed_fires_total ?? 0;
       // V58: Migrate llm- prefix to sop- prefix in cached confirmed_fires_by_directive keys
-      const rawPrevFiresByDirective: Record<string, number> = existingMetrics?.confirmed_fires_by_directive ?? {};
+      const rawPrevFiresByDirective: Record<string, number> =
+        existingMetrics?.confirmed_fires_by_directive ?? {};
       const prevFiresByDirective: Record<string, number> = {};
       for (const [key, val] of Object.entries(rawPrevFiresByDirective)) {
         const newKey = key.startsWith('llm-') ? 'sop-' + key.slice(4) : key;
@@ -930,11 +949,13 @@ export async function runLearnerTick(
       // all historical turns but has turns_new === 0).
       if (turnData.length > 0 && shouldRunDetectors) {
         try {
-
           if (history !== null) {
             const dfps: DirectiveFingerprint[] = [];
             for (const entry of Object.values(history.entries)) {
-              if (typeof entry.source_fingerprint === 'string' && entry.source_fingerprint.length > 0) {
+              if (
+                typeof entry.source_fingerprint === 'string' &&
+                entry.source_fingerprint.length > 0
+              ) {
                 dfps.push({
                   directive_id: entry.id,
                   source_fingerprint: entry.source_fingerprint,
@@ -1023,7 +1044,9 @@ export async function runLearnerTick(
           const tokenEst = syncEntry.token_estimate;
           // V58 fix: When no token estimate (no new turns), preserve previous value
           const totalTokensSaved = tokenEst
-            ? Math.round(tokenEst.savings_per_session * (syncEntry.session_comparison?.after?.sessions ?? 0))
+            ? Math.round(
+                tokenEst.savings_per_session * (syncEntry.session_comparison?.after?.sessions ?? 0),
+              )
             : (existingMetrics?.total_tokens_saved ?? 0);
           // V46: Build directive_ids from active render proposals
           const directiveIds = renderProposals.map((p) => shortDirectiveId(p.id));
@@ -1050,7 +1073,7 @@ export async function runLearnerTick(
           // V53 + V58: Cap time_saved at wall-clock elapsed since first directive
           // V58 fix: When no token estimate, preserve previous time_saved value
           const rawTimeSaved = tokenEst
-            ? Math.round(totalTokensSaved / TOKENS_PER_MINUTE * 10) / 10
+            ? Math.round((totalTokensSaved / TOKENS_PER_MINUTE) * 10) / 10
             : (existingMetrics?.total_time_saved_minutes ?? 0);
           const cappedTimeSaved = capTimeSaved(rawTimeSaved, firstDirectiveAddedAt);
 
@@ -1059,10 +1082,14 @@ export async function runLearnerTick(
             project_slug: project.slug,
             total_tokens_saved: totalTokensSaved,
             // V58 fix: Preserve errors_prevented when no new turns
-            total_errors_prevented: (result.errors_prevented_total ?? 0) || (existingMetrics?.total_errors_prevented ?? 0),
+            total_errors_prevented:
+              (result.errors_prevented_total ?? 0) ||
+              (existingMetrics?.total_errors_prevented ?? 0),
             total_time_saved_minutes: cappedTimeSaved,
             directive_count: renderProposals.length,
-            ...(tokenEst?.method === 'byte_counted' || tokenEst?.method === 'tool_call_heuristic' || tokenEst?.method === 'hybrid'
+            ...(tokenEst?.method === 'byte_counted' ||
+            tokenEst?.method === 'tool_call_heuristic' ||
+            tokenEst?.method === 'hybrid'
               ? { estimation_method: tokenEst.method }
               : {}),
             per_directive_attribution: [],
@@ -1074,7 +1101,9 @@ export async function runLearnerTick(
             // V48: directive previews for dashboard display
             directive_previews: directivePreviews,
             // V53: wall-clock cap + confidence
-            ...(firstDirectiveAddedAt !== undefined ? { first_directive_added_at: firstDirectiveAddedAt } : {}),
+            ...(firstDirectiveAddedAt !== undefined
+              ? { first_directive_added_at: firstDirectiveAddedAt }
+              : {}),
             confidence,
             baseline_sessions: baselineSessions,
           };
@@ -1159,7 +1188,11 @@ export async function runLearnerTick(
           logError('stats_sync_failed', syncResult.error ?? 'unknown', home);
         } else {
           // Record successful sync timestamp for hourly throttle
-          try { writeFileSync(lastSyncPath, String(Date.now()), { mode: 0o600 }); } catch { /* Write failed — non-critical, next tick retries */ }
+          try {
+            writeFileSync(lastSyncPath, String(Date.now()), { mode: 0o600 });
+          } catch {
+            /* Write failed — non-critical, next tick retries */
+          }
         }
       }
     } catch (err) {

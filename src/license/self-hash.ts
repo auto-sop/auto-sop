@@ -39,9 +39,7 @@ export function listDistFiles(distDir: string): string[] {
   } catch {
     return [];
   }
-  return entries
-    .filter((f) => f.endsWith('.js') || f.endsWith('.cjs'))
-    .sort();
+  return entries.filter((f) => f.endsWith('.js') || f.endsWith('.cjs')).sort();
 }
 
 /**

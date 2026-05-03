@@ -25,12 +25,16 @@ describe('getMachineId', () => {
 
     // Mock execSync to throw (covers macOS ioreg + win32 reg query)
     vi.doMock('node:child_process', () => ({
-      execSync: () => { throw new Error('not available'); },
+      execSync: () => {
+        throw new Error('not available');
+      },
     }));
 
     // Mock readFileSync for /etc/machine-id (covers Linux path)
     vi.doMock('node:fs', () => ({
-      readFileSync: () => { throw new Error('not available'); },
+      readFileSync: () => {
+        throw new Error('not available');
+      },
       existsSync: () => false,
     }));
 

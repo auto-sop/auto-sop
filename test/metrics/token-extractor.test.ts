@@ -14,8 +14,22 @@ function makeComparison(
 ): BeforeAfterComparison {
   return {
     cutoff: '2026-04-22T00:00:00Z',
-    before: { sessions: beforeSessions, avg_duration_min: 10, avg_tool_calls: beforeAvgCalls, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
-    after: { sessions: afterSessions, avg_duration_min: 8, avg_tool_calls: afterAvgCalls, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
+    before: {
+      sessions: beforeSessions,
+      avg_duration_min: 10,
+      avg_tool_calls: beforeAvgCalls,
+      avg_bash_failures: 2,
+      avg_input_bytes: 0,
+      avg_output_bytes: 0,
+    },
+    after: {
+      sessions: afterSessions,
+      avg_duration_min: 8,
+      avg_tool_calls: afterAvgCalls,
+      avg_bash_failures: 1,
+      avg_input_bytes: 0,
+      avg_output_bytes: 0,
+    },
     improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
   };
 }
@@ -99,12 +113,18 @@ describe('extractTokenSavings', () => {
 describe('computePerDirectiveTokenDelta', () => {
   it('returns null with fewer than 2 before sessions', () => {
     const before = [makeSummary('s1', '2026-04-20T10:00:00Z', 20)];
-    const after = [makeSummary('s3', '2026-04-22T10:00:00Z', 10), makeSummary('s4', '2026-04-23T10:00:00Z', 10)];
+    const after = [
+      makeSummary('s3', '2026-04-22T10:00:00Z', 10),
+      makeSummary('s4', '2026-04-23T10:00:00Z', 10),
+    ];
     expect(computePerDirectiveTokenDelta(before, after, 'dir-1')).toBeNull();
   });
 
   it('returns null with fewer than 2 after sessions', () => {
-    const before = [makeSummary('s1', '2026-04-20T10:00:00Z', 20), makeSummary('s2', '2026-04-21T10:00:00Z', 20)];
+    const before = [
+      makeSummary('s1', '2026-04-20T10:00:00Z', 20),
+      makeSummary('s2', '2026-04-21T10:00:00Z', 20),
+    ];
     const after = [makeSummary('s3', '2026-04-22T10:00:00Z', 10)];
     expect(computePerDirectiveTokenDelta(before, after, 'dir-1')).toBeNull();
   });

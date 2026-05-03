@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { generateKeyPairSync, sign, type KeyObject } from 'node:crypto';
+import { sign, type KeyObject } from 'node:crypto';
 
 /* ─── hoisted key pair (shared between mock factory and test code) ─── */
 
@@ -422,7 +422,9 @@ describe('Integration: Security Checks', () => {
       });
 
       // Binding copied to different project
-      expect(verifyBindingToken(binding, LICENSE_KEY, '/different/project', MACHINE_ID)).toBe(false);
+      expect(verifyBindingToken(binding, LICENSE_KEY, '/different/project', MACHINE_ID)).toBe(
+        false,
+      );
     });
 
     it('verifyBindingToken returns false when machine differs', () => {
@@ -432,7 +434,9 @@ describe('Integration: Security Checks', () => {
         machineId: MACHINE_ID,
       });
 
-      expect(verifyBindingToken(binding, LICENSE_KEY, PROJECT_PATH, 'different-machine')).toBe(false);
+      expect(verifyBindingToken(binding, LICENSE_KEY, PROJECT_PATH, 'different-machine')).toBe(
+        false,
+      );
     });
 
     it('verifyBindingToken returns false when license key differs', () => {

@@ -35,7 +35,8 @@ function makeCandidate(overrides: Partial<PatternCandidate> = {}): PatternCandid
     id: overrides.id ?? generateProposalId('llm-inc', pattern),
     pattern,
     severity: overrides.severity ?? 'warning',
-    rule_text: overrides.rule_text ?? 'Always check exit codes before proceeding with the next step.',
+    rule_text:
+      overrides.rule_text ?? 'Always check exit codes before proceeding with the next step.',
     session_ids: overrides.session_ids ?? ['s1'],
     turn_ids: overrides.turn_ids ?? ['t1'],
     occurrence_count: overrides.occurrence_count ?? 1,

@@ -22,7 +22,7 @@ import type {
 
 vi.mock('../../../src/path-resolver/index.js', () => ({
   PathResolver: class MockPathResolver {
-    async resolve(projectRoot: string) {
+    async resolve(_projectRoot: string) {
       return {
         identity: { projectId: 'test-hash-12', slug: 'mock-slug' },
       };
@@ -32,11 +32,7 @@ vi.mock('../../../src/path-resolver/index.js', () => ({
 
 // ── Helpers ─────────────────────────────────────────────────
 
-function makeDirective(
-  id: string,
-  ruleText: string,
-  pruned = false,
-): DirectiveHistoryEntry {
+function makeDirective(id: string, ruleText: string, pruned = false): DirectiveHistoryEntry {
   const now = new Date().toISOString();
   return {
     id,
@@ -137,7 +133,15 @@ describe('stats verb', () => {
         makeFire({ t: '2026-04-12T12:00:00Z', directive_id: 'dir-2', session_id: 'sess-3' }),
       ]);
 
-      await runCli(['node', 'auto-sop', 'stats', '--project', projectRoot, '--since', '2026-04-01']);
+      await runCli([
+        'node',
+        'auto-sop',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-04-01',
+      ]);
 
       const out = stdout();
       expect(out).toContain('Heuristic Fires:');
@@ -149,10 +153,7 @@ describe('stats verb', () => {
     });
 
     it('shows friendly message when no fires exist', async () => {
-      saveHistory(
-        projectRoot,
-        makeHistory([makeDirective('dir-1', 'Some directive')]),
-      );
+      saveHistory(projectRoot, makeHistory([makeDirective('dir-1', 'Some directive')]));
 
       await runCli(['node', 'auto-sop', 'stats', '--project', projectRoot]);
 
@@ -164,9 +165,7 @@ describe('stats verb', () => {
     it('shows top firing directives section', async () => {
       saveHistory(
         projectRoot,
-        makeHistory([
-          makeDirective('dir-top', 'Top firing directive rule text'),
-        ]),
+        makeHistory([makeDirective('dir-top', 'Top firing directive rule text')]),
       );
 
       // 5 fires for dir-top
@@ -179,7 +178,15 @@ describe('stats verb', () => {
       );
       appendFires(stateDir(projectRoot), fires);
 
-      await runCli(['node', 'auto-sop', 'stats', '--project', projectRoot, '--since', '2026-04-01']);
+      await runCli([
+        'node',
+        'auto-sop',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-04-01',
+      ]);
 
       const out = stdout();
       expect(out).toContain('Top Firing Directives');
@@ -203,7 +210,16 @@ describe('stats verb', () => {
         makeFire({ t: '2026-04-11T11:00:00Z', directive_id: 'dir-2', session_id: 'sess-2' }),
       ]);
 
-      await runCli(['node', 'auto-sop', '--json', 'stats', '--project', projectRoot, '--since', '2026-04-01']);
+      await runCli([
+        'node',
+        'auto-sop',
+        '--json',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-04-01',
+      ]);
 
       const out = stdout().trim();
       const parsed = JSON.parse(out);
@@ -233,7 +249,16 @@ describe('stats verb', () => {
         makeFire({ t: '2026-04-10T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-1' }),
       ]);
 
-      await runCli(['node', 'auto-sop', '--json', 'stats', '--project', projectRoot, '--since', '2026-04-01']);
+      await runCli([
+        'node',
+        'auto-sop',
+        '--json',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-04-01',
+      ]);
 
       const parsed = JSON.parse(stdout().trim());
       const entry = parsed.fires_by_directive[0];
@@ -245,10 +270,7 @@ describe('stats verb', () => {
     });
 
     it('JSON output with no fires still returns valid schema', async () => {
-      saveHistory(
-        projectRoot,
-        makeHistory([makeDirective('dir-1', 'Some rule text')]),
-      );
+      saveHistory(projectRoot, makeHistory([makeDirective('dir-1', 'Some rule text')]));
 
       await runCli(['node', 'auto-sop', '--json', 'stats', '--project', projectRoot]);
 
@@ -263,10 +285,7 @@ describe('stats verb', () => {
 
   describe('--since filter', () => {
     it('filters fires correctly', async () => {
-      saveHistory(
-        projectRoot,
-        makeHistory([makeDirective('dir-1', 'Directive for since test')]),
-      );
+      saveHistory(projectRoot, makeHistory([makeDirective('dir-1', 'Directive for since test')]));
 
       appendFires(stateDir(projectRoot), [
         makeFire({ t: '2026-01-15T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-old' }),
@@ -274,14 +293,31 @@ describe('stats verb', () => {
         makeFire({ t: '2026-04-15T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-new' }),
       ]);
 
-      await runCli(['node', 'auto-sop', '--json', 'stats', '--project', projectRoot, '--since', '2026-03-01']);
+      await runCli([
+        'node',
+        'auto-sop',
+        '--json',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-03-01',
+      ]);
 
       const parsed = JSON.parse(stdout().trim());
       expect(parsed.total_fires).toBe(1);
     });
 
     it('rejects invalid --since date', async () => {
-      await runCli(['node', 'auto-sop', 'stats', '--project', projectRoot, '--since', 'not-a-date']);
+      await runCli([
+        'node',
+        'auto-sop',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        'not-a-date',
+      ]);
 
       const combined = stderr() + stdout();
       expect(combined).toContain('Invalid');
@@ -335,10 +371,16 @@ describe('stats verb', () => {
       ]);
 
       await runCli([
-        'node', 'auto-sop', '--json', 'stats',
-        '--project', projectRoot,
-        '--since', '2026-04-01',
-        '--minutes-per-error', '25',
+        'node',
+        'auto-sop',
+        '--json',
+        'stats',
+        '--project',
+        projectRoot,
+        '--since',
+        '2026-04-01',
+        '--minutes-per-error',
+        '25',
       ]);
 
       const parsed = JSON.parse(stdout().trim());
@@ -347,9 +389,13 @@ describe('stats verb', () => {
 
     it('rejects non-positive --minutes-per-error', async () => {
       await runCli([
-        'node', 'auto-sop', 'stats',
-        '--project', projectRoot,
-        '--minutes-per-error', '-5',
+        'node',
+        'auto-sop',
+        'stats',
+        '--project',
+        projectRoot,
+        '--minutes-per-error',
+        '-5',
       ]);
 
       const combined = stderr() + stdout();

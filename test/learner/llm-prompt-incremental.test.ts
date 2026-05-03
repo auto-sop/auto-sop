@@ -134,10 +134,7 @@ describe('llm-prompt-incremental', () => {
 
     // The JSON schema for new_candidates should not list session_ids
     // Check the new_candidates block specifically
-    const ncBlock = out.slice(
-      out.indexOf('"new_candidates"'),
-      out.indexOf('"matched_existing"'),
-    );
+    const ncBlock = out.slice(out.indexOf('"new_candidates"'), out.indexOf('"matched_existing"'));
     expect(ncBlock).not.toContain('"session_ids"');
   });
 
@@ -159,12 +156,7 @@ describe('llm-prompt-incremental', () => {
   });
 
   it('renders zero-turn analysis without throwing', () => {
-    const out = buildIncrementalPrompt(
-      '<capture untrusted="true"></capture>\n',
-      'demo',
-      0,
-      [],
-    );
+    const out = buildIncrementalPrompt('<capture untrusted="true"></capture>\n', 'demo', 0, []);
     expect(out).toContain('0');
     expect(out).toContain('ACTIONABLE');
   });

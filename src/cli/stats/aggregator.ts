@@ -244,9 +244,7 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   }
 
   // V31: Real error prevention count (filtered by since)
-  const filteredPrevented = since
-    ? preventedErrors.filter((pe) => pe.t >= since)
-    : preventedErrors;
+  const filteredPrevented = since ? preventedErrors.filter((pe) => pe.t >= since) : preventedErrors;
   const realErrorsPrevented = filteredPrevented.length;
 
   // Load turn data once — shared by session comparison and V46 confirmed fires

@@ -309,9 +309,33 @@ describe('collectStatus', () => {
     await mkdirSafe(stateDir);
     const history = {
       entries: {
-        'd1': { id: 'd1', rule_text: 'Rule 1', severity: 'warning', first_seen: '2026-04-01T00:00:00Z', last_reinforced: '2026-04-25T00:00:00Z', occurrence_count: 3, pruned: false },
-        'd2': { id: 'd2', rule_text: 'Rule 2', severity: 'info', first_seen: '2026-04-01T00:00:00Z', last_reinforced: '2026-04-25T00:00:00Z', occurrence_count: 2, pruned: false },
-        'd3': { id: 'd3', rule_text: 'Pruned rule', severity: 'info', first_seen: '2026-04-01T00:00:00Z', last_reinforced: '2026-04-01T00:00:00Z', occurrence_count: 1, pruned: true },
+        d1: {
+          id: 'd1',
+          rule_text: 'Rule 1',
+          severity: 'warning',
+          first_seen: '2026-04-01T00:00:00Z',
+          last_reinforced: '2026-04-25T00:00:00Z',
+          occurrence_count: 3,
+          pruned: false,
+        },
+        d2: {
+          id: 'd2',
+          rule_text: 'Rule 2',
+          severity: 'info',
+          first_seen: '2026-04-01T00:00:00Z',
+          last_reinforced: '2026-04-25T00:00:00Z',
+          occurrence_count: 2,
+          pruned: false,
+        },
+        d3: {
+          id: 'd3',
+          rule_text: 'Pruned rule',
+          severity: 'info',
+          first_seen: '2026-04-01T00:00:00Z',
+          last_reinforced: '2026-04-01T00:00:00Z',
+          occurrence_count: 1,
+          pruned: true,
+        },
       },
       updated_at: '2026-04-25T00:00:00Z',
     };
@@ -340,10 +364,16 @@ describe('collectStatus', () => {
   it('scheduler.lastTickAt reads from recap log when backend has no data', async () => {
     const logsDir = path.join(homeDir, '.auto-sop', 'logs');
     await mkdirSafe(logsDir);
-    const recapLines = [
-      JSON.stringify({ v: 1, t: '2026-04-25T09:00:00.000Z', tick_id: 'ck-09h00', project_id: 'p1' }),
-      JSON.stringify({ v: 1, t: '2026-04-25T10:00:00.000Z', tick_id: 'ck-10h00', summary: true }),
-    ].join('\n') + '\n';
+    const recapLines =
+      [
+        JSON.stringify({
+          v: 1,
+          t: '2026-04-25T09:00:00.000Z',
+          tick_id: 'ck-09h00',
+          project_id: 'p1',
+        }),
+        JSON.stringify({ v: 1, t: '2026-04-25T10:00:00.000Z', tick_id: 'ck-10h00', summary: true }),
+      ].join('\n') + '\n';
     await fs.writeFile(path.join(logsDir, 'recap.log'), recapLines);
 
     const report = await collectStatus(baseOpts());

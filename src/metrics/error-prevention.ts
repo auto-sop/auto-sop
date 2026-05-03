@@ -44,7 +44,12 @@ export function computeErrorPreventionMetrics(
     if (eventMs >= weekAgoMs) thisWeek++;
   }
 
-  return { total_prevented: total, by_directive: byDirective, this_month: thisMonth, this_week: thisWeek };
+  return {
+    total_prevented: total,
+    by_directive: byDirective,
+    this_month: thisMonth,
+    this_week: thisWeek,
+  };
 }
 
 /**

@@ -35,9 +35,7 @@ export function serverDecrypt(
     publicKey: ephemeralPublic,
   });
 
-  const aesKey = Buffer.from(
-    hkdfSync('sha256', sharedSecret, HKDF_SALT, HKDF_INFO, AES_KEY_BYTES),
-  );
+  const aesKey = Buffer.from(hkdfSync('sha256', sharedSecret, HKDF_SALT, HKDF_INFO, AES_KEY_BYTES));
 
   const nonce = Buffer.from(nonceHex, 'hex');
   const ctBuf = Buffer.from(ciphertextHex, 'hex');

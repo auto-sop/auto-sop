@@ -19,8 +19,8 @@
  * never corrupts the on-disk file.
  */
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { generateProposalId, type DirectiveProposalType } from './directive-schema.js';
+import { join } from 'node:path';
+import { type DirectiveProposalType } from './directive-schema.js';
 import { extractKeywords } from '../capture/writer/directive-fire.js';
 
 // ── Constants ──────────────────────────────────────────────

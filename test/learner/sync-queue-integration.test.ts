@@ -18,19 +18,14 @@ import {
   readSyncEntries,
   compactSyncQueue,
   type BuildSyncEntryOpts,
-  type SyncEntry,
 } from '../../src/learner/sync-queue.js';
 import {
   estimateTokenSavings,
   TOKENS_PER_CALL,
   type BeforeAfterComparison,
-  type TokenEstimate,
 } from '../../src/learner/session-metrics.js';
-import {
-  appendPreventedErrors,
-  type PreventedError,
-} from '../../src/learner/error-prevention.js';
-import { aggregateStats, type ProjectStats } from '../../src/cli/stats/aggregator.js';
+import { appendPreventedErrors, type PreventedError } from '../../src/learner/error-prevention.js';
+import { aggregateStats } from '../../src/cli/stats/aggregator.js';
 import type { DirectiveFire } from '../../src/capture/writer/directive-fire.js';
 import type { DirectiveHistory } from '../../src/managed-section/directive-history.js';
 
@@ -98,8 +93,22 @@ function makeComparison(
 ): BeforeAfterComparison {
   return {
     cutoff: '2026-04-22T00:00:00Z',
-    before: { sessions: 5, avg_duration_min: 10, avg_tool_calls: beforeAvgToolCalls, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
-    after: { sessions: 5, avg_duration_min: 8, avg_tool_calls: afterAvgToolCalls, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
+    before: {
+      sessions: 5,
+      avg_duration_min: 10,
+      avg_tool_calls: beforeAvgToolCalls,
+      avg_bash_failures: 2,
+      avg_input_bytes: 0,
+      avg_output_bytes: 0,
+    },
+    after: {
+      sessions: 5,
+      avg_duration_min: 8,
+      avg_tool_calls: afterAvgToolCalls,
+      avg_bash_failures: 1,
+      avg_input_bytes: 0,
+      avg_output_bytes: 0,
+    },
     improvement: { duration_pct: -20, tool_calls_pct: -40, bash_failures_pct: -50 },
     ...overrides,
   };
@@ -225,7 +234,11 @@ describe('Sync queue integration: realistic data flow', () => {
     const entries = readSyncEntries(testDir);
     expect(entries).toHaveLength(5);
     expect(entries.map((e) => e.tick_id)).toEqual([
-      'tick-0', 'tick-1', 'tick-2', 'tick-3', 'tick-4',
+      'tick-0',
+      'tick-1',
+      'tick-2',
+      'tick-3',
+      'tick-4',
     ]);
   });
 });
@@ -241,7 +254,7 @@ describe('Token estimation integration: math verification', () => {
     expect(result.method).toBe('tool_call_heuristic');
     expect(result.tokens_per_call).toBe(200);
     expect(result.before_avg_tokens).toBe(25 * 200); // 5000
-    expect(result.after_avg_tokens).toBe(15 * 200);  // 3000
+    expect(result.after_avg_tokens).toBe(15 * 200); // 3000
     expect(result.savings_per_session).toBe(2000);
     expect(result.savings_pct).toBe(40);
   });
@@ -283,14 +296,28 @@ describe('Token estimation integration: math verification', () => {
 
   it('0 sessions in before bucket → returns null', () => {
     const comparison = makeComparison(20, 10, {
-      before: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 20, avg_bash_failures: 0, avg_input_bytes: 0, avg_output_bytes: 0 },
+      before: {
+        sessions: 0,
+        avg_duration_min: 0,
+        avg_tool_calls: 20,
+        avg_bash_failures: 0,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
     });
     expect(estimateTokenSavings(comparison)).toBeNull();
   });
 
   it('0 sessions in after bucket → returns null', () => {
     const comparison = makeComparison(20, 10, {
-      after: { sessions: 0, avg_duration_min: 0, avg_tool_calls: 10, avg_bash_failures: 0, avg_input_bytes: 0, avg_output_bytes: 0 },
+      after: {
+        sessions: 0,
+        avg_duration_min: 0,
+        avg_tool_calls: 10,
+        avg_bash_failures: 0,
+        avg_input_bytes: 0,
+        avg_output_bytes: 0,
+      },
     });
     expect(estimateTokenSavings(comparison)).toBeNull();
   });
@@ -300,9 +327,9 @@ describe('Token estimation integration: math verification', () => {
     const comparison = makeComparison(15.5, 10.3);
     const result = estimateTokenSavings(comparison)!;
 
-    expect(result.before_avg_tokens).toBe(3100);   // 15.5 * 200
-    expect(result.after_avg_tokens).toBe(2060);     // 10.3 * 200
-    expect(result.savings_per_session).toBe(1040);   // 3100 - 2060
+    expect(result.before_avg_tokens).toBe(3100); // 15.5 * 200
+    expect(result.after_avg_tokens).toBe(2060); // 10.3 * 200
+    expect(result.savings_per_session).toBe(1040); // 3100 - 2060
     // 1040 / 3100 * 100 = 33.548... → rounded to 33.55
     expect(result.savings_pct).toBe(33.55);
   });

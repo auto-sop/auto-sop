@@ -13,17 +13,27 @@ function makeComparison(
 ): BeforeAfterComparison {
   return {
     cutoff: '2026-04-22T00:00:00Z',
-    before: { sessions: beforeSessions, avg_duration_min: beforeAvgMin, avg_tool_calls: 20, avg_bash_failures: 2, avg_input_bytes: 0, avg_output_bytes: 0 },
-    after: { sessions: afterSessions, avg_duration_min: afterAvgMin, avg_tool_calls: 10, avg_bash_failures: 1, avg_input_bytes: 0, avg_output_bytes: 0 },
+    before: {
+      sessions: beforeSessions,
+      avg_duration_min: beforeAvgMin,
+      avg_tool_calls: 20,
+      avg_bash_failures: 2,
+      avg_input_bytes: 0,
+      avg_output_bytes: 0,
+    },
+    after: {
+      sessions: afterSessions,
+      avg_duration_min: afterAvgMin,
+      avg_tool_calls: 10,
+      avg_bash_failures: 1,
+      avg_input_bytes: 0,
+      avg_output_bytes: 0,
+    },
     improvement: { duration_pct: -50, tool_calls_pct: -50, bash_failures_pct: -50 },
   };
 }
 
-function makeSummary(
-  sessionId: string,
-  startedAt: string,
-  durationMs: number,
-): SessionSummary {
+function makeSummary(sessionId: string, startedAt: string, durationMs: number): SessionSummary {
   return {
     session_id: sessionId,
     started_at: startedAt,
@@ -106,8 +116,8 @@ describe('computePerDirectiveTimeSavings', () => {
     const sessions = [
       makeSummary('s1', '2026-04-20T10:00:00Z', 1_200_000), // 20 min
       makeSummary('s2', '2026-04-21T10:00:00Z', 1_200_000), // 20 min
-      makeSummary('s3', '2026-04-22T10:00:00Z', 600_000),   // 10 min
-      makeSummary('s4', '2026-04-23T10:00:00Z', 600_000),   // 10 min
+      makeSummary('s3', '2026-04-22T10:00:00Z', 600_000), // 10 min
+      makeSummary('s4', '2026-04-23T10:00:00Z', 600_000), // 10 min
     ];
     const directives = [{ directive_id: 'dir-1', first_seen: '2026-04-22T00:00:00Z' }];
     const result = computePerDirectiveTimeSavings(sessions, directives);
@@ -120,8 +130,8 @@ describe('computePerDirectiveTimeSavings', () => {
 
   it('excludes directives with no improvement', () => {
     const sessions = [
-      makeSummary('s1', '2026-04-20T10:00:00Z', 600_000),   // 10 min
-      makeSummary('s2', '2026-04-21T10:00:00Z', 600_000),   // 10 min
+      makeSummary('s1', '2026-04-20T10:00:00Z', 600_000), // 10 min
+      makeSummary('s2', '2026-04-21T10:00:00Z', 600_000), // 10 min
       makeSummary('s3', '2026-04-22T10:00:00Z', 1_200_000), // 20 min (worse)
       makeSummary('s4', '2026-04-23T10:00:00Z', 1_200_000), // 20 min (worse)
     ];
@@ -150,8 +160,8 @@ describe('computePerDirectiveTimeSavings', () => {
       makeSummary('s2', '2026-04-19T10:00:00Z', 1_800_000), // 30 min
       makeSummary('s3', '2026-04-20T10:00:00Z', 1_200_000), // 20 min
       makeSummary('s4', '2026-04-21T10:00:00Z', 1_200_000), // 20 min
-      makeSummary('s5', '2026-04-22T10:00:00Z', 600_000),   // 10 min
-      makeSummary('s6', '2026-04-23T10:00:00Z', 600_000),   // 10 min
+      makeSummary('s5', '2026-04-22T10:00:00Z', 600_000), // 10 min
+      makeSummary('s6', '2026-04-23T10:00:00Z', 600_000), // 10 min
     ];
     const directives = [
       { directive_id: 'dir-1', first_seen: '2026-04-20T00:00:00Z' },

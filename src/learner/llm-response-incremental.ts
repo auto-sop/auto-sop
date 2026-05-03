@@ -28,7 +28,7 @@
  *   - parseIncrementalResponse(stdout, sessionId, turnData)
  *     Returns { newCandidates, matchedExisting } — always well-formed.
  */
-import { generateProposalId, type DirectiveProposalType } from './directive-schema.js';
+import { generateProposalId } from './directive-schema.js';
 import type { PatternCandidate } from './pattern-store.js';
 import type { TurnData } from './turn-loader.js';
 
@@ -112,7 +112,9 @@ export function parseIncrementalResponse(
       ? (c.turn_ids as unknown[]).filter((t): t is string => typeof t === 'string')
       : [];
     const occurrenceCount =
-      typeof c.occurrence_count === 'number' && Number.isInteger(c.occurrence_count) && c.occurrence_count > 0
+      typeof c.occurrence_count === 'number' &&
+      Number.isInteger(c.occurrence_count) &&
+      c.occurrence_count > 0
         ? c.occurrence_count
         : 1;
 
@@ -154,7 +156,9 @@ export function parseIncrementalResponse(
       ? (m.turn_ids as unknown[]).filter((t): t is string => typeof t === 'string')
       : [];
     const additionalOccurrences =
-      typeof m.additional_occurrences === 'number' && Number.isInteger(m.additional_occurrences) && m.additional_occurrences > 0
+      typeof m.additional_occurrences === 'number' &&
+      Number.isInteger(m.additional_occurrences) &&
+      m.additional_occurrences > 0
         ? m.additional_occurrences
         : 1;
 

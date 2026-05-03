@@ -3,11 +3,13 @@ import { execSync } from 'child_process';
 
 function getGitBranch(): string {
   try {
-    return execSync('git branch --show-current', {
-      encoding: 'utf8',
-      timeout: 5_000,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim() || 'master';
+    return (
+      execSync('git branch --show-current', {
+        encoding: 'utf8',
+        timeout: 5_000,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim() || 'master'
+    );
   } catch {
     return 'master';
   }
@@ -21,9 +23,7 @@ function getEnvironmentDefines(): Record<string, string> {
     ? 'https://staging.auto-sop.com/api/v1'
     : 'https://auto-sop.com/api/v1';
 
-  const appBaseUrl = isStaging
-    ? 'https://staging.auto-sop.com'
-    : 'https://auto-sop.com';
+  const appBaseUrl = isStaging ? 'https://staging.auto-sop.com' : 'https://auto-sop.com';
 
   return {
     __API_BASE_URL__: JSON.stringify(apiBaseUrl),
