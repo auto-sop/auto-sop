@@ -13,7 +13,10 @@ Do not force-apply directives — only tag when a directive genuinely influenced
 
 **Planning gate**: Before creating implementation plans or making architectural decisions, read all directives below. Plans must respect these learned patterns — they exist because past sessions exposed real issues. Tag `[sop:applied:<id>]` in plan tasks when a directive influenced the decision.
 
-**Learnings** (25 active directives)
+**Learnings** (26 active directives)
+
+- **[error]** NEVER run `npm publish` or `npm run build` for release from any branch other than `master`. The build system (`tsup.config.ts`) detects the git branch at build time — `dev` and `feat/*` branches produce staging URLs that get permanently baked into the compiled output. v0.1.0 was published with staging URLs because of this. Always: `git checkout master && npm run build && npm publish`. [sop:sop-publish-gate]
+  _(evidence: 1 session)_
 
 - **[error]** Before any production deployment to Vercel, verify all required environment variables are configured in the Vercel project. Compare local env vars against Vercel env vars and push any missing ones before deploying, not after discovering failures. [sop:sop-7de7]
   _(evidence: 3 sessions)_
