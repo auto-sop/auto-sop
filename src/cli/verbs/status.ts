@@ -79,9 +79,14 @@ export function registerStatusVerb(program: Command): void {
         // License & Binding section
         const sv = report.serverValidation;
         process.stdout.write('\n' + pc.bold('License & Binding') + '\n');
-        const planLabel = sv.plan
-          ? `${sv.plan} (${sv.maxProjects ?? '?'} project max)`
-          : '(unknown)';
+        let planLabel: string;
+        if (sv.effectivePlan && sv.effectivePlan !== sv.plan) {
+          planLabel = `${sv.plan} (trial — ${sv.effectivePlan} limits, ${sv.maxProjects ?? '?'} project max)`;
+        } else {
+          planLabel = sv.plan
+            ? `${sv.plan} (${sv.maxProjects ?? '?'} project max)`
+            : '(unknown)';
+        }
         const serverLabel = sv.lastValidated
           ? `validated ${formatTimeAgo(sv.lastValidated)}`
           : 'never validated';
