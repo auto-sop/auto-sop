@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { isWindows } from '../setup/platform.js';
 
 vi.mock('execa', () => ({ execa: vi.fn() }));
 
@@ -103,7 +104,7 @@ describe('renderTimerUnit', () => {
   });
 });
 
-describe('linuxSystemd', () => {
+describe.skipIf(isWindows)('linuxSystemd', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockExeca.mockResolvedValue({

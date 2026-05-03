@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import path from 'node:path';
 import { runCli } from '../../../src/cli/main.js';
 import type { InstallResult } from '../../../src/installer/orchestrator.js';
 import { PreconditionError } from '../../../src/cli/errors.js';
@@ -69,7 +70,7 @@ describe('install verb', () => {
     expect(mockRunInstall).toHaveBeenCalledTimes(1);
     const callArgs = mockRunInstall.mock.calls[0][0];
     expect(callArgs.licenseKey).toBe('abc');
-    expect(callArgs.projectRoot).toBe('/tmp/test-project');
+    expect(callArgs.projectRoot).toBe(path.resolve('/tmp/test-project'));
   });
 
   it('--json mode emits JSON output', async () => {

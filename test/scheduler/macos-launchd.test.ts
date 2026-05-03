@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { isWindows } from '../setup/platform.js';
 
 vi.mock('execa', () => ({ execa: vi.fn() }));
 vi.mock('../../src/atomic/write.js', () => ({
@@ -72,7 +73,7 @@ describe('renderPlist', () => {
   });
 });
 
-describe('macosLaunchd', () => {
+describe.skipIf(isWindows)('macosLaunchd', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('process', {

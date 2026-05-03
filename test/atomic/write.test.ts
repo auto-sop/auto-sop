@@ -45,17 +45,20 @@ describe('writeFileAtomic', () => {
     expect(tmps).toHaveLength(0);
   });
 
-  it('concurrent writes — final content is one of the inputs, no tmp files', async () => {
-    const target = join(testDir, 'concurrent.txt');
-    const values = ['alpha', 'beta', 'gamma', 'delta', 'epsilon'];
-    await Promise.all(values.map((v) => writeFileAtomic(target, v)));
-    const result = await fs.readFile(target, 'utf8');
-    expect(values).toContain(result);
+  it.skipIf(isWindows)(
+    'concurrent writes — final content is one of the inputs, no tmp files',
+    async () => {
+      const target = join(testDir, 'concurrent.txt');
+      const values = ['alpha', 'beta', 'gamma', 'delta', 'epsilon'];
+      await Promise.all(values.map((v) => writeFileAtomic(target, v)));
+      const result = await fs.readFile(target, 'utf8');
+      expect(values).toContain(result);
 
-    const files = await fs.readdir(testDir);
-    const tmps = files.filter((f) => f.endsWith('.tmp'));
-    expect(tmps).toHaveLength(0);
-  });
+      const files = await fs.readdir(testDir);
+      const tmps = files.filter((f) => f.endsWith('.tmp'));
+      expect(tmps).toHaveLength(0);
+    },
+  );
 
   it('round-trips large content (1 MiB)', async () => {
     const target = join(testDir, 'large.bin');

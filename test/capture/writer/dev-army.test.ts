@@ -106,7 +106,7 @@ describe('dev-army namespace routing', () => {
 
     const targetDir = resolveGlobalTargetDir(paths, projectRoot, detect);
     expect(targetDir).toBe(paths.devArmyGlobalDir('architect'));
-    expect(targetDir).toContain('dev-army/architect');
+    expect(targetDir).toContain(`dev-army${sep}architect`);
   });
 
   it('non-dev-army claude path falls back to hash-based namespace', () => {
