@@ -202,8 +202,16 @@ describe('status verb', () => {
   it('environment row shows staging when ENVIRONMENT is staging', async () => {
     // Override the ENVIRONMENT and APP_BASE_URL mocks for this test
     const envModule = await import('../../../src/config/environment.js');
-    Object.defineProperty(envModule, 'ENVIRONMENT', { value: 'staging', writable: true, configurable: true });
-    Object.defineProperty(envModule, 'APP_BASE_URL', { value: 'https://staging.auto-sop.com', writable: true, configurable: true });
+    Object.defineProperty(envModule, 'ENVIRONMENT', {
+      value: 'staging',
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(envModule, 'APP_BASE_URL', {
+      value: 'https://staging.auto-sop.com',
+      writable: true,
+      configurable: true,
+    });
     try {
       mockCollectStatus.mockResolvedValueOnce(cannedReport());
 
@@ -214,8 +222,16 @@ describe('status verb', () => {
       expect(output).toContain('environment');
       expect(output).toContain('staging (staging.auto-sop.com)');
     } finally {
-      Object.defineProperty(envModule, 'ENVIRONMENT', { value: 'production', writable: true, configurable: true });
-      Object.defineProperty(envModule, 'APP_BASE_URL', { value: 'https://auto-sop.com', writable: true, configurable: true });
+      Object.defineProperty(envModule, 'ENVIRONMENT', {
+        value: 'production',
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(envModule, 'APP_BASE_URL', {
+        value: 'https://auto-sop.com',
+        writable: true,
+        configurable: true,
+      });
     }
   });
 });

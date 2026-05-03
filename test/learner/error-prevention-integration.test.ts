@@ -21,24 +21,15 @@ import {
   readFires,
   FIRES_FILENAME,
 } from '~/capture/writer/directive-fire.js';
-import type {
-  DirectiveFire,
-  DirectiveInput,
-  FireCategory,
-} from '~/capture/writer/directive-fire.js';
+import type { DirectiveFire, DirectiveInput } from '~/capture/writer/directive-fire.js';
 import {
   detectPreventedErrors,
   appendPreventedErrors,
   readPreventedErrors,
   type DirectiveFingerprint,
   type PreventedError,
-  PREVENTION_FILENAME,
 } from '../../src/learner/error-prevention.js';
-import {
-  buildSessionSummaries,
-  compareBeforeAfter,
-  type SessionSummary,
-} from '../../src/learner/session-metrics.js';
+import { buildSessionSummaries, compareBeforeAfter } from '../../src/learner/session-metrics.js';
 import { fingerprintCommand } from '../../src/learner/command-fingerprint.js';
 import type { TurnData, ToolCall } from '../../src/learner/turn-loader.js';
 
@@ -96,12 +87,7 @@ function makeFingerprint(overrides: Partial<DirectiveFingerprint> = {}): Directi
   };
 }
 
-function makeBashCallPair(
-  useId: string,
-  command: string,
-  success: boolean,
-  t: string,
-): ToolCall[] {
+function makeBashCallPair(useId: string, command: string, success: boolean, t: string): ToolCall[] {
   return [
     {
       event: 'pre',
@@ -136,26 +122,6 @@ function makeSessionTurn(
   };
 }
 
-function makeSummary(
-  sessionId: string,
-  startedAt: string,
-  overrides?: Partial<SessionSummary>,
-): SessionSummary {
-  return {
-    session_id: sessionId,
-    started_at: startedAt,
-    ended_at: startedAt,
-    duration_ms: 600_000,
-    turn_count: 5,
-    tool_call_count: 20,
-    files_changed_count: 3,
-    bash_failure_count: 4,
-    total_input_bytes: 0,
-    total_output_bytes: 0,
-    ...overrides,
-  };
-}
-
 // ─── a. Fire detection: bigram matching accuracy ─────────
 
 describe('integration: bigram matching accuracy', () => {
@@ -182,7 +148,8 @@ describe('integration: bigram matching accuracy', () => {
     // Prompt uses some of the same individual words in unrelated context
     // "run" is a stopword so won't match; "database" and "migration" are individual hits
     // but the bigrams ("database migration", "migration without", "backup verification") won't match
-    const unrelatedPrompt = 'the verification process for database records shows migration statistics';
+    const unrelatedPrompt =
+      'the verification process for database records shows migration statistics';
     const result = matchDirective(unrelatedPrompt, keywords, bigrams);
 
     // With bigram weighting, this should either not match or score lower
@@ -299,9 +266,21 @@ describe('integration: fire categorization', () => {
 
   it('mixed severities produce correct categories in a single batch', () => {
     const directives: DirectiveInput[] = [
-      { id: 'dir-a', rule_text: 'Never commit secrets or credentials to the repository codebase', severity: 'error' },
-      { id: 'dir-b', rule_text: 'Always run build checks before pushing changes to remote branch', severity: 'warning' },
-      { id: 'dir-c', rule_text: 'Prefer named exports over default exports in TypeScript project', severity: 'info' },
+      {
+        id: 'dir-a',
+        rule_text: 'Never commit secrets or credentials to the repository codebase',
+        severity: 'error',
+      },
+      {
+        id: 'dir-b',
+        rule_text: 'Always run build checks before pushing changes to remote branch',
+        severity: 'warning',
+      },
+      {
+        id: 'dir-c',
+        rule_text: 'Prefer named exports over default exports in TypeScript project',
+        severity: 'info',
+      },
     ];
     const fires = detectDirectiveFires(
       'never commit secrets or credentials to the repository codebase. ' +
@@ -385,10 +364,7 @@ describe('integration: error prevention end-to-end', () => {
     const turns: TurnData[] = [
       makeTurn({
         session_id: 'sess-original',
-        tool_calls: [
-          makePreCall('tu1', command),
-          makePostCall('tu1', true),
-        ],
+        tool_calls: [makePreCall('tu1', command), makePostCall('tu1', true)],
       }),
     ];
 
@@ -652,31 +628,32 @@ describe('integration: stats aggregator logic (categorized fire counts)', () => 
 
   it('handles mix of old fires (no category) and new fires (with category)', () => {
     mkdirSync(stateDir, { recursive: true });
-    const mixedJsonl = [
-      // Old fire — no v31 fields
-      JSON.stringify({
-        t: '2026-04-19T10:00:00Z',
-        directive_id: 'dir-old',
-        session_id: 'sess-1',
-        project_id: 'proj-1',
-        keyword_hits: 3,
-        keyword_total: 5,
-        match_ratio: 0.6,
-      }),
-      // New fire — with v31 fields
-      JSON.stringify({
-        t: '2026-04-20T10:00:00Z',
-        directive_id: 'dir-new',
-        session_id: 'sess-2',
-        project_id: 'proj-1',
-        keyword_hits: 4,
-        keyword_total: 5,
-        match_ratio: 0.8,
-        category: 'error-preventing',
-        bigram_hits: 2,
-        bigram_total: 3,
-      }),
-    ].join('\n') + '\n';
+    const mixedJsonl =
+      [
+        // Old fire — no v31 fields
+        JSON.stringify({
+          t: '2026-04-19T10:00:00Z',
+          directive_id: 'dir-old',
+          session_id: 'sess-1',
+          project_id: 'proj-1',
+          keyword_hits: 3,
+          keyword_total: 5,
+          match_ratio: 0.6,
+        }),
+        // New fire — with v31 fields
+        JSON.stringify({
+          t: '2026-04-20T10:00:00Z',
+          directive_id: 'dir-new',
+          session_id: 'sess-2',
+          project_id: 'proj-1',
+          keyword_hits: 4,
+          keyword_total: 5,
+          match_ratio: 0.8,
+          category: 'error-preventing',
+          bigram_hits: 2,
+          bigram_total: 3,
+        }),
+      ].join('\n') + '\n';
 
     writeFileSync(join(stateDir, FIRES_FILENAME), mixedJsonl);
     const readBack = readFires(stateDir);
@@ -770,10 +747,7 @@ describe('integration: backward compatibility', () => {
     const turns: TurnData[] = [
       makeTurn({
         session_id: 'sess-any',
-        tool_calls: [
-          makePreCall('tu1', 'npm test'),
-          makePostCall('tu1', true),
-        ],
+        tool_calls: [makePreCall('tu1', 'npm test'), makePostCall('tu1', true)],
       }),
     ];
     const fps = [
@@ -791,9 +765,33 @@ describe('integration: backward compatibility', () => {
   it('readFires returns sorted results regardless of insertion order', () => {
     const dir = makeTmpDir();
     mkdirSync(dir, { recursive: true });
-    const fire1 = { t: '2026-04-20T10:00:00Z', directive_id: 'dir-c', session_id: 's', project_id: 'p', keyword_hits: 3, keyword_total: 5, match_ratio: 0.6 };
-    const fire2 = { t: '2026-04-10T10:00:00Z', directive_id: 'dir-a', session_id: 's', project_id: 'p', keyword_hits: 3, keyword_total: 5, match_ratio: 0.6 };
-    const fire3 = { t: '2026-04-15T10:00:00Z', directive_id: 'dir-b', session_id: 's', project_id: 'p', keyword_hits: 3, keyword_total: 5, match_ratio: 0.6 };
+    const fire1 = {
+      t: '2026-04-20T10:00:00Z',
+      directive_id: 'dir-c',
+      session_id: 's',
+      project_id: 'p',
+      keyword_hits: 3,
+      keyword_total: 5,
+      match_ratio: 0.6,
+    };
+    const fire2 = {
+      t: '2026-04-10T10:00:00Z',
+      directive_id: 'dir-a',
+      session_id: 's',
+      project_id: 'p',
+      keyword_hits: 3,
+      keyword_total: 5,
+      match_ratio: 0.6,
+    };
+    const fire3 = {
+      t: '2026-04-15T10:00:00Z',
+      directive_id: 'dir-b',
+      session_id: 's',
+      project_id: 'p',
+      keyword_hits: 3,
+      keyword_total: 5,
+      match_ratio: 0.6,
+    };
     writeFileSync(
       join(dir, FIRES_FILENAME),
       [fire1, fire2, fire3].map((f) => JSON.stringify(f)).join('\n') + '\n',

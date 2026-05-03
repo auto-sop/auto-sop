@@ -24,8 +24,7 @@ describe('detectSelfReportedFires', () => {
 
   it('deduplicates same directive reported twice in one turn', () => {
     const output =
-      '[sop:applied:llm-7ced] used Grep here.\n' +
-      'Also [sop:applied:llm-7ced] used Grep again.';
+      '[sop:applied:llm-7ced] used Grep here.\n' + 'Also [sop:applied:llm-7ced] used Grep again.';
     expect(detectSelfReportedFires(output)).toEqual(['llm-7ced']);
   });
 
@@ -97,9 +96,7 @@ describe('detectSelfReportedFires', () => {
 
   it('preserves insertion order for deduplicated results', () => {
     const output =
-      '[sop:applied:bbb] first\n' +
-      '[sop:applied:aaa] second\n' +
-      '[sop:applied:bbb] duplicate';
+      '[sop:applied:bbb] first\n' + '[sop:applied:aaa] second\n' + '[sop:applied:bbb] duplicate';
     const result = detectSelfReportedFires(output);
     expect(result).toEqual(['bbb', 'aaa']);
   });

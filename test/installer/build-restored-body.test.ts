@@ -79,7 +79,10 @@ describe('buildRestoredBody', () => {
   });
 
   it('renders correct directive count in Learnings header', () => {
-    const entries = [makeEntry(), makeEntry({ id: 'repeated-bash-failure-abcd1234', severity: 'error' })];
+    const entries = [
+      makeEntry(),
+      makeEntry({ id: 'repeated-bash-failure-abcd1234', severity: 'error' }),
+    ];
     const { body } = buildRestoredBody(entries);
 
     expect(body).toContain('**Learnings** (2 active directives)');
@@ -92,8 +95,18 @@ describe('buildRestoredBody', () => {
 
   it('renders multiple directives with distinct IDs and preserves order', () => {
     const entries = [
-      makeEntry({ id: 'repeated-bash-failure-aaaa1111', severity: 'error', rule_text: 'Rule A', occurrence_count: 2 }),
-      makeEntry({ id: 'llm-inc-bbbb2222', severity: 'warning', rule_text: 'Rule B', occurrence_count: 7 }),
+      makeEntry({
+        id: 'repeated-bash-failure-aaaa1111',
+        severity: 'error',
+        rule_text: 'Rule A',
+        occurrence_count: 2,
+      }),
+      makeEntry({
+        id: 'llm-inc-bbbb2222',
+        severity: 'warning',
+        rule_text: 'Rule B',
+        occurrence_count: 7,
+      }),
     ];
     const { body } = buildRestoredBody(entries);
 

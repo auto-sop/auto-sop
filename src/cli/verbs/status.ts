@@ -150,7 +150,5 @@ function formatGrace(graceRemainingMs: number | null): string {
 
 function formatEnvironment(): string {
   const host = APP_BASE_URL.replace(/^https?:\/\//, '');
-  return ENVIRONMENT === 'staging'
-    ? `staging (${host})`
-    : `production (${host})`;
+  return ENVIRONMENT === 'staging' ? `staging (${host})` : `production (${host})`;
 }

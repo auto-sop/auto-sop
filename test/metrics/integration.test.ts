@@ -1,12 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { buildSessionSummaries, compareBeforeAfter } from '../../src/learner/session-metrics.js';
 import { aggregateMetrics, toMetricsState } from '../../src/metrics/aggregator.js';
-import { extractTokenSavings } from '../../src/metrics/token-extractor.js';
-import { computeErrorPreventionMetrics } from '../../src/metrics/error-prevention.js';
-import { calculateTimeSavings } from '../../src/metrics/time-savings.js';
 import { toCloudSyncFormat, isValidSyncPayload } from '../../src/metrics/sync-format.js';
 import { saveMetricsState, loadMetricsState } from '../../src/metrics/state.js';
 import type { TurnData, ToolCall } from '../../src/learner/turn-loader.js';
@@ -18,20 +15,40 @@ function makeTurn(
   finalizedAt: string,
   toolCalls: ToolCall[] = [],
 ): TurnData {
-  return { turn_id: turnId, session_id: sessionId, agent: 'main', finalized_at: finalizedAt, tool_calls: toolCalls };
+  return {
+    turn_id: turnId,
+    session_id: sessionId,
+    agent: 'main',
+    finalized_at: finalizedAt,
+    tool_calls: toolCalls,
+  };
 }
 
 function makeBashPair(useId: string, command: string, success: boolean, t: string): ToolCall[] {
   return [
     { event: 'pre', tool_use_id: useId, tool: 'Bash', input: { command }, t },
-    { event: 'post', tool_use_id: useId, tool: 'Bash', output: { __untrusted: true, exitCode: success ? 0 : 1 }, success, t },
+    {
+      event: 'post',
+      tool_use_id: useId,
+      tool: 'Bash',
+      output: { __untrusted: true, exitCode: success ? 0 : 1 },
+      success,
+      t,
+    },
   ];
 }
 
 function makeEditPair(useId: string, t: string): ToolCall[] {
   return [
     { event: 'pre', tool_use_id: useId, tool: 'Edit', input: { file_path: '/tmp/a.ts' }, t },
-    { event: 'post', tool_use_id: useId, tool: 'Edit', output: { __untrusted: true }, success: true, t },
+    {
+      event: 'post',
+      tool_use_id: useId,
+      tool: 'Edit',
+      output: { __untrusted: true },
+      success: true,
+      t,
+    },
   ];
 }
 
@@ -102,7 +119,9 @@ describe('Full Metrics Pipeline Integration', () => {
     expect(comparison!.after.sessions).toBe(2);
 
     // After sessions should have fewer bash failures than before
-    expect(comparison!.after.avg_bash_failures).toBeLessThanOrEqual(comparison!.before.avg_bash_failures);
+    expect(comparison!.after.avg_bash_failures).toBeLessThanOrEqual(
+      comparison!.before.avg_bash_failures,
+    );
 
     // Step 5: Create prevented error events (npm test succeeded after directive)
     const preventedErrors: PreventedError[] = [

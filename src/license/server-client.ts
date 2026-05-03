@@ -86,7 +86,10 @@ export async function validateLicense(opts: ValidateOpts): Promise<ValidateResul
         contentType = 'application/x-asop-encrypted';
         finalBody = JSON.stringify(encrypted);
       } catch (err) {
-        console.warn('[BIND-8] Request encryption unavailable, falling back to plaintext:', err instanceof Error ? err.message : String(err));
+        console.warn(
+          '[BIND-8] Request encryption unavailable, falling back to plaintext:',
+          err instanceof Error ? err.message : String(err),
+        );
       }
 
       response = await fetch(`${API_BASE_URL}/license/validate`, {
@@ -159,7 +162,11 @@ export async function validateLicense(opts: ValidateOpts): Promise<ValidateResul
       ? (body.data.active_projects as string[])
       : undefined;
 
-    return { success: true, payload: body.data as LicenseCachePayload, active_projects: activeProjects };
+    return {
+      success: true,
+      payload: body.data as LicenseCachePayload,
+      active_projects: activeProjects,
+    };
   } catch {
     // Network errors: connection refused, DNS failure, abort timeout, JSON parse
     return fallbackToCache(true);
@@ -195,11 +202,21 @@ async function fallbackToCache(shouldIncrementFailure: boolean): Promise<Validat
 
   // Cache payload still fresh (expires_at in the future) — normal cache hit
   if (isCacheValid(currentCache)) {
-    return { success: true, payload: currentCache.payload, fromCache: true, active_projects: cachedActiveProjects };
+    return {
+      success: true,
+      payload: currentCache.payload,
+      fromCache: true,
+      active_projects: cachedActiveProjects,
+    };
   }
 
   // Cache payload expired but grace period still active — allow with warning
-  return { success: true, payload: currentCache.payload, fromCache: true, active_projects: cachedActiveProjects };
+  return {
+    success: true,
+    payload: currentCache.payload,
+    fromCache: true,
+    active_projects: cachedActiveProjects,
+  };
 }
 
 /**
@@ -226,12 +243,9 @@ export async function getValidationStatus(): Promise<ValidationStatus> {
     graceRemaining = Math.max(0, GRACE_PERIOD_MS - elapsed);
   }
 
-  const plan =
-    typeof cache.payload['plan'] === 'string' ? cache.payload['plan'] : null;
+  const plan = typeof cache.payload['plan'] === 'string' ? cache.payload['plan'] : null;
   const maxProjects =
-    typeof cache.payload['max_projects'] === 'number'
-      ? cache.payload['max_projects']
-      : null;
+    typeof cache.payload['max_projects'] === 'number' ? cache.payload['max_projects'] : null;
 
   return {
     lastValidated: cache.validated_at,

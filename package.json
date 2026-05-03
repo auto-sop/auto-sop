@@ -1,6 +1,6 @@
 {
   "name": "auto-sop",
-  "version": "0.0.67",
+  "version": "0.0.68",
   "description": "Make Claude Code self-improving — auto-detect recurring mistakes and write enforced CLAUDE.md directives",
   "author": "Ugur Gokdere <ugokdere@gmail.com>",
   "keywords": [
@@ -56,7 +56,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=18.17"
+    "node": ">=20"
   },
   "scripts": {
     "extract-rules": "tsx scripts/extract-secretlint-rules.ts",

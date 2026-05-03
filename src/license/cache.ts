@@ -109,10 +109,7 @@ export function isGraceExpired(cache: LicenseCache, now: number = Date.now()): b
  * Sets first_failure_at if this is the first failure in the streak.
  * Returns a new object (does not mutate).
  */
-export function incrementFailure(
-  cache: LicenseCache,
-  now: number = Date.now(),
-): LicenseCache {
+export function incrementFailure(cache: LicenseCache, now: number = Date.now()): LicenseCache {
   return {
     ...cache,
     consecutive_failures: cache.consecutive_failures + 1,

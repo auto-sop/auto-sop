@@ -115,7 +115,11 @@ export interface DirectiveProposalLike {
   id: string;
   rule_text: string;
   severity: DirectiveSeverity;
-  evidence: { first_seen?: string; source_fingerprint?: string | undefined; session_ids?: string[] };
+  evidence: {
+    first_seen?: string;
+    source_fingerprint?: string | undefined;
+    session_ids?: string[];
+  };
   created_at?: string;
 }
 

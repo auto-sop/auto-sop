@@ -144,7 +144,7 @@ export function writeLastHash(projectRoot: string, hash: string, consecutiveDrif
 
   try {
     writeFileSync(tmp, payload, { mode: 0o600 });
-    const fd = openSync(tmp, 'r');
+    const fd = openSync(tmp, 'r+');
     try {
       fsyncSync(fd);
     } finally {

@@ -500,6 +500,7 @@ describe('statusline stdin JSON (B5 regression)', () => {
         input: payload,
         encoding: 'utf8',
         env: spawnEnv,
+        cwd: tmpDir,
         timeout: 5000,
       });
       const parsed = JSON.parse(out);

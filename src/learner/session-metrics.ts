@@ -216,7 +216,15 @@ export function compareBeforeAfter(
 
 function computeBucketStats(sessions: SessionSummary[]): BucketStats {
   const n = sessions.length;
-  if (n === 0) return { sessions: 0, avg_duration_min: 0, avg_tool_calls: 0, avg_bash_failures: 0, avg_input_bytes: 0, avg_output_bytes: 0 };
+  if (n === 0)
+    return {
+      sessions: 0,
+      avg_duration_min: 0,
+      avg_tool_calls: 0,
+      avg_bash_failures: 0,
+      avg_input_bytes: 0,
+      avg_output_bytes: 0,
+    };
 
   const totalDurationMin = sessions.reduce((sum, s) => sum + s.duration_ms / 60_000, 0);
   const totalToolCalls = sessions.reduce((sum, s) => sum + s.tool_call_count, 0);
@@ -268,11 +276,13 @@ export function estimateTokenSavingsByBytes(
   const beforeAvgTokens = Math.ceil(beforeTotalBytes / CHARS_PER_TOKEN);
   const afterAvgTokens = Math.ceil(afterTotalBytes / CHARS_PER_TOKEN);
   const savingsPerSession = Math.max(0, beforeAvgTokens - afterAvgTokens);
-  const savingsPct = beforeAvgTokens === 0 ? 0 : round2((savingsPerSession / beforeAvgTokens) * 100);
+  const savingsPct =
+    beforeAvgTokens === 0 ? 0 : round2((savingsPerSession / beforeAvgTokens) * 100);
 
-  const afterTokensPerCall = comparison.after.avg_tool_calls > 0
-    ? Math.ceil(afterAvgTokens / comparison.after.avg_tool_calls)
-    : 0;
+  const afterTokensPerCall =
+    comparison.after.avg_tool_calls > 0
+      ? Math.ceil(afterAvgTokens / comparison.after.avg_tool_calls)
+      : 0;
 
   return {
     method: 'byte_counted',
@@ -323,7 +333,8 @@ export function estimateTokenSavings(
   const beforeAvgTokens = round2(comparison.before.avg_tool_calls * TOKENS_PER_CALL);
   const afterAvgTokens = round2(comparison.after.avg_tool_calls * TOKENS_PER_CALL);
   const savingsPerSession = Math.max(0, round2(beforeAvgTokens - afterAvgTokens));
-  const savingsPct = beforeAvgTokens === 0 ? 0 : round2((savingsPerSession / beforeAvgTokens) * 100);
+  const savingsPct =
+    beforeAvgTokens === 0 ? 0 : round2((savingsPerSession / beforeAvgTokens) * 100);
 
   return {
     method: 'tool_call_heuristic',
@@ -345,14 +356,16 @@ function estimateHybridSavings(comparison: BeforeAfterComparison): TokenEstimate
   const beforeTotalBytes = comparison.before.avg_input_bytes + comparison.before.avg_output_bytes;
 
   // Derive tokens-per-call from before-bucket byte data when available
-  const tokensPerCall = comparison.before.avg_tool_calls > 0 && beforeTotalBytes > 0
-    ? Math.ceil(beforeTotalBytes / CHARS_PER_TOKEN / comparison.before.avg_tool_calls)
-    : TOKENS_PER_CALL;
+  const tokensPerCall =
+    comparison.before.avg_tool_calls > 0 && beforeTotalBytes > 0
+      ? Math.ceil(beforeTotalBytes / CHARS_PER_TOKEN / comparison.before.avg_tool_calls)
+      : TOKENS_PER_CALL;
 
   const beforeAvgTokens = Math.round(comparison.before.avg_tool_calls * tokensPerCall);
   const afterAvgTokens = Math.round(comparison.after.avg_tool_calls * tokensPerCall);
   const savingsPerSession = Math.max(0, beforeAvgTokens - afterAvgTokens);
-  const savingsPct = beforeAvgTokens === 0 ? 0 : round2((savingsPerSession / beforeAvgTokens) * 100);
+  const savingsPct =
+    beforeAvgTokens === 0 ? 0 : round2((savingsPerSession / beforeAvgTokens) * 100);
 
   return {
     method: 'hybrid',

@@ -18,7 +18,10 @@ function makeEd25519KeyPair() {
   return { publicKey, privateKey, b64Public };
 }
 
-function signPayload(payload: Record<string, unknown>, privateKey: ReturnType<typeof generateKeyPairSync>['privateKey']): string {
+function signPayload(
+  payload: Record<string, unknown>,
+  privateKey: ReturnType<typeof generateKeyPairSync>['privateKey'],
+): string {
   const data = Buffer.from(JSON.stringify(payload), 'utf8');
   return sign(null, data, privateKey).toString('hex');
 }
@@ -78,10 +81,12 @@ describe('verifyServerSignature', () => {
 describe('validateResponseFreshness', () => {
   const now = new Date('2026-06-15T12:00:00Z').getTime();
 
-  function freshPayload(overrides: Partial<{ nonce: string; issued_at: string; expires_at: string }> = {}) {
+  function freshPayload(
+    overrides: Partial<{ nonce: string; issued_at: string; expires_at: string }> = {},
+  ) {
     return {
       nonce: overrides.nonce ?? 'nonce-abc',
-      issued_at: overrides.issued_at ?? new Date(now - 60_000).toISOString(),         // 1 min ago
+      issued_at: overrides.issued_at ?? new Date(now - 60_000).toISOString(), // 1 min ago
       expires_at: overrides.expires_at ?? new Date(now + 24 * 3600_000).toISOString(), // +24h
     };
   }

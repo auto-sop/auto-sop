@@ -28,9 +28,7 @@ export function createBindingToken(
   projectPath: string,
   machineId: string,
 ): string {
-  return createHmac('sha256', licenseKey)
-    .update(`${projectPath}|${machineId}`)
-    .digest('hex');
+  return createHmac('sha256', licenseKey).update(`${projectPath}|${machineId}`).digest('hex');
 }
 
 export interface CreateBindingOpts {

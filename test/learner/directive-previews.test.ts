@@ -10,7 +10,10 @@
  * - Proposals with known detector prefixes produce correct short IDs
  */
 import { describe, it, expect } from 'vitest';
-import { extractDirectivePreviews, shortDirectiveId, PREVIEW_WORD_LIMIT } from '../../src/learner/directive-builder.js';
+import {
+  extractDirectivePreviews,
+  PREVIEW_WORD_LIMIT,
+} from '../../src/learner/directive-builder.js';
 
 describe('extractDirectivePreviews', () => {
   it('produces correct ID→preview map for a single proposal', () => {
@@ -35,9 +38,7 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['sop-abcd']).toBe(
-      'Always use the dedicated Read tool to inspect JSON state...',
-    );
+    expect(result['sop-abcd']).toBe('Always use the dedicated Read tool to inspect JSON state...');
   });
 
   it(`does not truncate when exactly ${PREVIEW_WORD_LIMIT} words`, () => {
@@ -84,9 +85,7 @@ describe('extractDirectivePreviews', () => {
       },
     ];
     const result = extractDirectivePreviews(proposals);
-    expect(result['sop-3333']).toBe(
-      'Before any production deployment to Vercel verify env vars',
-    );
+    expect(result['sop-3333']).toBe('Before any production deployment to Vercel verify env vars');
     expect(result['sop-3333']).not.toContain('[');
   });
 

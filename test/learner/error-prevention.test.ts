@@ -83,10 +83,7 @@ describe('detectPreventedErrors', () => {
       makeTurn({
         session_id: 'sess-new',
         finalized_at: '2026-04-15T12:00:00Z',
-        tool_calls: [
-          makePreCall('tu1', 'npm test'),
-          makePostCall('tu1', true),
-        ],
+        tool_calls: [makePreCall('tu1', 'npm test'), makePostCall('tu1', true)],
       }),
     ];
     const fps = [makeFingerprint({ source_fingerprint: 'npm test' })];
@@ -135,13 +132,12 @@ describe('detectPreventedErrors', () => {
     const turns: TurnData[] = [
       makeTurn({
         session_id: 'sess-old-1', // matches evidence session
-        tool_calls: [
-          makePreCall('tu1', 'npm test'),
-          makePostCall('tu1', true),
-        ],
+        tool_calls: [makePreCall('tu1', 'npm test'), makePostCall('tu1', true)],
       }),
     ];
-    const fps = [makeFingerprint({ evidence_sessions: ['sess-old-1', 'sess-old-2', 'sess-old-3'] })];
+    const fps = [
+      makeFingerprint({ evidence_sessions: ['sess-old-1', 'sess-old-2', 'sess-old-3'] }),
+    ];
 
     const result = detectPreventedErrors(turns, fps);
     expect(result).toHaveLength(0);
@@ -164,10 +160,7 @@ describe('detectPreventedErrors', () => {
   it('returns empty when command does not match any fingerprint', () => {
     const turns: TurnData[] = [
       makeTurn({
-        tool_calls: [
-          makePreCall('tu1', 'npm run build'),
-          makePostCall('tu1', true),
-        ],
+        tool_calls: [makePreCall('tu1', 'npm run build'), makePostCall('tu1', true)],
       }),
     ];
     const fps = [makeFingerprint({ source_fingerprint: 'npm test' })];
@@ -198,10 +191,7 @@ describe('detectPreventedErrors', () => {
     const longCommand = 'x'.repeat(200);
     const turns: TurnData[] = [
       makeTurn({
-        tool_calls: [
-          makePreCall('tu1', longCommand),
-          makePostCall('tu1', true),
-        ],
+        tool_calls: [makePreCall('tu1', longCommand), makePostCall('tu1', true)],
       }),
     ];
     // fingerprintCommand caps at 100 chars, so use a matching 100-char fingerprint

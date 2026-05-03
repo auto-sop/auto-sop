@@ -28,7 +28,7 @@ import {
   closeSync,
   unlinkSync,
 } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 
 // ─── Constants ───────────────────────────────────────────
 
@@ -40,10 +40,10 @@ export const MIN_HITS = 2;
 export const MIN_RATIO = 0.4;
 
 /** Combined scoring thresholds (v31 bigram+unigram) */
-export const MIN_COMBINED_HITS = 3;   // unigrams + bigrams combined
+export const MIN_COMBINED_HITS = 3; // unigrams + bigrams combined
 export const MIN_COMBINED_SCORE = 0.3; // weighted score threshold
-export const BIGRAM_WEIGHT = 2;        // bigram hit worth 2 points
-export const UNIGRAM_WEIGHT = 1;       // unigram hit worth 1 point
+export const BIGRAM_WEIGHT = 2; // bigram hit worth 2 points
+export const UNIGRAM_WEIGHT = 1; // unigram hit worth 1 point
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -52,13 +52,13 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export type FireCategory = 'error-preventing' | 'efficiency' | 'best-practice';
 
 export interface DirectiveFire {
-  t: string;              // ISO timestamp
-  directive_id: string;   // matches DirectiveHistoryEntry.id
-  session_id: string;     // from hook event
-  project_id: string;     // from handler context
-  keyword_hits: number;   // how many keywords matched
-  keyword_total: number;  // total keywords in directive
-  match_ratio: number;    // keyword_hits / keyword_total
+  t: string; // ISO timestamp
+  directive_id: string; // matches DirectiveHistoryEntry.id
+  session_id: string; // from hook event
+  project_id: string; // from handler context
+  keyword_hits: number; // how many keywords matched
+  keyword_total: number; // total keywords in directive
+  match_ratio: number; // keyword_hits / keyword_total
   /** v31: fire category derived from directive severity. Optional for backward compat. */
   category?: FireCategory;
   /** v31: number of bigram matches. Optional for backward compat. */
@@ -87,15 +87,77 @@ export interface DirectiveInput {
 // ─── Stopwords ───────────────────────────────────────────
 
 const STOPWORDS = new Set([
-  'the', 'and', 'for', 'with', 'that', 'this', 'from', 'have', 'been',
-  'will', 'should', 'must', 'when', 'into', 'also', 'each', 'other',
-  'than', 'them', 'then', 'only', 'more', 'some', 'such', 'make',
-  'like', 'just', 'over', 'your', 'after', 'before', 'between', 'does',
-  'about', 'being', 'very', 'could', 'would', 'these', 'those', 'every',
-  'using', 'used', 'use', 'not', 'are', 'was', 'were', 'has', 'had',
-  'but', 'all', 'any', 'can', 'her', 'his', 'its', 'may', 'new',
-  'now', 'old', 'see', 'way', 'who', 'did', 'get', 'let', 'say',
-  'she', 'too', 'our',
+  'the',
+  'and',
+  'for',
+  'with',
+  'that',
+  'this',
+  'from',
+  'have',
+  'been',
+  'will',
+  'should',
+  'must',
+  'when',
+  'into',
+  'also',
+  'each',
+  'other',
+  'than',
+  'them',
+  'then',
+  'only',
+  'more',
+  'some',
+  'such',
+  'make',
+  'like',
+  'just',
+  'over',
+  'your',
+  'after',
+  'before',
+  'between',
+  'does',
+  'about',
+  'being',
+  'very',
+  'could',
+  'would',
+  'these',
+  'those',
+  'every',
+  'using',
+  'used',
+  'use',
+  'not',
+  'are',
+  'was',
+  'were',
+  'has',
+  'had',
+  'but',
+  'all',
+  'any',
+  'can',
+  'her',
+  'his',
+  'its',
+  'may',
+  'new',
+  'now',
+  'old',
+  'see',
+  'way',
+  'who',
+  'did',
+  'get',
+  'let',
+  'say',
+  'she',
+  'too',
+  'our',
 ]);
 
 // ─── Keyword extraction ─────────────────────────────────
@@ -184,9 +246,7 @@ export function matchDirective(
   if (keywords.length === 0) return null;
 
   // Unigram matching — word-boundary regex, case-insensitive
-  const unigramPatterns = keywords.map(
-    (kw) => new RegExp('\\b' + escapeRegExp(kw) + '\\b', 'i'),
-  );
+  const unigramPatterns = keywords.map((kw) => new RegExp('\\b' + escapeRegExp(kw) + '\\b', 'i'));
   let unigramHits = 0;
   for (const pattern of unigramPatterns) {
     if (pattern.test(prompt)) {
@@ -449,7 +509,7 @@ export function compactFires(stateDir: string, maxAgeDays: number): number {
   try {
     const content = keep.length > 0 ? keep.join('\n') + '\n' : '';
     writeFileSync(tmpPath, content, { mode: 0o600 });
-    const fd = openSync(tmpPath, 'r');
+    const fd = openSync(tmpPath, 'r+');
     try {
       fsyncSync(fd);
     } finally {

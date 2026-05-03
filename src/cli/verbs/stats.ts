@@ -231,10 +231,7 @@ export function registerStatsVerb(program: Command): void {
 
           // V31: still show real errors prevented if available
           if (stats.real_errors_prevented > 0) {
-            process.stdout.write(
-              '\n' +
-                `Real Errors Prevented:  ${stats.real_errors_prevented}\n`,
-            );
+            process.stdout.write('\n' + `Real Errors Prevented:  ${stats.real_errors_prevented}\n`);
           }
           return;
         }
@@ -284,9 +281,12 @@ export function registerStatsVerb(program: Command): void {
         // Summary metrics
         const timeSaved = formatTimeSaved(stats.estimated_minutes_saved);
         // V53: Show confidence level alongside time saved
-        const confidenceLabel = stats.baseline_sessions > 0
-          ? pc.dim(` (${stats.confidence} confidence — ${stats.baseline_sessions} baseline sessions)`)
-          : '';
+        const confidenceLabel =
+          stats.baseline_sessions > 0
+            ? pc.dim(
+                ` (${stats.confidence} confidence — ${stats.baseline_sessions} baseline sessions)`,
+              )
+            : '';
         process.stdout.write(
           `Heuristic Fires:        ${stats.total_fires} ${pc.dim('(keyword match)')}\n` +
             `Unique Directives Hit:  ${stats.unique_directives_fired} / ${stats.active_directives} active\n` +
@@ -309,10 +309,7 @@ export function registerStatsVerb(program: Command): void {
 
         // V31: Real errors prevented
         if (stats.real_errors_prevented > 0) {
-          process.stdout.write(
-            '\n' +
-              `Real Errors Prevented:  ${stats.real_errors_prevented}\n`,
-          );
+          process.stdout.write('\n' + `Real Errors Prevented:  ${stats.real_errors_prevented}\n`);
         }
 
         // Top firing directives (V31: with severity emojis)
@@ -321,7 +318,9 @@ export function registerStatsVerb(program: Command): void {
         // V31: Session comparison before/after
         if (stats.session_comparison !== null) {
           const cmp = stats.session_comparison;
-          process.stdout.write('\n' + pc.bold('Session Comparison (Before/After Directives):') + '\n');
+          process.stdout.write(
+            '\n' + pc.bold('Session Comparison (Before/After Directives):') + '\n',
+          );
           process.stdout.write(
             `  Cutoff:          ${formatDate(cmp.cutoff)}\n` +
               `  Before sessions: ${cmp.before.sessions}  |  After sessions: ${cmp.after.sessions}\n` +
@@ -341,20 +340,30 @@ export function registerStatsVerb(program: Command): void {
           process.stdout.write('\n' + pc.bold('Measured Impact:') + '\n');
 
           if (stats.token_savings_total !== null && stats.token_savings_total > 0) {
-            const pctStr = stats.token_savings_pct !== null ? ` (${stats.token_savings_pct.toFixed(1)}% reduction)` : '';
-            const methodLabel = stats.token_estimation_method === 'byte_counted'
-              ? pc.dim(' (measured)')
-              : pc.dim(' (estimated)');
-            process.stdout.write(`  Tokens saved:         ~${Math.round(stats.token_savings_total).toLocaleString()}/session${pctStr}${methodLabel}\n`);
+            const pctStr =
+              stats.token_savings_pct !== null
+                ? ` (${stats.token_savings_pct.toFixed(1)}% reduction)`
+                : '';
+            const methodLabel =
+              stats.token_estimation_method === 'byte_counted'
+                ? pc.dim(' (measured)')
+                : pc.dim(' (estimated)');
+            process.stdout.write(
+              `  Tokens saved:         ~${Math.round(stats.token_savings_total).toLocaleString()}/session${pctStr}${methodLabel}\n`,
+            );
           }
 
           if (stats.errors_prevented_this_month > 0) {
             const errLabel = pc.dim(' (correlation-based)');
-            process.stdout.write(`  Errors prevented:     ${stats.errors_prevented_this_month} this month${errLabel}\n`);
+            process.stdout.write(
+              `  Errors prevented:     ${stats.errors_prevented_this_month} this month${errLabel}\n`,
+            );
           }
 
           if (stats.duration_time_saved_minutes !== null && stats.duration_time_saved_minutes > 0) {
-            process.stdout.write(`  Time saved:           ~${formatTimeSaved(Math.round(stats.duration_time_saved_minutes))}\n`);
+            process.stdout.write(
+              `  Time saved:           ~${formatTimeSaved(Math.round(stats.duration_time_saved_minutes))}\n`,
+            );
           }
         }
       } catch (err) {

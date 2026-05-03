@@ -19,10 +19,7 @@ export interface CloudSyncPayload {
  *
  * Returns null if the metrics state is null.
  */
-export function toCloudSyncFormat(
-  state: MetricsState | null,
-  now?: Date,
-): CloudSyncPayload | null {
+export function toCloudSyncFormat(state: MetricsState | null, now?: Date): CloudSyncPayload | null {
   if (!state) return null;
 
   const date = now ?? new Date();

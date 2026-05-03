@@ -16,7 +16,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { aggregateStats, type ProjectStats } from '../../../src/cli/stats/aggregator.js';
+import { aggregateStats } from '../../../src/cli/stats/aggregator.js';
 import type { DirectiveFire } from '../../../src/capture/writer/directive-fire.js';
 import type { DirectiveHistory } from '../../../src/managed-section/directive-history.js';
 import { saveMetricsState, emptyMetricsState } from '../../../src/metrics/state.js';
@@ -157,9 +157,7 @@ describe('aggregateStats', () => {
   });
 
   it('handles missing history file gracefully', () => {
-    const fires = [
-      makeFire({ directive_id: 'det-orphan', t: '2026-04-10T10:00:00.000Z' }),
-    ];
+    const fires = [makeFire({ directive_id: 'det-orphan', t: '2026-04-10T10:00:00.000Z' })];
     writeFires(root, fires);
     // No history file written — loadHistory returns empty
 

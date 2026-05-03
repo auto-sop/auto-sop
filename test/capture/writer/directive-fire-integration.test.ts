@@ -7,14 +7,7 @@
  * Uses real temp directories, real file I/O — no mocks.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-  readFileSync,
-  existsSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -26,7 +19,6 @@ import {
 } from '~/capture/writer/directive-fire.js';
 import type { DirectiveFire, DirectiveInput } from '~/capture/writer/directive-fire.js';
 import { aggregateStats } from '~/cli/stats/aggregator.js';
-import type { ProjectStats } from '~/cli/stats/aggregator.js';
 import { saveHistory } from '~/managed-section/directive-history.js';
 import type {
   DirectiveHistory,
@@ -153,26 +145,76 @@ describe('directive-fire integration: detect → store → aggregate', () => {
 
     // Session 1: 4 fires (3× dir-alpha, 1× dir-beta)
     const session1Fires: DirectiveFire[] = [
-      makeFire({ t: '2026-04-01T10:00:00Z', directive_id: 'dir-alpha', session_id: 'sess-1', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-01T10:05:00Z', directive_id: 'dir-alpha', session_id: 'sess-1', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-01T10:10:00Z', directive_id: 'dir-alpha', session_id: 'sess-1', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-01T10:15:00Z', directive_id: 'dir-beta', session_id: 'sess-1', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-04-01T10:00:00Z',
+        directive_id: 'dir-alpha',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-01T10:05:00Z',
+        directive_id: 'dir-alpha',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-01T10:10:00Z',
+        directive_id: 'dir-alpha',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-01T10:15:00Z',
+        directive_id: 'dir-beta',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
     ];
     appendFires(stateDir(projectRoot), session1Fires);
 
     // Session 2: 3 fires (2× dir-beta, 1× dir-gamma)
     const session2Fires: DirectiveFire[] = [
-      makeFire({ t: '2026-04-02T09:00:00Z', directive_id: 'dir-beta', session_id: 'sess-2', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-02T09:05:00Z', directive_id: 'dir-beta', session_id: 'sess-2', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-02T09:10:00Z', directive_id: 'dir-gamma', session_id: 'sess-2', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-04-02T09:00:00Z',
+        directive_id: 'dir-beta',
+        session_id: 'sess-2',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-02T09:05:00Z',
+        directive_id: 'dir-beta',
+        session_id: 'sess-2',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-02T09:10:00Z',
+        directive_id: 'dir-gamma',
+        session_id: 'sess-2',
+        project_id: 'proj-A',
+      }),
     ];
     appendFires(stateDir(projectRoot), session2Fires);
 
     // Session 3: 3 fires (2× dir-gamma, 1× dir-alpha)
     const session3Fires: DirectiveFire[] = [
-      makeFire({ t: '2026-04-03T14:00:00Z', directive_id: 'dir-gamma', session_id: 'sess-3', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-03T14:05:00Z', directive_id: 'dir-gamma', session_id: 'sess-3', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-03T14:10:00Z', directive_id: 'dir-alpha', session_id: 'sess-3', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-04-03T14:00:00Z',
+        directive_id: 'dir-gamma',
+        session_id: 'sess-3',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-03T14:05:00Z',
+        directive_id: 'dir-gamma',
+        session_id: 'sess-3',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-03T14:10:00Z',
+        directive_id: 'dir-alpha',
+        session_id: 'sess-3',
+        project_id: 'proj-A',
+      }),
     ];
     appendFires(stateDir(projectRoot), session3Fires);
 
@@ -216,8 +258,18 @@ describe('directive-fire integration: detect → store → aggregate', () => {
     );
 
     const fires: DirectiveFire[] = [
-      makeFire({ t: '2026-04-10T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-1', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-10T11:00:00Z', directive_id: 'dir-1', session_id: 'sess-1', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-04-10T10:00:00Z',
+        directive_id: 'dir-1',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-10T11:00:00Z',
+        directive_id: 'dir-1',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
     ];
     appendFires(stateDir(projectRoot), fires);
 
@@ -306,10 +358,7 @@ describe('directive-fire integration: detect → store → aggregate', () => {
   // ── Edge cases ──────────────────────────────────────────
 
   it('fresh install — no fires file → aggregation returns zero stats', () => {
-    saveHistory(
-      projectRoot,
-      makeHistory([makeDirective('dir-1', 'Some directive')]),
-    );
+    saveHistory(projectRoot, makeHistory([makeDirective('dir-1', 'Some directive')]));
 
     const stats = aggregateStats({
       stateDir: stateDir(projectRoot),
@@ -332,7 +381,12 @@ describe('directive-fire integration: detect → store → aggregate', () => {
     );
 
     appendFires(stateDir(projectRoot), [
-      makeFire({ t: '2026-04-15T12:00:00Z', directive_id: 'dir-single', session_id: 'sess-1', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-04-15T12:00:00Z',
+        directive_id: 'dir-single',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
     ]);
 
     const stats = aggregateStats({
@@ -358,7 +412,12 @@ describe('directive-fire integration: detect → store → aggregate', () => {
     );
 
     appendFires(stateDir(projectRoot), [
-      makeFire({ t: '2026-04-10T10:00:00Z', directive_id: 'dir-pruned-1', session_id: 'sess-1', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-04-10T10:00:00Z',
+        directive_id: 'dir-pruned-1',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
     ]);
 
     const stats = aggregateStats({
@@ -376,13 +435,15 @@ describe('directive-fire integration: detect → store → aggregate', () => {
   it('very long rule_text is truncated in preview (max 80 chars)', () => {
     const longRuleText =
       'This is a very long directive rule text that should be truncated when displayed in the preview because it exceeds the 80-character limit set by the aggregator module';
-    saveHistory(
-      projectRoot,
-      makeHistory([makeDirective('dir-long', longRuleText)]),
-    );
+    saveHistory(projectRoot, makeHistory([makeDirective('dir-long', longRuleText)]));
 
     appendFires(stateDir(projectRoot), [
-      makeFire({ t: '2026-04-10T10:00:00Z', directive_id: 'dir-long', session_id: 'sess-1', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-04-10T10:00:00Z',
+        directive_id: 'dir-long',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
     ]);
 
     const stats = aggregateStats({
@@ -406,9 +467,24 @@ describe('directive-fire integration: detect → store → aggregate', () => {
     );
 
     appendFires(stateDir(projectRoot), [
-      makeFire({ t: '2026-01-15T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-old', project_id: 'proj-A' }),
-      makeFire({ t: '2026-02-15T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-mid', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-15T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-new', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-01-15T10:00:00Z',
+        directive_id: 'dir-1',
+        session_id: 'sess-old',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-02-15T10:00:00Z',
+        directive_id: 'dir-1',
+        session_id: 'sess-mid',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-15T10:00:00Z',
+        directive_id: 'dir-1',
+        session_id: 'sess-new',
+        project_id: 'proj-A',
+      }),
     ]);
 
     const stats = aggregateStats({
@@ -430,9 +506,24 @@ describe('directive-fire integration: detect → store → aggregate', () => {
     );
 
     appendFires(stateDir(projectRoot), [
-      makeFire({ t: '2026-04-01T10:00:00Z', directive_id: 'dir-1', session_id: 'sess-1', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-05T15:30:00Z', directive_id: 'dir-1', session_id: 'sess-2', project_id: 'proj-A' }),
-      makeFire({ t: '2026-04-03T12:00:00Z', directive_id: 'dir-1', session_id: 'sess-3', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-04-01T10:00:00Z',
+        directive_id: 'dir-1',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-05T15:30:00Z',
+        directive_id: 'dir-1',
+        session_id: 'sess-2',
+        project_id: 'proj-A',
+      }),
+      makeFire({
+        t: '2026-04-03T12:00:00Z',
+        directive_id: 'dir-1',
+        session_id: 'sess-3',
+        project_id: 'proj-A',
+      }),
     ]);
 
     const stats = aggregateStats({
@@ -447,13 +538,15 @@ describe('directive-fire integration: detect → store → aggregate', () => {
 
   it('unknown directive_id falls back to "(unknown directive)" in preview', () => {
     // Save history without the directive that fired
-    saveHistory(
-      projectRoot,
-      makeHistory([makeDirective('dir-known', 'Known directive')]),
-    );
+    saveHistory(projectRoot, makeHistory([makeDirective('dir-known', 'Known directive')]));
 
     appendFires(stateDir(projectRoot), [
-      makeFire({ t: '2026-04-10T10:00:00Z', directive_id: 'dir-deleted', session_id: 'sess-1', project_id: 'proj-A' }),
+      makeFire({
+        t: '2026-04-10T10:00:00Z',
+        directive_id: 'dir-deleted',
+        session_id: 'sess-1',
+        project_id: 'proj-A',
+      }),
     ]);
 
     const stats = aggregateStats({

@@ -59,6 +59,8 @@ describe('encryptRequest', () => {
   it('wrong server key cannot decrypt', () => {
     const other = generateTestX25519Keypair();
     const result = encryptRequest('secret', b64);
-    expect(() => serverDecrypt(result.ephemeral_public, result.nonce, result.ciphertext, other.privateKey)).toThrow();
+    expect(() =>
+      serverDecrypt(result.ephemeral_public, result.nonce, result.ciphertext, other.privateKey),
+    ).toThrow();
   });
 });

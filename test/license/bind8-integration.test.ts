@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { LicenseCache } from '../../src/license/cache.js';
 
 /* ─── test X25519 server keypair (vi.hoisted so mock factories can use it) ─── */
 
@@ -145,7 +144,12 @@ describe('BIND-8 encrypted validate request', () => {
 
     const [, init] = mockFetch.mock.calls[0]!;
     const body = JSON.parse(init.body as string);
-    const decrypted = serverDecrypt(body.ephemeral_public, body.nonce, body.ciphertext, testServerKP.privateKey);
+    const decrypted = serverDecrypt(
+      body.ephemeral_public,
+      body.nonce,
+      body.ciphertext,
+      testServerKP.privateKey,
+    );
     const payload = JSON.parse(decrypted);
 
     expect(payload.key).toBe('LIC-BIND8-TEST');

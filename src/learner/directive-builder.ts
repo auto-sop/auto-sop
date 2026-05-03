@@ -242,9 +242,9 @@ export const PREVIEW_WORD_LIMIT = 10;
  */
 function stripMarkdown(text: string): string {
   return text
-    .replace(/\*\*/g, '')       // bold markers
+    .replace(/\*\*/g, '') // bold markers
     .replace(/\[([^\]]*)\]/g, '$1') // [bracket tags] → inner text
-    .replace(/`([^`]*)`/g, '$1')    // inline code → inner text
+    .replace(/`([^`]*)`/g, '$1') // inline code → inner text
     .trim();
 }
 
@@ -390,7 +390,8 @@ export function buildDirectiveBodyFromInput(input: DirectiveInput): ManagedSecti
     learningsSection = '**Learnings**\n\n' + '_No recurring patterns detected yet._';
   }
 
-  const body = statsLine + aiLine + '\n\n' + transparencyBlock + planningGateBlock + learningsSection;
+  const body =
+    statsLine + aiLine + '\n\n' + transparencyBlock + planningGateBlock + learningsSection;
   return { body };
 }
 

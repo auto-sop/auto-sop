@@ -183,7 +183,11 @@ describe('MetricsState round-trip', () => {
     const rootA = '/projects/alpha';
     const rootB = '/projects/beta';
 
-    saveMetricsState(tempHome, rootA, makeState({ project_slug: 'alpha', total_tokens_saved: 100 }));
+    saveMetricsState(
+      tempHome,
+      rootA,
+      makeState({ project_slug: 'alpha', total_tokens_saved: 100 }),
+    );
     saveMetricsState(tempHome, rootB, makeState({ project_slug: 'beta', total_tokens_saved: 200 }));
 
     const loadedA = loadMetricsState(tempHome, rootA);

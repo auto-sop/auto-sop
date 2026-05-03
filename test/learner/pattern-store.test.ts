@@ -167,8 +167,18 @@ describe('read/write round-trip', () => {
 
 describe('mergeCandidateEvidence', () => {
   it('appends new candidates that have no id match', () => {
-    const existing = [makeCandidate({ pattern: 'existing', rule_text: 'Always run tests before committing code changes to the repository' })];
-    const incoming = [makeCandidate({ pattern: 'brand new', rule_text: 'Never store API credentials directly in source code files' })];
+    const existing = [
+      makeCandidate({
+        pattern: 'existing',
+        rule_text: 'Always run tests before committing code changes to the repository',
+      }),
+    ];
+    const incoming = [
+      makeCandidate({
+        pattern: 'brand new',
+        rule_text: 'Never store API credentials directly in source code files',
+      }),
+    ];
 
     const result = mergeCandidateEvidence(existing, incoming);
     expect(result).toHaveLength(2);
@@ -230,8 +240,18 @@ describe('mergeCandidateEvidence', () => {
   });
 
   it('does not mutate input arrays', () => {
-    const existing = [makeCandidate({ pattern: 'immutable', rule_text: 'First immutable rule text for testing mutation safety' })];
-    const incoming = [makeCandidate({ pattern: 'immutable2', rule_text: 'Second immutable rule text completely different content' })];
+    const existing = [
+      makeCandidate({
+        pattern: 'immutable',
+        rule_text: 'First immutable rule text for testing mutation safety',
+      }),
+    ];
+    const incoming = [
+      makeCandidate({
+        pattern: 'immutable2',
+        rule_text: 'Second immutable rule text completely different content',
+      }),
+    ];
     const existingCopy = JSON.parse(JSON.stringify(existing));
     const incomingCopy = JSON.parse(JSON.stringify(incoming));
 
@@ -242,13 +262,23 @@ describe('mergeCandidateEvidence', () => {
   });
 
   it('handles empty existing array', () => {
-    const incoming = [makeCandidate({ pattern: 'fresh', rule_text: 'Fresh candidate rule text for testing empty array handling' })];
+    const incoming = [
+      makeCandidate({
+        pattern: 'fresh',
+        rule_text: 'Fresh candidate rule text for testing empty array handling',
+      }),
+    ];
     const result = mergeCandidateEvidence([], incoming);
     expect(result).toHaveLength(1);
   });
 
   it('handles empty incoming array', () => {
-    const existing = [makeCandidate({ pattern: 'stable', rule_text: 'Stable candidate rule text for testing empty array handling' })];
+    const existing = [
+      makeCandidate({
+        pattern: 'stable',
+        rule_text: 'Stable candidate rule text for testing empty array handling',
+      }),
+    ];
     const result = mergeCandidateEvidence(existing, []);
     expect(result).toHaveLength(1);
   });
@@ -265,7 +295,7 @@ describe('graduateCandidates', () => {
       occurrence_count: 5,
     });
 
-    const { graduated, updated } = graduateCandidates([candidate]);
+    const { graduated } = graduateCandidates([candidate]);
 
     expect(graduated).toHaveLength(1);
     expect(graduated[0]!.id).toBe(candidate.id);
@@ -547,9 +577,7 @@ describe('timeWindowKey', () => {
   });
 
   it('returns "unknown" when no turns match session', () => {
-    const turns = [
-      { session_id: 's2', finalized_at: '2026-04-25T17:30:00.000Z' },
-    ];
+    const turns = [{ session_id: 's2', finalized_at: '2026-04-25T17:30:00.000Z' }];
     expect(timeWindowKey('s1', turns)).toBe('unknown');
   });
 

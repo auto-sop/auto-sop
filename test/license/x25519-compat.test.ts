@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import {
-  diffieHellman,
-  createDecipheriv,
-  hkdfSync,
-  generateKeyPairSync,
-} from 'node:crypto';
+import { diffieHellman, createDecipheriv, hkdfSync, generateKeyPairSync } from 'node:crypto';
 import { installNoNetworkGuards, restoreNetworkGuards } from '../setup/no-network.js';
-import { encryptRequest, HKDF_SALT, HKDF_INFO, AES_KEY_BYTES } from '../../src/license/x25519-encrypt.js';
+import {
+  encryptRequest,
+  HKDF_SALT,
+  HKDF_INFO,
+  AES_KEY_BYTES,
+} from '../../src/license/x25519-encrypt.js';
 import { serverDecrypt } from '../helpers/x25519-test-utils.js';
 import { createPublicKey } from 'node:crypto';
 
@@ -48,15 +48,19 @@ describe('X25519 CLI-to-server compatibility', () => {
   });
 
   it('tampered nonce prevents decryption', () => {
-    const { ephemeral_public, nonce, ciphertext } = encryptRequest('secret', serverPubB64);
+    const encrypted = encryptRequest('secret', serverPubB64);
     const badNonce = 'ff'.repeat(12);
-    expect(() => serverDecrypt(ephemeral_public, badNonce, ciphertext, serverPrivate)).toThrow();
+    expect(() =>
+      serverDecrypt(encrypted.ephemeral_public, badNonce, encrypted.ciphertext, serverPrivate),
+    ).toThrow();
   });
 
   it('tampered ephemeral key prevents decryption', () => {
-    const { ephemeral_public, nonce, ciphertext } = encryptRequest('secret', serverPubB64);
+    const encrypted = encryptRequest('secret', serverPubB64);
     const badKey = 'ff'.repeat(44); // full SPKI DER length (44 bytes = 88 hex)
-    expect(() => serverDecrypt(badKey, nonce, ciphertext, serverPrivate)).toThrow();
+    expect(() =>
+      serverDecrypt(badKey, encrypted.nonce, encrypted.ciphertext, serverPrivate),
+    ).toThrow();
   });
 
   it('HKDF parameters match exactly (salt and info as UTF-8 strings)', () => {
@@ -73,7 +77,9 @@ describe('X25519 CLI-to-server compatibility', () => {
     const sharedSecret = diffieHellman({ privateKey: serverPrivate, publicKey: ephPub });
 
     // Derive key with exported constants (must match CLI)
-    const aesKey = Buffer.from(hkdfSync('sha256', sharedSecret, HKDF_SALT, HKDF_INFO, AES_KEY_BYTES));
+    const aesKey = Buffer.from(
+      hkdfSync('sha256', sharedSecret, HKDF_SALT, HKDF_INFO, AES_KEY_BYTES),
+    );
 
     const nonceBuf = Buffer.from(nonce, 'hex');
     const ctBuf = Buffer.from(ciphertext, 'hex');

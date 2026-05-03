@@ -97,27 +97,42 @@ describe('isValidSyncPayload', () => {
   });
 
   it('rejects empty project_slug', () => {
-    const payload = { ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!, project_slug: '' };
+    const payload = {
+      ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!,
+      project_slug: '',
+    };
     expect(isValidSyncPayload(payload)).toBe(false);
   });
 
   it('rejects invalid period format', () => {
-    const payload = { ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!, period: '2026/04' };
+    const payload = {
+      ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!,
+      period: '2026/04',
+    };
     expect(isValidSyncPayload(payload)).toBe(false);
   });
 
   it('rejects NaN token_savings', () => {
-    const payload = { ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!, token_savings: NaN };
+    const payload = {
+      ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!,
+      token_savings: NaN,
+    };
     expect(isValidSyncPayload(payload)).toBe(false);
   });
 
   it('rejects Infinity errors_prevented', () => {
-    const payload = { ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!, errors_prevented: Infinity };
+    const payload = {
+      ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!,
+      errors_prevented: Infinity,
+    };
     expect(isValidSyncPayload(payload)).toBe(false);
   });
 
   it('rejects missing generated_at', () => {
-    const payload = { ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!, generated_at: '' };
+    const payload = {
+      ...toCloudSyncFormat(makeState(), new Date('2026-04-20T10:00:00Z'))!,
+      generated_at: '',
+    };
     expect(isValidSyncPayload(payload)).toBe(false);
   });
 });

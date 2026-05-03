@@ -146,7 +146,8 @@ export function compactSyncQueue(stateDir: string, maxAgeDays: number): CompactR
   // Atomic rewrite
   const tmpPath = join(stateDir, `.${nanoid(10)}.tmp`);
   try {
-    const content = keptEntries.map((e) => JSON.stringify(e)).join('\n') + (keptEntries.length > 0 ? '\n' : '');
+    const content =
+      keptEntries.map((e) => JSON.stringify(e)).join('\n') + (keptEntries.length > 0 ? '\n' : '');
     writeFileSync(tmpPath, content, { encoding: 'utf8', mode: 0o600 });
     renameSync(tmpPath, filePath);
   } catch {
