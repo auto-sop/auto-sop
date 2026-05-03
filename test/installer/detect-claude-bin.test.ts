@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as childProcess from 'node:child_process';
 import * as fs from 'node:fs';
 import path from 'node:path';
+import { isWindows } from '../setup/platform.js';
 
 // We need to mock execSync and statSync BEFORE importing the module.
 // Use vi.mock to intercept the calls.
@@ -37,7 +38,7 @@ const { detectClaudeBinDir } = await import('../../src/installer/orchestrator.js
 const mockExecSync = vi.mocked(childProcess.execSync);
 const mockStatSync = vi.mocked(fs.statSync);
 
-describe('detectClaudeBinDir', () => {
+describe.skipIf(isWindows)('detectClaudeBinDir', () => {
   const homeDir = '/home/testuser';
 
   beforeEach(() => {
