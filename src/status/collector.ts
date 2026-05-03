@@ -33,6 +33,7 @@ export interface StatusReport {
     graceRemaining: number | null;
     isOnline: boolean;
     plan: string | null;
+    effectivePlan: string | null;
     maxProjects: number | null;
     boundProjects: number;
   };
@@ -323,6 +324,7 @@ async function collectServerValidation(homeDir: string): Promise<StatusReport['s
       graceRemaining: status.graceRemaining,
       isOnline: status.isOnline,
       plan: status.plan,
+      effectivePlan: status.effectivePlan,
       maxProjects: status.maxProjects,
       boundProjects: registry.projects.length,
     };
@@ -332,6 +334,7 @@ async function collectServerValidation(homeDir: string): Promise<StatusReport['s
       graceRemaining: null,
       isOnline: false,
       plan: null,
+      effectivePlan: null,
       maxProjects: null,
       boundProjects: 0,
     };
