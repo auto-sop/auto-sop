@@ -145,7 +145,7 @@ env_count=$(find "$DEST_DIR" -name ".env*" -o -name "*.pem" -o -name "*.key" -o 
 [ -f "$DEST_DIR/bench-results.json" ] && echo "LEAK: bench-results.json present" && LEAK=1
 
 # Deep grep for secrets (scan all of DEST_DIR)
-secret_hits=$(grep -rn 'sk-ant-\|BEGIN PRIVATE KEY\|SUPABASE_SERVICE_ROLE\|CLERK_SECRET\|STRIPE_SECRET\|AKIA\|ghp_\|sk-proj-' "$DEST_DIR/" --include='*.ts' --include='*.js' --include='*.json' --include='*.md' --include='*.sh' --include='*.env*' --include='*.yml' --include='*.yaml' 2>/dev/null | wc -l | tr -d ' ')
+secret_hits=$({ grep -rn 'sk-ant-\|BEGIN PRIVATE KEY\|SUPABASE_SERVICE_ROLE\|CLERK_SECRET\|STRIPE_SECRET\|AKIA\|ghp_\|sk-proj-' "$DEST_DIR/" --include='*.ts' --include='*.js' --include='*.json' --include='*.md' --include='*.sh' --include='*.env*' --include='*.yml' --include='*.yaml' 2>/dev/null || true; } | wc -l | tr -d ' ')
 [ "$secret_hits" -gt 0 ] && echo "LEAK: $secret_hits lines with secret patterns" && LEAK=1
 
 if [ "$LEAK" -gt 0 ]; then
