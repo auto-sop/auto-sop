@@ -40,13 +40,8 @@ describe('fsyncFile (sync)', () => {
   it('works on a file written with restrictive mode', async () => {
     const target = join(testDir, 'restricted.txt');
     await fs.writeFile(target, 'secret', { mode: 0o600 });
-    // On macOS/Linux this succeeds; on Windows the EPERM branch handles it
-    if (IS_WINDOWS) {
-      // Windows: EPERM is swallowed, so no throw
-      expect(() => fsyncFile(target)).not.toThrow();
-    } else {
-      expect(() => fsyncFile(target)).not.toThrow();
-    }
+    // On all platforms: either fsync succeeds, or EPERM is swallowed on Windows
+    expect(() => fsyncFile(target)).not.toThrow();
   });
 });
 

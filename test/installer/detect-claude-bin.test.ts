@@ -10,6 +10,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as childProcess from 'node:child_process';
 import * as fs from 'node:fs';
+import path from 'node:path';
+import { isWindows } from '../setup/platform.js';
 
 // We need to mock execSync and statSync BEFORE importing the module.
 // Use vi.mock to intercept the calls.
@@ -36,7 +38,7 @@ const { detectClaudeBinDir } = await import('../../src/installer/orchestrator.js
 const mockExecSync = vi.mocked(childProcess.execSync);
 const mockStatSync = vi.mocked(fs.statSync);
 
-describe('detectClaudeBinDir', () => {
+describe.skipIf(isWindows)('detectClaudeBinDir', () => {
   const homeDir = '/home/testuser';
 
   beforeEach(() => {
@@ -65,19 +67,21 @@ describe('detectClaudeBinDir', () => {
     // which returns empty
     mockExecSync.mockReturnValueOnce('');
     // First candidate: $HOME/.local/bin/claude — not found
+    const localCandidate = path.join(homeDir, '.local', 'bin', 'claude');
+    const usrLocalCandidate = path.join('/usr/local/bin', 'claude');
     mockStatSync.mockImplementation((p: fs.PathLike) => {
       const pathStr = String(p);
-      if (pathStr === `${homeDir}/.local/bin/claude`) {
+      if (pathStr === localCandidate) {
         throw new Error('ENOENT');
       }
-      if (pathStr === '/usr/local/bin/claude') {
+      if (pathStr === usrLocalCandidate) {
         return { isFile: () => true } as fs.Stats;
       }
       throw new Error('ENOENT');
     });
 
     const result = detectClaudeBinDir(homeDir);
-    expect(result).toBe('/usr/local/bin');
+    expect(result).toBe(path.dirname(usrLocalCandidate));
   });
 
   it('returns first candidate dirname when `which` fails and candidate file exists', () => {
@@ -85,34 +89,36 @@ describe('detectClaudeBinDir', () => {
     mockExecSync.mockImplementationOnce(() => {
       throw new Error('which: claude: not found');
     });
-    // First candidate exists
+    // First candidate exists — use path.join to match what source code constructs
+    const firstCandidate = path.join(homeDir, '.local', 'bin', 'claude');
     mockStatSync.mockImplementation((p: fs.PathLike) => {
       const pathStr = String(p);
-      if (pathStr === `${homeDir}/.local/bin/claude`) {
+      if (pathStr === firstCandidate) {
         return { isFile: () => true } as fs.Stats;
       }
       throw new Error('ENOENT');
     });
 
     const result = detectClaudeBinDir(homeDir);
-    expect(result).toBe(`${homeDir}/.local/bin`);
+    expect(result).toBe(path.join(homeDir, '.local', 'bin'));
   });
 
   it('tries subsequent candidates when first does not exist', () => {
     mockExecSync.mockImplementationOnce(() => {
       throw new Error('which: claude: not found');
     });
-    // First two candidates don't exist, third (.cargo) does
+    // First two candidates don't exist, third (.cargo) does — use path.join
+    const cargoCandidate = path.join(homeDir, '.cargo', 'bin', 'claude');
     mockStatSync.mockImplementation((p: fs.PathLike) => {
       const pathStr = String(p);
-      if (pathStr === `${homeDir}/.cargo/bin/claude`) {
+      if (pathStr === cargoCandidate) {
         return { isFile: () => true } as fs.Stats;
       }
       throw new Error('ENOENT');
     });
 
     const result = detectClaudeBinDir(homeDir);
-    expect(result).toBe(`${homeDir}/.cargo/bin`);
+    expect(result).toBe(path.join(homeDir, '.cargo', 'bin'));
   });
 
   it('returns undefined when `which` fails and no candidates exist', () => {

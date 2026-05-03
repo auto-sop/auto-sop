@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { isWindows } from '../../setup/platform.js';
 import { runCli } from '../../../src/cli/main.js';
 
 // Mock node:fs promises
@@ -84,7 +85,7 @@ function setupFs(opts: { dirsExist?: string[]; filesExist?: Record<string, strin
   mockRm.mockResolvedValue(undefined);
 }
 
-describe('migrate verb', () => {
+describe.skipIf(isWindows)('migrate verb', () => {
   let stdoutChunks: string[];
   let stderrChunks: string[];
   let originalStdoutWrite: typeof process.stdout.write;

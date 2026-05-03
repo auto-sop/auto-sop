@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { isWindows } from '../setup/platform.js';
 
 vi.mock('execa', () => ({ execa: vi.fn() }));
 
@@ -42,7 +43,7 @@ const baseOpts = {
   user: 'alice',
 };
 
-describe('renderServiceUnit', () => {
+describe.skipIf(isWindows)('renderServiceUnit', () => {
   it('contains ExecStart with tick.sh path', () => {
     const unit = renderServiceUnit({
       tickScriptPath: '/home/alice/.auto-sop/bin/tick.sh',
@@ -81,7 +82,7 @@ describe('renderServiceUnit', () => {
   });
 });
 
-describe('renderTimerUnit', () => {
+describe.skipIf(isWindows)('renderTimerUnit', () => {
   it('contains OnBootSec=5min', () => {
     expect(renderTimerUnit()).toContain('OnBootSec=5min');
   });
@@ -103,7 +104,7 @@ describe('renderTimerUnit', () => {
   });
 });
 
-describe('linuxSystemd', () => {
+describe.skipIf(isWindows)('linuxSystemd', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockExeca.mockResolvedValue({

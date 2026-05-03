@@ -5,6 +5,7 @@
  * and shared learner-spawn integration.
  */
 import { describe, it, expect } from 'vitest';
+import path from 'node:path';
 import { Command } from 'commander';
 
 describe('learn-now verb: flag registration', () => {
@@ -148,7 +149,8 @@ describe('shared learner-spawn module', () => {
     const p = recapLogPath('/fake/home');
     expect(p).toContain('.auto-sop');
     expect(p).toContain('recap.log');
-    expect(p).toContain('/fake/home');
+    // path.join normalizes separators per platform
+    expect(p).toContain(path.join('/fake/home'));
   });
 
   it('runLearner returns valid result shape', async () => {
