@@ -1,0 +1,14 @@
+{
+  "name": "auto-sop",
+  "description": "Auto-capture Claude Code turns and learn from mistakes.",
+  "owner": {
+    "name": "auto-sop"
+  },
+  "plugins": [
+    {
+      "name": "auto-sop",
+      "description": "Auto-capture Claude Code turns and learn from mistakes.",
+      "source": "./"
+    }
+  ]
+}

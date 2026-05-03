@@ -1,0 +1,113 @@
+{
+  "name": "auto-sop",
+  "version": "0.1.0",
+  "description": "Make Claude Code self-improving — auto-detect recurring mistakes and write enforced CLAUDE.md directives",
+  "author": "Ugur Gokdere <ugokdere@gmail.com>",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "claude-md",
+    "ai-agent",
+    "self-improving",
+    "directives",
+    "sop",
+    "standard-operating-procedures",
+    "developer-tools",
+    "code-quality",
+    "automation"
+  ],
+  "license": "Elastic-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/auto-sop/auto-sop.git"
+  },
+  "homepage": "https://auto-sop.com",
+  "bugs": {
+    "url": "https://github.com/auto-sop/auto-sop/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "bin": {
+    "auto-sop": "./dist/cli.js",
+    "claude-sop": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "NOTICES.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "extract-rules": "tsx scripts/extract-secretlint-rules.ts",
+    "build": "npm run extract-rules && tsup",
+    "postbuild": "node scripts/postbuild.js",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.config.integration.ts",
+    "test:smoke": "npm run build && vitest run --config vitest.smoke.config.ts",
+    "test:all": "npm run test && npm run test:integration && npm run test:smoke",
+    "test:watch": "vitest",
+    "test:golden": "vitest run test/managed-section/golden.test.ts",
+    "test:golden:update": "GOLDEN_UPDATE=1 tsx test/managed-section/golden/write-fixtures.ts && GOLDEN_UPDATE=1 tsx test/managed-section/golden/update-goldens.ts",
+    "lint": "eslint . && prettier --check .",
+    "lint:pkg": "publint",
+    "lint:types": "attw --pack .",
+    "lint:all": "npm run lint:pkg && npm run lint:types",
+    "typecheck": "tsc --noEmit",
+    "bench:shim": "node scripts/bench-shim.mjs",
+    "bench:shim:ci": "npm run build && node scripts/bench-shim.mjs",
+    "version:bump-patch": "npm version patch --no-git-tag-version",
+    "version:auto-bump": "node -e \"if(process.platform!=='win32')require('child_process').execSync('bash scripts/bump-version.sh',{stdio:'inherit'})\"",
+    "release-check": "bash scripts/release-check.sh"
+  },
+  "dependencies": {
+    "commander": "^14",
+    "execa": "^9",
+    "jsonc-parser": "^3.3.1",
+    "nanoid": "^5",
+    "node-machine-id": "^1",
+    "picocolors": "^1.1.1",
+    "proper-lockfile": "^4",
+    "semver": "^7.7.4",
+    "yaml": "^2.8",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
+    "@eslint/js": "^9",
+    "@secretlint/secretlint-rule-preset-recommend": "^9.3.4",
+    "@types/node": "^20",
+    "@types/proper-lockfile": "^4",
+    "@types/semver": "^7.7.1",
+    "@vitest/coverage-v8": "^4.1.4",
+    "eslint": "^9",
+    "memfs": "^4",
+    "prettier": "^3",
+    "publint": "^0.3.18",
+    "tsup": "^8.5",
+    "tsx": "^4",
+    "typescript": "^5.6",
+    "typescript-eslint": "^8",
+    "vitest": "^4"
+  }
+}
