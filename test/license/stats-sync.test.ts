@@ -11,8 +11,12 @@ vi.mock('../../src/license/x25519-encrypt.js', () => ({
 }));
 
 vi.mock('../../src/license/server-public-key.js', () => ({
-  API_BASE_URL: 'https://test.auto-sop.com/api/v1',
   SERVER_X25519_PUBLIC_KEY_B64: 'mock-server-key-b64',
+}));
+
+vi.mock('../../src/config/environment.js', () => ({
+  API_BASE_URL: 'https://test.auto-sop.com/api/v1',
+  APP_BASE_URL: 'https://test.auto-sop.com',
 }));
 
 import { syncStats, type SyncStatsOpts } from '../../src/license/stats-sync.js';
@@ -242,10 +246,10 @@ describe('syncStats', () => {
           total_errors_prevented: 12,
           total_time_saved_minutes: 45,
           directive_count: 8,
-          directive_ids: ['llm-7ced', 'llm-abcd'],
+          directive_ids: ['sop-7ced', 'sop-abcd'],
           directive_previews: {
-            'llm-7ced': 'Never add comments that describe WHAT a function...',
-            'llm-abcd': 'Always use the dedicated Read tool to...',
+            'sop-7ced': 'Never add comments that describe WHAT a function...',
+            'sop-abcd': 'Always use the dedicated Read tool to...',
           },
         },
       ],
@@ -257,8 +261,8 @@ describe('syncStats', () => {
     const [plaintext] = mockedEncryptRequest.mock.calls[0]!;
     const parsed = JSON.parse(plaintext);
     expect(parsed.projects[0].directive_previews).toEqual({
-      'llm-7ced': 'Never add comments that describe WHAT a function...',
-      'llm-abcd': 'Always use the dedicated Read tool to...',
+      'sop-7ced': 'Never add comments that describe WHAT a function...',
+      'sop-abcd': 'Always use the dedicated Read tool to...',
     });
   });
 

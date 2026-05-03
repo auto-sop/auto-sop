@@ -99,6 +99,10 @@ export interface ProjectStats {
   }>;
   /** V48: short ID → first ~10 words of rule_text (from MetricsState). */
   directive_previews: Record<string, string>;
+  /** V53: confidence level for time-saved estimate. */
+  confidence: 'low' | 'medium' | 'high';
+  /** V53: number of baseline sessions used to derive confidence. */
+  baseline_sessions: number;
 }
 
 export interface AggregateStatsOptions {
@@ -324,13 +328,21 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
   }
   confirmedFiresByDirective.sort((a, b) => b.fire_count - a.fire_count);
 
-  // V48: Load directive previews from persisted MetricsState
+  // V48: Load directive previews + V53: confidence from persisted MetricsState
   let directivePreviews: Record<string, string> = {};
+  let confidence: 'low' | 'medium' | 'high' = 'low';
+  let baselineSessions = 0;
   try {
     const home = opts.homeDir ?? homedir();
     const metrics = loadMetricsState(home, opts.projectRoot);
     if (metrics?.directive_previews !== undefined) {
       directivePreviews = metrics.directive_previews;
+    }
+    if (metrics?.confidence !== undefined) {
+      confidence = metrics.confidence;
+    }
+    if (metrics?.baseline_sessions !== undefined) {
+      baselineSessions = metrics.baseline_sessions;
     }
   } catch {
     // graceful degradation — no previews yet
@@ -359,5 +371,7 @@ export function aggregateStats(opts: AggregateStatsOptions): ProjectStats {
     confirmed_fires_total: confirmedFiresTotal,
     confirmed_fires_by_directive: confirmedFiresByDirective,
     directive_previews: directivePreviews,
+    confidence,
+    baseline_sessions: baselineSessions,
   };
 }

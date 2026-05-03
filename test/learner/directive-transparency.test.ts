@@ -34,8 +34,8 @@ describe('shortDirectiveId', () => {
     expect(shortDirectiveId('det-000000000001')).toBe('det-0000');
   });
 
-  it('replaces llm-inc- prefix with llm-', () => {
-    expect(shortDirectiveId('llm-inc-7ced4f9a1234')).toBe('llm-7ced');
+  it('replaces llm-inc- prefix with sop-', () => {
+    expect(shortDirectiveId('llm-inc-7ced4f9a1234')).toBe('sop-7ced');
   });
 
   it('handles short ids (< 8 chars)', () => {
@@ -69,8 +69,8 @@ describe('shortDirectiveId', () => {
     const a = shortDirectiveId('llm-inc-7ced4f9a1234');
     const b = shortDirectiveId('llm-inc-abc123def456');
     expect(a).not.toBe(b);
-    expect(a).toBe('llm-7ced');
-    expect(b).toBe('llm-abc1');
+    expect(a).toBe('sop-7ced');
+    expect(b).toBe('sop-abc1');
   });
 
   it('produces different IDs for multiple directives with similar prefixes', () => {
@@ -89,7 +89,7 @@ describe('shortDirectiveId', () => {
   it('maps known detector prefixes to abbreviated forms', () => {
     expect(shortDirectiveId('repeated-bash-failure-abcd1234')).toBe('rbf-abcd');
     expect(shortDirectiveId('repeated-edit-fail-efgh5678')).toBe('ref-efgh');
-    expect(shortDirectiveId('llm-inc-ijkl9012')).toBe('llm-ijkl');
+    expect(shortDirectiveId('llm-inc-ijkl9012')).toBe('sop-ijkl');
   });
 });
 
@@ -154,7 +154,7 @@ describe('directive transparency rendering', () => {
       candidateCount: 0,
     });
 
-    expect(result.body).toContain('[sop:llm-7ced]');
+    expect(result.body).toContain('[sop:sop-7ced]');
     expect(result.body).not.toContain('[sop:llm-inc-]');
   });
 
@@ -213,6 +213,52 @@ describe('directive transparency rendering', () => {
     expect(transparencyIdx).toBeGreaterThan(-1);
     expect(learningsIdx).toBeGreaterThan(-1);
     expect(transparencyIdx).toBeLessThan(learningsIdx);
+  });
+
+  // ── Planning gate (V58) ─────────────────────────────────────
+
+  it('includes planning gate instruction when proposals exist', () => {
+    const result = buildDirectiveBodyFromInput({
+      turnsTotalSeen: 10,
+      agentRoster: ['main'],
+      nowIso: '2026-04-14T22:20:00Z',
+      proposals: [makeProposal()],
+      candidateCount: 0,
+    });
+
+    expect(result.body).toContain('**Planning gate**');
+    expect(result.body).toContain('read all directives below');
+  });
+
+  it('omits planning gate when no proposals', () => {
+    const result = buildDirectiveBodyFromInput({
+      turnsTotalSeen: 10,
+      agentRoster: ['main'],
+      nowIso: '2026-04-14T22:20:00Z',
+      proposals: [],
+      candidateCount: 0,
+    });
+
+    expect(result.body).not.toContain('**Planning gate**');
+  });
+
+  it('planning gate appears AFTER transparency and BEFORE learnings', () => {
+    const result = buildDirectiveBodyFromInput({
+      turnsTotalSeen: 10,
+      agentRoster: ['main'],
+      nowIso: '2026-04-14T22:20:00Z',
+      proposals: [makeProposal()],
+      candidateCount: 0,
+    });
+
+    const transparencyIdx = result.body.indexOf('**Transparency**');
+    const planningIdx = result.body.indexOf('**Planning gate**');
+    const learningsIdx = result.body.indexOf('**Learnings**');
+    expect(transparencyIdx).toBeGreaterThan(-1);
+    expect(planningIdx).toBeGreaterThan(-1);
+    expect(learningsIdx).toBeGreaterThan(-1);
+    expect(transparencyIdx).toBeLessThan(planningIdx);
+    expect(planningIdx).toBeLessThan(learningsIdx);
   });
 
   // ── Determinism ────────────────────────────────────────────

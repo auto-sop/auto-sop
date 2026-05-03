@@ -307,7 +307,7 @@ const SELF_REPORT_PATTERN = /\[sop:applied:([a-zA-Z0-9_-]{1,64})\]/g;
  * as having influenced its action.
  *
  * @param output  Claude's text output (response text from a turn)
- * @returns Array of unique directive IDs (e.g. ['llm-7ced', 'det-0000'])
+ * @returns Array of unique directive IDs (e.g. ['sop-7ced', 'det-0000'])
  */
 export function detectSelfReportedFires(output: string): string[] {
   if (!output || output.length === 0) return [];

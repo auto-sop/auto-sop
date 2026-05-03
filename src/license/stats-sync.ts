@@ -4,7 +4,8 @@
  * Fail-open: never throws, always returns { success, error? }.
  */
 import { encryptRequest } from './x25519-encrypt.js';
-import { API_BASE_URL, SERVER_X25519_PUBLIC_KEY_B64 } from './server-public-key.js';
+import { SERVER_X25519_PUBLIC_KEY_B64 } from './server-public-key.js';
+import { API_BASE_URL } from '../config/environment.js';
 
 /** Timeout for stats sync requests in milliseconds. */
 const FETCH_TIMEOUT_MS = 10_000;

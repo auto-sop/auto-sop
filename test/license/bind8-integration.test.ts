@@ -15,9 +15,13 @@ const { testServerKP, testServerPubB64 } = vi.hoisted(() => {
 /* ─── module mocks (hoisted by vitest) ─── */
 
 vi.mock('../../src/license/server-public-key.js', () => ({
-  API_BASE_URL: 'https://test.auto-sop.com/api/v1',
   SERVER_PUBLIC_KEY_B64: 'unused-ed25519-key',
   SERVER_X25519_PUBLIC_KEY_B64: testServerPubB64,
+}));
+
+vi.mock('../../src/config/environment.js', () => ({
+  API_BASE_URL: 'https://test.auto-sop.com/api/v1',
+  APP_BASE_URL: 'https://test.auto-sop.com',
 }));
 
 vi.mock('../../src/license/cache.js', () => ({

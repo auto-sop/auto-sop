@@ -14,6 +14,7 @@ import { ensureGitignore } from './gitignore.js';
 import { recordLicenseOnInstall } from '../license/storage.js';
 import { getMachineId } from '../config/machine-id.js';
 import { promptLicense, classifyLicense } from '../cli/prompt.js';
+import { APP_BASE_URL } from '../config/environment.js';
 import { PreconditionError } from '../cli/errors.js';
 import { upsertProject, readRegistry } from '../learner/project-registry.js';
 import { createBindingFile, writeBindingFile } from '../license/binding.js';
@@ -27,6 +28,7 @@ import {
   type DirectiveHistoryEntry,
 } from '../managed-section/directive-history.js';
 import { writeManagedSection } from '../managed-section/editor.js';
+import { shortDirectiveId } from '../learner/directive-builder.js';
 
 export interface InstallOptions {
   projectRoot: string;
@@ -155,7 +157,7 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
         });
         if (!result.success && result.error === 'invalid_key') {
           throw new PreconditionError(
-            'Invalid license key. Get a free key at https://app.auto-sop.com/signup',
+            `Invalid license key. Get a free key at ${APP_BASE_URL}/signup`,
           );
         }
         if (!result.success && result.error === 'tampered_client') {
@@ -320,11 +322,35 @@ export function detectClaudeBinDir(homeDir: string): string | undefined {
  * Simpler than the full buildDirectiveBodyFromInput — no agent roster,
  * LLM summary, or turn statistics needed for a restore.
  */
-function buildRestoredBody(entries: DirectiveHistoryEntry[]): { body: string } {
+export function buildRestoredBody(entries: DirectiveHistoryEntry[]): { body: string } {
   const count = entries.length;
   const label = count === 1 ? 'directive' : 'directives';
   const header = `_Directives restored from previous install._\n`;
-  const learnings = `**Learnings** (${count} active ${label})`;
-  const bullets = entries.map((e) => `- **[${e.severity}]** ${e.rule_text}`).join('\n\n');
-  return { body: `${header}\n${learnings}\n\n${bullets}` };
+
+  const transparencyBlock =
+    count > 0
+      ? '\n**Transparency**: When you follow a directive from this section, briefly note which one.\n' +
+        'Format: `[sop:applied:<id>]` — e.g., `[sop:applied:sop-7ced]`. One tag per directive applied.\n' +
+        'Do not force-apply directives — only tag when a directive genuinely influenced your action.\n'
+      : '';
+
+  const planningGateBlock =
+    count > 0
+      ? '\n**Planning gate**: Before creating implementation plans or making architectural decisions, read all directives below. ' +
+        'Plans must respect these learned patterns — they exist because past sessions exposed real issues. ' +
+        'Tag `[sop:applied:<id>]` in plan tasks when a directive influenced the decision.\n'
+      : '';
+
+  const learnings = `\n**Learnings** (${count} active ${label})`;
+
+  const bullets = entries
+    .map((e) => {
+      const sopTag = ` [sop:${shortDirectiveId(e.id)}]`;
+      const sessionsLabel = e.occurrence_count === 1 ? 'session' : 'sessions';
+      const evidenceLine = `  _(evidence: ${e.occurrence_count} ${sessionsLabel})_`;
+      return `- **[${e.severity}]** ${e.rule_text}${sopTag}\n${evidenceLine}`;
+    })
+    .join('\n\n');
+
+  return { body: `${header}${transparencyBlock}${planningGateBlock}${learnings}\n\n${bullets}` };
 }

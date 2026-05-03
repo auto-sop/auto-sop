@@ -1,4 +1,38 @@
 import { defineConfig } from 'tsup';
+import { execSync } from 'child_process';
+
+function getGitBranch(): string {
+  try {
+    return execSync('git branch --show-current', {
+      encoding: 'utf8',
+      timeout: 5_000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim() || 'master';
+  } catch {
+    return 'master';
+  }
+}
+
+function getEnvironmentDefines(): Record<string, string> {
+  const branch = getGitBranch();
+  const isStaging = branch === 'dev' || branch.startsWith('feat/');
+
+  const apiBaseUrl = isStaging
+    ? 'https://staging.auto-sop.com/api/v1'
+    : 'https://auto-sop.com/api/v1';
+
+  const appBaseUrl = isStaging
+    ? 'https://staging.auto-sop.com'
+    : 'https://auto-sop.com';
+
+  return {
+    __API_BASE_URL__: JSON.stringify(apiBaseUrl),
+    __APP_BASE_URL__: JSON.stringify(appBaseUrl),
+    __ENVIRONMENT__: JSON.stringify(isStaging ? 'staging' : 'production'),
+  };
+}
+
+const envDefines = getEnvironmentDefines();
 
 export default defineConfig([
   // Phase 0 library entry points
@@ -10,6 +44,7 @@ export default defineConfig([
     clean: true,
     target: 'node18.17',
     shims: true,
+    define: envDefines,
     outExtension({ format }) {
       return format === 'esm' ? { js: '.js' } : { js: '.cjs' };
     },
@@ -25,6 +60,7 @@ export default defineConfig([
     minify: true,
     treeshake: true,
     noExternal: ['nanoid'],
+    define: envDefines,
     banner: { js: '#!/usr/bin/env node' },
     outExtension() {
       return { js: '.cjs' };
@@ -41,6 +77,7 @@ export default defineConfig([
     minify: true,
     treeshake: true,
     noExternal: ['nanoid'],
+    define: envDefines,
     outExtension() {
       return { js: '.cjs' };
     },
@@ -55,6 +92,7 @@ export default defineConfig([
     bundle: true,
     minify: true,
     noExternal: [/.*/],
+    define: envDefines,
     outExtension() {
       return { js: '.cjs' };
     },
@@ -70,6 +108,7 @@ export default defineConfig([
     minify: true,
     treeshake: true,
     noExternal: ['nanoid'],
+    define: envDefines,
     banner: { js: '#!/usr/bin/env node' },
     outExtension() {
       return { js: '.cjs' };
@@ -90,6 +129,7 @@ export default defineConfig([
     // the learner is safe — bundle grows ~10KB but all metrics code survives.
     treeshake: false,
     noExternal: [/.*/],
+    define: envDefines,
     banner: { js: '#!/usr/bin/env node' },
     outExtension() {
       return { js: '.cjs' };

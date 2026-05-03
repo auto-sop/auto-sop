@@ -283,11 +283,15 @@ export function registerStatsVerb(program: Command): void {
 
         // Summary metrics
         const timeSaved = formatTimeSaved(stats.estimated_minutes_saved);
+        // V53: Show confidence level alongside time saved
+        const confidenceLabel = stats.baseline_sessions > 0
+          ? pc.dim(` (${stats.confidence} confidence — ${stats.baseline_sessions} baseline sessions)`)
+          : '';
         process.stdout.write(
           `Heuristic Fires:        ${stats.total_fires} ${pc.dim('(keyword match)')}\n` +
             `Unique Directives Hit:  ${stats.unique_directives_fired} / ${stats.active_directives} active\n` +
             `Est. Errors Prevented:  ${stats.estimated_errors_prevented}\n` +
-            `Est. Time Saved:        ${timeSaved}\n`,
+            `Est. Time Saved:        ~${timeSaved}${confidenceLabel}\n`,
         );
 
         // V31: Fires by category

@@ -7,7 +7,8 @@ import {
   validateResponseFreshness,
   type FreshnessPayload,
 } from './ed25519-verify.js';
-import { API_BASE_URL, SERVER_X25519_PUBLIC_KEY_B64 } from './server-public-key.js';
+import { SERVER_X25519_PUBLIC_KEY_B64 } from './server-public-key.js';
+import { API_BASE_URL } from '../config/environment.js';
 import { encryptRequest } from './x25519-encrypt.js';
 import {
   readCache,
@@ -39,6 +40,7 @@ export interface ValidateResult {
   error?: string | undefined;
   fromCache?: boolean | undefined;
   message?: string | undefined;
+  active_projects?: string[] | undefined;
 }
 
 export interface ValidationStatus {
@@ -152,7 +154,12 @@ export async function validateLicense(opts: ValidateOpts): Promise<ValidateResul
     });
     await writeCache(newCache);
 
-    return { success: true, payload: body.data as LicenseCachePayload };
+    // Extract active_projects from server response (V56: project toggles)
+    const activeProjects = Array.isArray(body.data.active_projects)
+      ? (body.data.active_projects as string[])
+      : undefined;
+
+    return { success: true, payload: body.data as LicenseCachePayload, active_projects: activeProjects };
   } catch {
     // Network errors: connection refused, DNS failure, abort timeout, JSON parse
     return fallbackToCache(true);
@@ -181,13 +188,18 @@ async function fallbackToCache(shouldIncrementFailure: boolean): Promise<Validat
     return { success: false, error: 'grace_expired' };
   }
 
+  // Extract active_projects from cached payload (V56: project toggles)
+  const cachedActiveProjects = Array.isArray(currentCache.payload['active_projects'])
+    ? (currentCache.payload['active_projects'] as string[])
+    : undefined;
+
   // Cache payload still fresh (expires_at in the future) — normal cache hit
   if (isCacheValid(currentCache)) {
-    return { success: true, payload: currentCache.payload, fromCache: true };
+    return { success: true, payload: currentCache.payload, fromCache: true, active_projects: cachedActiveProjects };
   }
 
   // Cache payload expired but grace period still active — allow with warning
-  return { success: true, payload: currentCache.payload, fromCache: true };
+  return { success: true, payload: currentCache.payload, fromCache: true, active_projects: cachedActiveProjects };
 }
 
 /**

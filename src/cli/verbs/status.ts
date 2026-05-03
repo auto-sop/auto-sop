@@ -6,6 +6,7 @@ import { collectStatus } from '../../status/collector.js';
 import { PathResolver } from '../../path-resolver/index.js';
 import { pickBackend } from '../../scheduler/index.js';
 import { renderTable } from '../output/human.js';
+import { APP_BASE_URL, ENVIRONMENT } from '../../config/environment.js';
 import { emit } from '../output/json.js';
 
 export function registerStatusVerb(program: Command): void {
@@ -71,6 +72,7 @@ export function registerStatusVerb(program: Command): void {
             ['errors (24h)', String(report.errors.last24h)],
             ['disk usage', formatBytes(report.disk.usageBytes)],
             ['paused', report.paused ? 'yes' : 'no'],
+            ['environment', formatEnvironment()],
           ]) + '\n',
         );
 
@@ -98,7 +100,7 @@ export function registerStatusVerb(program: Command): void {
             ['grace', graceLabel],
             ['bound projects', boundLabel],
             ['project binding', bindingLabel],
-            ['upgrade', 'https://app.auto-sop.com/upgrade'],
+            ['upgrade', `${APP_BASE_URL}/upgrade`],
           ]) + '\n',
         );
       }
@@ -144,4 +146,11 @@ function formatGrace(graceRemainingMs: number | null): string {
   const label = `${days.toFixed(1)} days remaining`;
   if (days < 3) return pc.yellow(label);
   return label;
+}
+
+function formatEnvironment(): string {
+  const host = APP_BASE_URL.replace(/^https?:\/\//, '');
+  return ENVIRONMENT === 'staging'
+    ? `staging (${host})`
+    : `production (${host})`;
 }

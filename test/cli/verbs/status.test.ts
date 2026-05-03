@@ -7,6 +7,16 @@ vi.mock('../../../src/status/collector.js', () => ({
   collectStatus: vi.fn(),
 }));
 
+// Mock environment config — default to production
+vi.mock('../../../src/config/environment.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../../src/config/environment.js')>();
+  return {
+    ...original,
+    APP_BASE_URL: 'https://auto-sop.com',
+    ENVIRONMENT: 'production',
+  };
+});
+
 // Mock PathResolver
 vi.mock('../../../src/path-resolver/index.js', () => ({
   PathResolver: class MockPathResolver {
@@ -123,6 +133,7 @@ describe('status verb', () => {
     expect(output).toContain('errors (24h)');
     expect(output).toContain('disk usage');
     expect(output).toContain('paused');
+    expect(output).toContain('environment');
   });
 
   it('--json mode emits stable JSON with all top-level fields', async () => {
@@ -175,5 +186,36 @@ describe('status verb', () => {
     expect(code).toBe(0);
     const output = stdoutChunks.join('');
     expect(output).toContain('(not installed)');
+  });
+
+  it('environment row shows production by default', async () => {
+    mockCollectStatus.mockResolvedValueOnce(cannedReport());
+
+    const code = await runCli(['node', 'auto-sop', 'status', '--project', '/tmp/proj']);
+
+    expect(code).toBe(0);
+    const output = stdoutChunks.join('');
+    expect(output).toContain('environment');
+    expect(output).toContain('production (auto-sop.com)');
+  });
+
+  it('environment row shows staging when ENVIRONMENT is staging', async () => {
+    // Override the ENVIRONMENT and APP_BASE_URL mocks for this test
+    const envModule = await import('../../../src/config/environment.js');
+    Object.defineProperty(envModule, 'ENVIRONMENT', { value: 'staging', writable: true, configurable: true });
+    Object.defineProperty(envModule, 'APP_BASE_URL', { value: 'https://staging.auto-sop.com', writable: true, configurable: true });
+    try {
+      mockCollectStatus.mockResolvedValueOnce(cannedReport());
+
+      const code = await runCli(['node', 'auto-sop', 'status', '--project', '/tmp/proj']);
+
+      expect(code).toBe(0);
+      const output = stdoutChunks.join('');
+      expect(output).toContain('environment');
+      expect(output).toContain('staging (staging.auto-sop.com)');
+    } finally {
+      Object.defineProperty(envModule, 'ENVIRONMENT', { value: 'production', writable: true, configurable: true });
+      Object.defineProperty(envModule, 'APP_BASE_URL', { value: 'https://auto-sop.com', writable: true, configurable: true });
+    }
   });
 });
