@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { CapturePaths } from '~/capture/paths.js';
 import type { TurnMeta } from '~/capture/types.js';
@@ -54,10 +54,10 @@ function makeMeta(overrides: Partial<TurnMeta> = {}): TurnMeta {
  */
 function makeDetector(fakeHome: string) {
   return (projectRoot: string): string | null => {
-    const devArmyPrefix = join(fakeHome, '.claude', 'dev-army') + '/';
+    const devArmyPrefix = join(fakeHome, '.claude', 'dev-army') + sep;
     if (!projectRoot.startsWith(devArmyPrefix)) return null;
     const remainder = projectRoot.slice(devArmyPrefix.length);
-    const firstSegment = remainder.split('/')[0];
+    const firstSegment = remainder.split(sep)[0];
     return firstSegment || null;
   };
 }

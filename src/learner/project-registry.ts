@@ -5,7 +5,7 @@
  * Fail-open: all errors are logged and swallowed.
  */
 import { readFileSync, writeFileSync, mkdirSync, renameSync, existsSync } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { lockSync, unlockSync } from 'proper-lockfile';
 import { appendFileSync } from 'node:fs';
@@ -66,7 +66,7 @@ function logRegistryError(kind: string, err: unknown, home?: string): void {
  */
 export function validateProjectRoot(projectRoot: string): string {
   // Check absolute BEFORE resolve — resolve() would make it absolute
-  if (!projectRoot.startsWith('/')) {
+  if (!isAbsolute(projectRoot)) {
     throw new Error(`project_root is not absolute: ${projectRoot}`);
   }
   // Check for traversal in raw input before resolving

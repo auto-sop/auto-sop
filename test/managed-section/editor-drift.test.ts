@@ -22,6 +22,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { writeManagedSection, removeManagedSection } from '../../src/managed-section/editor.js';
 import { readLastHash, clearLastHash } from '../../src/managed-section/hash-store.js';
+import { isWindows } from '../setup/platform.js';
 
 function makeTmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'auto-sop-editor-drift-'));
@@ -121,7 +122,7 @@ describe('ManagedSectionEditor — E1 drift detection', () => {
     expect((drift!.data as Record<string, unknown>).conflictPath).toBe(result.backupPath);
   });
 
-  it('conflict backup is mode 0600', () => {
+  it.skipIf(isWindows)('conflict backup is mode 0600', () => {
     writeManagedSection({ projectRoot, content: { body: 'baseline' }, logger });
     const file = readFileSync(claudeMd(), 'utf-8');
     writeFileSync(claudeMd(), file.replace('baseline', 'tampered'));

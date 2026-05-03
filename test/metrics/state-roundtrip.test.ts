@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   saveMetricsState,
@@ -204,7 +204,7 @@ describe('MetricsState round-trip', () => {
     saveMetricsState(tempHome, PROJECT_ROOT, state);
 
     const expectedPath = metricsStatePath(tempHome, PROJECT_ROOT);
-    expect(expectedPath).toContain('.auto-sop/state/metrics/');
+    expect(expectedPath).toContain(`.auto-sop${sep}state${sep}metrics${sep}`);
     expect(expectedPath).toMatch(/\.json$/);
 
     // Verify the file actually exists by loading from exact path

@@ -33,13 +33,11 @@ import {
   existsSync,
   unlinkSync,
   renameSync,
-  openSync,
-  fsyncSync,
-  closeSync,
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { getPlatform } from '../platform/index.js';
 import { isSemanticallyDuplicate } from '../learner/pattern-store.js';
+import { fsyncFile } from '../atomic/safe-fsync.js';
 
 // ─── Constants ───────────────────────────────────────────
 
@@ -322,12 +320,7 @@ export function saveHistory(projectRoot: string, history: DirectiveHistory): voi
   const tmp = path + '.tmp';
   try {
     writeFileSync(tmp, payload, { mode: 0o600 });
-    const fd = openSync(tmp, 'r+');
-    try {
-      fsyncSync(fd);
-    } finally {
-      closeSync(fd);
-    }
+    fsyncFile(tmp);
     renameSync(tmp, path);
   } catch (err) {
     try {

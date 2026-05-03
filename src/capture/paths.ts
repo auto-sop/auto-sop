@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { homedir } from 'node:os';
 
 export interface CapturePaths {
@@ -49,13 +49,13 @@ export function getCapturePaths(projectRoot: string, projectId: string): Capture
  */
 export function detectDevArmyAgent(projectRoot: string): string | null {
   const home = homedir();
-  const devArmyPrefix = join(home, '.claude', 'dev-army') + '/';
+  const devArmyPrefix = join(home, '.claude', 'dev-army') + sep;
 
   if (!projectRoot.startsWith(devArmyPrefix)) {
     return null;
   }
 
   const remainder = projectRoot.slice(devArmyPrefix.length);
-  const firstSegment = remainder.split('/')[0];
+  const firstSegment = remainder.split(sep)[0];
   return firstSegment || null;
 }
