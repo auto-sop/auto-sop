@@ -342,7 +342,7 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
     const backupTmp = backupPath + '.tmp-' + process.pid + '-' + Date.now();
     try {
       writeFileSync(backupTmp, current, { mode: 0o600 });
-      const bfd = openSync(backupTmp, 'r');
+      const bfd = openSync(backupTmp, 'r+');
       try {
         fsyncSync(bfd);
       } finally {
@@ -363,7 +363,7 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
   // 7. Atomic write: write tmp → fsync → rename
   try {
     writeFileSync(tmpPath, newContent, { mode: 0o644 });
-    const fd = openSync(tmpPath, 'r');
+    const fd = openSync(tmpPath, 'r+');
     try {
       fsyncSync(fd);
     } finally {
@@ -494,7 +494,7 @@ export function removeManagedSection(projectRoot: string): void {
   const tmpPath = claudeMdPath + '.tmp';
   try {
     writeFileSync(tmpPath, newContent, { mode: 0o644 });
-    const fd = openSync(tmpPath, 'r');
+    const fd = openSync(tmpPath, 'r+');
     try {
       fsyncSync(fd);
     } finally {
