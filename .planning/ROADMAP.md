@@ -1,7 +1,7 @@
 # Roadmap: auto-sop
 
 **Created:** 2026-04-13
-**Last updated:** 2026-05-01
+**Last updated:** 2026-05-02
 **Depth:** standard
 **Phases:** 10 (restructured: Metrics before SaaS, publish after both)
 **Coverage:** 61/61 v1 requirements mapped
@@ -17,8 +17,9 @@
 - [x] **Phase 6: Native Windows + Hardening** — Platform abstraction layer, Task Scheduler backend, NTFS ACL, learner drift fix, incremental pattern memory. _(v23-v25 Windows, v26 site, v27 drift fix, v29 incremental patterns)_
 - [x] **Phase 7: Metrics & Social Proof** — Directive-fire detection, token/time savings tracker, "errors prevented" counter, `auto-sop stats` CLI. Pure CLI-side work, no cloud needed. _(v30 fire detection, v31 categorization+bigram, v32 token/time/errors — COMPLETE 2026-04-27)_
 - [x] **Phase 8: SaaS Platform + Monetization** — Clerk auth + Supabase + Stripe + Vercel dashboard. **Separate repo `auto-sop-site/`.** CLI gains 1-project soft cap + feature-touch trial + Ed25519 signed validation + X25519 request encryption. Free forever for solo, Pro $12/mo. _(v34 dashboard, v35 Stripe billing, v36 CLI licensing, v37 anti-abuse, v38 BIND-7 CLI, v39 BIND-7/8 server, v40 BIND-8 CLI encryption, v41 stats sync, v43-v48 dashboard enhancements, v49 UI polish, v50-v51 env isolation, v52 CLI env routing, v53 bug sprint, v54 env hardening — **100% COMPLETE 2026-05-01**)_
-- [ ] **Phase 9: First Public Launch + Viral Growth** — npm v0.1.0 publish, repo already public (ELv2), Homebrew tap live, landing page with real metrics, demo GIF, **referral & rewards system**. Everything a developer sees on first contact must be professional + Pro upgrade path + viral loop exists. _(→ ready to start)_
-- [ ] **Phase 10: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. Post-launch feature. _(→ post-launch)_
+- [ ] **Phase 9: First Public Launch** — Post-launch hardening (v61), Mintlify docs (v62), repo split + npm v0.1.0 publish + Homebrew tap live (v63). Curated public repo (proprietary modules stubbed). _(→ v61-v63 queued, ready for execution)_
+- [ ] **Phase 10: Viral Growth + Marketing** — Referral & rewards system (R1-R6), Product Hunt launch, CLAUDE.md badge program, demo GIF/video, robots.txt flip (allow crawlers). _(→ post-launch)_
+- [ ] **Phase 11: Smart Directive Targeting** — Scope-aware directive placement: universal → CLAUDE.md, context-specific → Claude Code Skills. Prevents context bloat at scale. _(→ post-launch)_
 
 ### Decision: Distribution & licensing model (REVISED 2026-04-26)
 
@@ -677,9 +678,10 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | 5. Inspection CLI + Packaging | 2/2 | **COMPLETE** | v17-v22 |
 | 6. Native Windows + Hardening | 5/5 | **COMPLETE** | v23-v25 (Windows), v27 (drift fix), v29 (incremental patterns) |
 | 7. Metrics & Social Proof | 3/3 | **COMPLETE** | v30 (fire detection), v31 (categorization), v32 (token/time/errors) |
-| 8. SaaS Platform + Monetization | ✅ | **COMPLETE** | v34-v55 (see breakdown) |
-| 9. First Public Launch | 0/1 | **READY TO START** — Phase 8 complete, all blockers cleared | Next |
-| 10. Smart Directive Targeting | 0/3 | Not started — post-launch | After Phase 9 |
+| 8. SaaS Platform + Monetization | ✅ | **COMPLETE** | v34-v60 (see breakdown) |
+| 9. First Public Launch | 1/4 | **IN PROGRESS** — v61 done, v62-v64 queued | v61 ✅, v62, v63, v64 |
+| 10. Post-Launch Growth | 0/1 | Not started — referral system, social sharing | After Phase 9 |
+| 11. Smart Directive Targeting | 0/3 | Not started — post-launch | After Phase 10 |
 
 ### Phase 8 Breakdown (two repos)
 
@@ -705,7 +707,8 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | Directive previews sync | ✅ Done | v48 |
 | CLI environment isolation (branch-based URLs) | ✅ Done | v52 |
 | Cross-repo bug fix sprint | ✅ Done | v53 |
-| Restore directive IDs in install path | 🔄 In progress | v55 |
+| Restore directive IDs in install path | ✅ Done | v55 |
+| Metrics accumulation fix (empty tick bug) | ✅ Done | v58 |
 
 **Site repo (`auto-sop-site/`):**
 | Item | Status | Plan |
@@ -728,40 +731,54 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | Environment isolation (staging) | ✅ Done | v50 |
 | Supabase schema isolation | ✅ Done | v51 |
 | Env isolation hardening | ✅ Done | v54 |
+| Launch readiness (stats API, toggles, billing) | ✅ Done | v56 |
+| Legal + SEO + dashboard foundations | ✅ Done | v57 |
+| Onboarding + engagement + marketing polish | ✅ Done | v58 |
+| Final validation review (all gates pass) | ✅ Done | v59 |
+| Mascot branding + seasonal variants | ✅ Done | v60 |
 
-### What remains before launch
+### What remains before launch (Phase 9)
 
-**Phase 8 — COMPLETE** (all items delivered v34-v55)
+**Phase 8 — COMPLETE** (all items delivered v34-v60)
 
-**In progress / queued:**
-1. **v55** ✅ (**CLI**) — Fix directive IDs + transparency header in install restore path — DONE
-2. **v56** 🔄 (**Both**) — Launch readiness: live stats API, project toggles (free=1/pro=unlimited), billing page, GA analytics, JSON-LD license fix
-3. **v57** 📋 (**Site**) — Legal + SEO + Dashboard foundations: privacy/terms pages, FAQ (10 Qs + schema), loading skeletons (6 routes), error boundary, sitemap fix, /docs + /changelog placeholders, hero GitHub stars + npm downloads
-4. **v58** 📋 (**Site**) — Onboarding + Engagement: first-run wizard, directive notification emails (per-tick batch + first celebration), Heroicons swap for marketing, reduced-motion (WCAG), ProjectsList clickable rows, mobile nav scroll lock
+**Phase 9 — IN PROGRESS** (v61-v63 queued):
 
-**Phase 9 (launch — after v56-v58):**
-5. npm v0.1.0 publish with provenance
-6. Homebrew tap — already staged (v22), activate on launch day
-7. robots.txt flip (remove Disallow: /) — currently blocking all crawlers pre-launch
-8. Demo GIF/video (M4) — real terminal recording
-9. Referral system (R1-R6), Product Hunt prep, CLAUDE.md badge program
+| # | Plan | Repo | Status | What |
+|---|------|------|--------|------|
+| v61 | Post-launch hardening | Site | ✅ Done | SQL aggregate, atomic toggle, security headers, email escaping, honest BeforeAfter, reduced-motion, email rate limit |
+| v62 | Mintlify docs | Site | 🔜 Queued | 17 MDX pages at auto-sop.com/docs — CLI reference, dashboard guides, privacy, FAQ |
+| v63 | Public release 0.1.0 | CLI | 🔜 Queued | Repo rename → curated public repo → npm publish → Homebrew → git tag |
+| v64 | Viral growth + launch prep | Site | 🔜 Queued | robots.txt flip, demo animation, CLAUDE.md badge program, changelog, Product Hunt |
 
-**Done (was previously blocking):**
-- ~~ELv2 license swap~~ — done v18
-- ~~Landing page aggregate stats~~ — v56 (public stats API + landing page live numbers)
-- ~~Dashboard project toggle~~ — v56 (free=1, pro=unlimited, toggle UI)
-- ~~Billing/invoice page~~ — v56 (`/dashboard/billing`)
-- ~~Privacy/Terms pages~~ — v57
-- ~~FAQ section~~ — v57
-- ~~Dashboard loading skeletons~~ — v57
-- ~~Sitemap~~ — v57
-- ~~Onboarding empty state~~ — v58
-- ~~Directive notification emails~~ — v58
-- ~~WCAG reduced-motion~~ — v58
+**Execution order:**
+- v62 (site docs) → v63 (CLI release, independent) → v64 (site viral, after v63 public repo exists)
+- v63 can run in parallel with v62
+
+**User actions required between waves:**
+- v63 Wave 2→3: Promote CLI `dev` → `master` (v52-v58 + v63 changes)
+- v63 Task 12: `npm login` (npm auth for publish)
+
+**After v63 completes:**
+- Site: promote `dev` → `main` for v61/v62 + v60 changes
+- CLI: promote `dev` → `master` for v63 changes
+- Both repos deployed to production
+
+**v64 covers (was Phase 10, pulled into Phase 9):**
+- ~~robots.txt flip (allow crawlers)~~ → v64 Task 1
+- ~~Demo video~~ → v64 Task 2 (owl-wizard-animation.mp4)
+- ~~CLAUDE.md badge program~~ → v64 Tasks 3-4 (backend + dashboard)
+- ~~Changelog content~~ → v64 Task 5
+- ~~Product Hunt prep~~ → v64 Task 6
+
+**Deferred to Phase 10 (Post-Launch Growth):**
+- Referral system (R1-R3) — referral links with +30 days Pro trial
+- Social share rewards (R3) — Tweet/LinkedIn share
+- GitHub Star reward (R2) — +30 days Pro trial for starring
+- Product Hunt upvote reward (R4) — launch day specific
 
 **Nice-to-have (not blocking launch):**
 - CLI token consumption transparency: `auto-sop stats --self`
-- Blog (M-05) — content marketing, post-launch
+- Blog (M-05) — content marketing
 - Custom Clerk auth pages (M-06) — branded sign-in/sign-up
 - Command palette Cmd+K (D-14) — power user feature
 - Data export CSV/JSON (D-15)
@@ -825,7 +842,12 @@ _Strategic insight from user (2026-04-19): "rtk's side-by-side proof on landing 
 | v52 | — | CLI environment isolation — tsup build-time branch detection, staging/prod URL routing (`auto-sop`) |
 | v53 | `d50d8bc` | Cross-repo bug fix sprint — stale PR cleanup, BUG-V34-3 patternCandidates fix, BUG-METRICS-1 wall-clock cap + confidence bands |
 | v54 | — | Environment isolation hardening — migration 010 PostgREST schema exposure, env-check.ts startup validation, AccountPending UX (`auto-sop-site/`) |
-| v55 | 🔄 | Fix directive IDs + transparency header in install restore path (`auto-sop`, in progress) |
+| v55 | — | Fix directive IDs + transparency header in install restore path (`auto-sop`) |
+| v56 | — | Launch readiness: live stats API, project toggles, billing page, GA analytics (`both repos`) |
+| v57 | — | Legal + SEO + dashboard foundations: privacy/terms, FAQ, loading skeletons, sitemap (`auto-sop-site`) |
+| v58 | `e1042b1` | Onboarding + engagement: directive emails, Heroicons swap, reduced-motion, metrics accumulation fix (`both repos`) |
+| v59 | — | Final validation review — all quality gates pass (YODA B, APEX PASS, ANALYZER B). 7 non-blocking findings → v61 (`auto-sop-site`) |
+| v60 | `6d08d31` | Mascot branding: favicon, hero owl, seasonal variants scheduler, owl icon logo (`auto-sop-site`) |
 
 ## Remaining Backlog
 
@@ -994,4 +1016,4 @@ _Not a planned code version — 1-2 week period of running the tool on real proj
 
 ---
 *Roadmap created: 2026-04-13*
-*Last updated: 2026-05-01 — **Phase 8 COMPLETE.** v55 done (directive ID restore). v56 in progress (live stats, project toggles, billing page, GA). v57 queued (legal, SEO, dashboard foundations). v58 queued (onboarding, engagement, marketing polish). After v56-v58 complete, Phase 9 launch items remain: npm publish, Homebrew tap, robots.txt flip, demo GIF, referral system.*
+*Last updated: 2026-05-02 — **Phase 8 COMPLETE** (v34-v60). **Phase 9 IN PROGRESS**: v61 ✅ done, v62 (Mintlify docs), v63 (public release 0.1.0), v64 (viral growth + launch prep) queued. After v62-v64, first public release ships: npm v0.1.0, curated public GitHub repo (ELv2), Homebrew tap, crawlers enabled, CLAUDE.md badge program, Product Hunt listing. Phase 10 (referral system) and Phase 11 (smart directive targeting) are post-launch.*

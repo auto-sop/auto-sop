@@ -1,52 +1,62 @@
-# STATE: claude-sop
+# STATE: auto-sop
 
-**Last updated:** 2026-04-15
+**Last updated:** 2026-05-02
 
 ## Project Reference
 
-- **Name:** claude-sop
+- **Name:** auto-sop
 - **Core Value:** Claude Code never makes the same mistake twice — captured history becomes enforced project rules automatically.
-- **Current Focus:** v12 hotfix — launchd install reliability + doctor effective check
+- **Current Focus:** Phase 9 — First Public Launch (v61-v63 queued)
 
 ## Current Position
 
-- **Phase 0:** COMPLETE ✓ — scrubber, atomic writes, privacy foundation (v1)
-- **Phase 1:** COMPLETE ✓ — hook shim + detached writer + turn-directory capture store (v2 + hotfixes v4-v8)
-- **Phase 2:** MOSTLY COMPLETE — installer, scheduler, CLI skeleton (v3, v4-v8 hotfixes); **v12 closes SCHED-04 gap** (launchd natural fire never worked)
-- **Phase 3 MVP:** SHIPPED ✓ — observable learner, no detectors yet (v9)
-- **Phase 4-light:** SHIPPED ✓ — ManagedSectionEditor + sample directive + statusline + test cleanup (v10); statusline parser hotfix (v11)
-- **v12:** IN FLIGHT — launchd install reliability (bootstrap + warmup kickstart) + doctor `scheduler effective` check
-- **Next after v12:** recall gate (v13) or backlog cleanup (TBD)
-- **Progress:** `[#####--]` 4.5/7 phases complete (Phase 2 closes with v12)
+- **Phase 0–8:** ALL COMPLETE ✓ (v1-v60 shipped)
+- **Phase 9:** IN PROGRESS — 3 plans queued:
+  - **v61** 🔜 Post-launch hardening (8 tasks, site repo)
+  - **v62** 🔜 Mintlify docs at auto-sop.com/docs (4 tasks, site repo)
+  - **v63** 🔜 Public release 0.1.0 — repo split + npm publish + Homebrew (14 tasks, CLI repo)
+- **Phase 10:** Viral growth + marketing (post-launch)
+- **Phase 11:** Smart directive targeting (post-launch)
+- **Progress:** `[#########-]` 9/11 phases complete
 
-## Performance Metrics
+## Plan Queue
 
-- Phases complete: 4/7 (Phase 2 pending v12 close)
-- Sessions: 12 (init+research+roadmap, Phase 0 context + SaaS pivot, Phase 0 plan+execute, Phase 1+2 joint context, Phase 2 execution, v4-v8 hotfixes, Phase 3 v9, Phase 4-light v10, v11 statusline hotfix, v12 launchd hotfix, dogfood validation)
+| Status | Plan | Repo | Tasks |
+|--------|------|------|-------|
+| 🔜 queued | v61 — Post-launch hardening | auto-sop-site | 8 parallel + quality gates |
+| 🔜 queued | v62 — Mintlify docs | auto-sop-site | 3 parallel + 1 sequential + quality gates |
+| 🔜 queued | v63 — Public release 0.1.0 | auto-sop (CLI) | 3 parallel + quality gates + 7 sequential release ops |
+| ✅ done | v53–v60 | both | 8 plans completed |
+
+## Key Metrics
+
+- CLI version: 0.0.66 (→ 0.1.0 in v63)
+- Total plans executed: v1-v60 (60 versions)
+- Active directives (auto-sop project): 25
+- Turns analyzed: 611+
+- Live platform stats: 2.9M+ tokens saved, 5+ directive fires
+
+## Promotion Pending
+
+| Repo | Branch | Behind | What's pending |
+|------|--------|--------|---------------|
+| auto-sop (CLI) | dev → master | 6 commits (v52-v58) | User promotes before v63 npm publish |
+| auto-sop-site | dev → main | Multiple commits (v50-v60) | User promotes after v61/v62 |
 
 ## Accumulated Context
 
-### Key Decisions
+### Key Decisions (Recent)
 
-- Hybrid distribution model (npm CLI + Claude Code Marketplace plugin entry) — to be formalized as ADR in Phase 0.
-- 7-phase decomposition (Phase 6 added for License & Distribution Security after SaaS pivot).
-- Commercial SaaS freemium: 14-day trial → subscription via license API key; test key `123`.
-- Anti-RE defense layers 1+2+3 accepted (obfuscation + Node SEA binary + ed25519-signed responses); layers 4+5 rejected.
-- Network egress policy: zero except license validation.
-- Scrubber is a Phase 0 gating deliverable — must work before any capture write path exists.
-- ManagedSectionEditor isolated as its own phase (one bug = permanent trust loss).
-
-### Accumulated Lessons (v9-v12)
-
-- v11: Statusline parser — fourth test-false-positive class bug. Simplified fixtures lie; real launchctl output format must be used in mocks.
-- v10: dispatch-task.sh stderr fix — dev-army infrastructure hotfix, not claude-sop itself.
-- v12: `launchctl bootstrap` alone is insufficient — `kickstart -k` warmup fire at install time is critical to prove the scheduler works immediately. `StartInterval` replaced with `StartCalendarInterval { Minute: 0 }` for predictable, sleep/wake-robust hourly fires. Doctor `scheduler registered` (file-exists check) replaced with `scheduler effective` (parses `launchctl print` for actual runs count).
-- Dogfood validation completed with real army run in `wrbeautiful-shopify-theme`.
+- **Distribution model (v63):** Private `auto-sop-cli` repo (full source) + public `auto-sop` repo (curated, proprietary modules stubbed). npm publishes compiled dist from private repo. ELv2 license.
+- **Docs platform:** Mintlify at auto-sop.com/docs (v62). Vercel rewrite proxies to Mintlify CDN.
+- **Privacy stance:** Captures never leave machine. User's own Claude does learning. Cloud only gets first 10 words of each directive + aggregate statistics.
+- **BeforeAfter section rewrite (v61):** Replace fake terminal with honest workflow visualization showing observe → detect → write → prevent flow.
 
 ### Open Questions / Todos
 
-- Phase 3 spike: `claude -p --output-format json` exact shape; detector set finalization after ~1 week of dogfooding.
-- Linux systemd hardening: similar `OnCalendar=hourly` + `Persistent=true` fix for systemd (separate plan, v13 or v14).
+- Mintlify subdomain needed for Vercel rewrite (v62 Task 4) — check Mintlify dashboard
+- npm login required before v63 npm publish
+- Connect auto-sop-site GitHub repo to Mintlify dashboard before v62
 
 ### Blockers
 
@@ -54,9 +64,9 @@ None.
 
 ## Session Continuity
 
-- **Last session:** 2026-04-15
-- **Next action:** v12 hotfix — Wave 2 (tests for install/doctor), then quality gates, then commit
-- **Resume hint:** v12 fixes launchd install reliability: 5-step install (bootout → write → bootstrap → enable → kickstart), StartCalendarInterval replaces StartInterval, doctor `scheduler effective` check parses launchctl print for actual runs. Uninstall already used bootout. Integration smoke test needs CLAUDE_SOP_LABEL env var for test isolation (added in v12).
+- **Last session:** 2026-05-02
+- **Next action:** Start army on v61 (site hardening), or v63 (CLI release) — they're independent
+- **Resume hint:** v61/v62 are site-only, v63 is CLI-only. All three plans are in `plans/queued/`. v61's PLAN.md is at project root. v62/v63 need to be copied to PLAN.md when their turn comes.
 
 ---
 *State initialized: 2026-04-13*
