@@ -20,13 +20,11 @@ import {
   existsSync,
   unlinkSync,
   renameSync,
-  openSync,
-  fsyncSync,
-  closeSync,
 } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
 import { getPlatform } from '../platform/index.js';
 import { createHash } from 'node:crypto';
+import { fsyncFile } from '../atomic/safe-fsync.js';
 
 // ─── Public types ────────────────────────────────────────
 
@@ -144,12 +142,7 @@ export function writeLastHash(projectRoot: string, hash: string, consecutiveDrif
 
   try {
     writeFileSync(tmp, payload, { mode: 0o600 });
-    const fd = openSync(tmp, 'r+');
-    try {
-      fsyncSync(fd);
-    } finally {
-      closeSync(fd);
-    }
+    fsyncFile(tmp);
     renameSync(tmp, path);
   } catch (err) {
     try {

@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs';
+import { isAbsolute } from 'node:path';
 import { parse, modify, applyEdits, type JSONPath } from 'jsonc-parser';
 import { writeFileAtomic } from '../atomic/write.js';
 import {
@@ -83,7 +84,7 @@ export async function mergeGlobalMarketplace(
   settingsPath: string,
   marketplaceDirAbs: string,
 ): Promise<void> {
-  if (!marketplaceDirAbs.startsWith('/')) {
+  if (!isAbsolute(marketplaceDirAbs)) {
     throw new Error(`marketplaceDirAbs must be absolute, got: ${marketplaceDirAbs}`);
   }
 

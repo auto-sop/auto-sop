@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   readRegistry,
@@ -43,7 +43,7 @@ describe('project-registry', () => {
     expect(reg.projects).toHaveLength(1);
     expect(reg.projects[0]!.project_id).toBe('id1');
     expect(reg.projects[0]!.slug).toBe('my-project');
-    expect(reg.projects[0]!.project_root).toBe('/tmp/project');
+    expect(reg.projects[0]!.project_root).toBe(resolve('/tmp/project'));
   });
 
   it('upsertProject updates existing entry', () => {
@@ -52,7 +52,7 @@ describe('project-registry', () => {
     const reg = readRegistry(tmpHome);
     expect(reg.projects).toHaveLength(1);
     expect(reg.projects[0]!.slug).toBe('new-slug');
-    expect(reg.projects[0]!.project_root).toBe('/tmp/new');
+    expect(reg.projects[0]!.project_root).toBe(resolve('/tmp/new'));
   });
 
   it('removeProject removes an entry', () => {
@@ -85,13 +85,13 @@ describe('project-registry', () => {
     });
 
     it('accepts valid absolute paths', () => {
-      expect(validateProjectRoot('/tmp/project')).toBe('/tmp/project');
-      expect(validateProjectRoot('/home/user/my-project')).toBe('/home/user/my-project');
+      expect(validateProjectRoot('/tmp/project')).toBe(resolve('/tmp/project'));
+      expect(validateProjectRoot('/home/user/my-project')).toBe(resolve('/home/user/my-project'));
     });
 
     it('returns resolved path (normalizes trailing slashes etc.)', () => {
       const result = validateProjectRoot('/tmp/project/');
-      expect(result).toBe('/tmp/project');
+      expect(result).toBe(resolve('/tmp/project'));
     });
   });
 

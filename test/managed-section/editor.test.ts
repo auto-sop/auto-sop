@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from 'no
 import { join } from 'node:path';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { isWindows } from '../setup/platform.js';
 import {
   writeManagedSection,
   readManagedSection,
@@ -493,7 +494,7 @@ describe('ManagedSectionEditor', () => {
 
   // ─── 30. Backup perms are 0o600 ───────────────────
 
-  it('backup file has restrictive permissions (0o600)', () => {
+  it.skipIf(isWindows)('backup file has restrictive permissions (0o600)', () => {
     writeFileSync(claudeMd(), '# Original\n');
 
     writeManagedSection({

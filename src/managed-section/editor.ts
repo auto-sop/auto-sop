@@ -14,18 +14,10 @@
  *   section against the current file. On drift → backup + abort, no write.
  * - E2 git-aware: skips writes during rebase/merge/cherry-pick/bisect/revert.
  */
-import {
-  readFileSync,
-  writeFileSync,
-  renameSync,
-  mkdirSync,
-  unlinkSync,
-  openSync,
-  fsyncSync,
-  closeSync,
-} from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
 import { getPlatform } from '../platform/index.js';
+import { fsyncFile } from '../atomic/safe-fsync.js';
 import {
   GENERATED_COMMENT,
   END_MARKER,
@@ -342,12 +334,7 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
     const backupTmp = backupPath + '.tmp-' + process.pid + '-' + Date.now();
     try {
       writeFileSync(backupTmp, current, { mode: 0o600 });
-      const bfd = openSync(backupTmp, 'r+');
-      try {
-        fsyncSync(bfd);
-      } finally {
-        closeSync(bfd);
-      }
+      fsyncFile(backupTmp);
       renameSync(backupTmp, backupPath);
     } catch (err) {
       try {
@@ -363,12 +350,7 @@ export function writeManagedSection(opts: WriteOptions): WriteResult {
   // 7. Atomic write: write tmp → fsync → rename
   try {
     writeFileSync(tmpPath, newContent, { mode: 0o644 });
-    const fd = openSync(tmpPath, 'r+');
-    try {
-      fsyncSync(fd);
-    } finally {
-      closeSync(fd);
-    }
+    fsyncFile(tmpPath);
     renameSync(tmpPath, claudeMdPath);
   } catch (err) {
     // Cleanup tmp if still present
@@ -494,12 +476,7 @@ export function removeManagedSection(projectRoot: string): void {
   const tmpPath = claudeMdPath + '.tmp';
   try {
     writeFileSync(tmpPath, newContent, { mode: 0o644 });
-    const fd = openSync(tmpPath, 'r+');
-    try {
-      fsyncSync(fd);
-    } finally {
-      closeSync(fd);
-    }
+    fsyncFile(tmpPath);
     renameSync(tmpPath, claudeMdPath);
   } catch (err) {
     try {

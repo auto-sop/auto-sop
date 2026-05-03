@@ -19,21 +19,12 @@
  *                              treats CLAUDE.md as fresh (no false drift).
  */
 import type { Command } from 'commander';
-import {
-  existsSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-  renameSync,
-  openSync,
-  fsyncSync,
-  closeSync,
-  unlinkSync,
-} from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import pc from 'picocolors';
 import { emit } from '../output/json.js';
 import { clearLastHash } from '../../managed-section/hash-store.js';
+import { fsyncFile } from '../../atomic/safe-fsync.js';
 import { getPlatform } from '../../platform/index.js';
 
 /** Format an ISO timestamp as `YYYY-MM-DD HH:MM:SS` in local time. */
@@ -187,12 +178,7 @@ export function registerRevertVerb(program: Command): void {
       const tmpPath = claudeMdPath + '.revert.tmp';
       try {
         writeFileSync(tmpPath, backupContent, { mode: 0o644 });
-        const fd = openSync(tmpPath, 'r+');
-        try {
-          fsyncSync(fd);
-        } finally {
-          closeSync(fd);
-        }
+        fsyncFile(tmpPath);
         renameSync(tmpPath, claudeMdPath);
         // Re-assert mode in case umask softened it on some FS's.
         try {

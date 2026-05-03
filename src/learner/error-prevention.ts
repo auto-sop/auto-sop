@@ -21,14 +21,12 @@ import {
   existsSync,
   mkdirSync,
   renameSync,
-  openSync,
-  fsyncSync,
-  closeSync,
   unlinkSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import type { TurnData, ToolCall } from './turn-loader.js';
 import { fingerprintCommand, isBashFailure } from './command-fingerprint.js';
+import { fsyncFile } from '../atomic/safe-fsync.js';
 
 // ─── Constants ───────────────────────────────────────────
 
@@ -259,12 +257,7 @@ export function compactPreventedErrors(stateDir: string, maxAgeDays: number): nu
   try {
     const content = keep.length > 0 ? keep.join('\n') + '\n' : '';
     writeFileSync(tmpPath, content, { mode: 0o600 });
-    const fd = openSync(tmpPath, 'r+');
-    try {
-      fsyncSync(fd);
-    } finally {
-      closeSync(fd);
-    }
+    fsyncFile(tmpPath);
     renameSync(tmpPath, path);
   } catch {
     try {

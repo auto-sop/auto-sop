@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { join } from 'node:path';
+import { join, isAbsolute } from 'node:path';
 
 // Mock os.homedir before importing paths module
 const FAKE_HOME = '/tmp/fake-home';
@@ -71,16 +71,16 @@ describe('getCapturePaths', () => {
 
   it('all paths are absolute', () => {
     const paths = getCapturePaths(PROJECT_ROOT, PROJECT_ID);
-    expect(paths.projectCaptureDir.startsWith('/')).toBe(true);
-    expect(paths.projectStateDir.startsWith('/')).toBe(true);
-    expect(paths.projectErrorsLog.startsWith('/')).toBe(true);
-    expect(paths.projectPausedFlag.startsWith('/')).toBe(true);
-    expect(paths.projectYarimKalan.startsWith('/')).toBe(true);
-    expect(paths.tmpPayloadDir.startsWith('/')).toBe(true);
-    expect(paths.globalSopHome.startsWith('/')).toBe(true);
-    expect(paths.globalProjectDir.startsWith('/')).toBe(true);
-    expect(paths.globalIndexJsonl.startsWith('/')).toBe(true);
-    expect(paths.globalErrorsLog.startsWith('/')).toBe(true);
+    expect(isAbsolute(paths.projectCaptureDir)).toBe(true);
+    expect(isAbsolute(paths.projectStateDir)).toBe(true);
+    expect(isAbsolute(paths.projectErrorsLog)).toBe(true);
+    expect(isAbsolute(paths.projectPausedFlag)).toBe(true);
+    expect(isAbsolute(paths.projectYarimKalan)).toBe(true);
+    expect(isAbsolute(paths.tmpPayloadDir)).toBe(true);
+    expect(isAbsolute(paths.globalSopHome)).toBe(true);
+    expect(isAbsolute(paths.globalProjectDir)).toBe(true);
+    expect(isAbsolute(paths.globalIndexJsonl)).toBe(true);
+    expect(isAbsolute(paths.globalErrorsLog)).toBe(true);
   });
 });
 
@@ -96,7 +96,7 @@ describe('detectDevArmyAgent', () => {
   });
 
   it('returns null for non-dev-army project', () => {
-    expect(detectDevArmyAgent('/tmp/other-project')).toBeNull();
+    expect(detectDevArmyAgent(join(FAKE_HOME, 'other-project'))).toBeNull();
   });
 
   it('returns null for partial prefix match', () => {

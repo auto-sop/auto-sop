@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { nanoid } from 'nanoid';
+import { fsyncFileAsync } from './safe-fsync.js';
 
 /**
  * Atomically write content to a file using temp + fsync + rename.
@@ -14,14 +15,7 @@ export async function writeFileAtomic(path: string, content: string | Buffer): P
 
   try {
     await fs.writeFile(tmp, content, { mode: 0o600 });
-
-    const fh = await fs.open(tmp, 'r+');
-    try {
-      await fh.sync();
-    } finally {
-      await fh.close();
-    }
-
+    await fsyncFileAsync(tmp);
     await fs.rename(tmp, path);
   } catch (err) {
     await fs.rm(tmp, { force: true }).catch(() => {});
