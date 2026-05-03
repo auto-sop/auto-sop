@@ -38,7 +38,7 @@ fi
 if node -e "const p=require('./package.json'); if(!p.license) process.exit(1)" 2>/dev/null; then
   pass "package.json has 'license' field"
 else
-  fail "package.json missing 'license'" "Add \"license\": \"Apache-2.0\" to package.json"
+  fail "package.json missing 'license'" "Add \"license\": \"Elastic-2.0\" to package.json"
 fi
 
 if node -e "const p=require('./package.json'); if(!p.repository) process.exit(1)" 2>/dev/null; then
@@ -66,7 +66,7 @@ echo "▸ License"
 if [ -f LICENSE ] && [ -s LICENSE ]; then
   pass "LICENSE file exists and is non-empty"
 else
-  fail "LICENSE file missing or empty" "Add Apache 2.0 LICENSE file"
+  fail "LICENSE file missing or empty" "Add Elastic License 2.0 (ELv2) LICENSE file"
 fi
 
 # ── 3. Build artifacts ──────────────────────────
@@ -204,10 +204,10 @@ echo ""
 echo "▸ Runtime requirements"
 
 NODE_MAJOR=$(node -v | sed 's/v//' | cut -d. -f1)
-if [ "$NODE_MAJOR" -ge 18 ]; then
-  pass "Node.js >= 18 (found v$(node -v | sed 's/v//'))"
+if [ "$NODE_MAJOR" -ge 20 ]; then
+  pass "Node.js >= 20 (found v$(node -v | sed 's/v//'))"
 else
-  fail "Node.js < 18 (found v$(node -v | sed 's/v//'))" "Upgrade Node.js to >= 18"
+  fail "Node.js < 20 (found v$(node -v | sed 's/v//'))" "Upgrade Node.js to >= 20"
 fi
 
 NPM_MAJOR=$(npm -v | cut -d. -f1)
@@ -245,16 +245,16 @@ else
 fi
 
 PKG_LICENSE=$(node -p "require('./package.json').license" 2>/dev/null)
-if [ "$PKG_LICENSE" = "Apache-2.0" ]; then
-  pass "License is Apache-2.0"
+if [ "$PKG_LICENSE" = "Elastic-2.0" ]; then
+  pass "License is Elastic-2.0"
 else
-  fail "License is '$PKG_LICENSE' (expected 'Apache-2.0')" "Set \"license\": \"Apache-2.0\" in package.json"
+  fail "License is '$PKG_LICENSE' (expected 'Elastic-2.0')" "Set \"license\": \"Elastic-2.0\" in package.json"
 fi
 
 if node -e "const p=require('./package.json'); if(!p.engines||!p.engines.node) process.exit(1)" 2>/dev/null; then
   pass "engines.node field is set"
 else
-  fail "engines.node field missing" "Add \"engines\": { \"node\": \">=18.17\" } to package.json"
+  fail "engines.node field missing" "Add \"engines\": { \"node\": \">=20\" } to package.json"
 fi
 
 # ── 12. Version-tag match (optional) ────────────

@@ -26,13 +26,13 @@ function makePaths(tmpBase: string, projectId: string): CapturePaths {
     projectStateDir: join(tmpBase, 'project', '.auto-sop', 'state'),
     projectErrorsLog: join(tmpBase, 'project', '.auto-sop', 'errors.jsonl'),
     projectPausedFlag: join(tmpBase, 'project', '.auto-sop', 'paused.flag'),
-    projectYarimKalan: join(tmpBase, 'project', '.auto-sop', 'captures', 'yarim-kalan'),
+    projectPendingCapture: join(tmpBase, 'project', '.auto-sop', 'captures', 'pending-capture'),
     tmpPayloadDir: join(tmpBase, '.auto-sop', 'tmp'),
     globalSopHome,
     globalProjectDir,
     globalIndexJsonl: join(globalProjectDir, 'index.jsonl'),
     globalErrorsLog: join(globalProjectDir, 'errors.jsonl'),
-    devArmyGlobalDir: (agent: string) => join(globalSopHome, 'dev-army', agent),
+    agentGlobalDir: (agent: string) => join(globalSopHome, 'agents', agent),
   };
 }
 
@@ -58,7 +58,7 @@ function makeMeta(overrides: Partial<TurnMeta> = {}): TurnMeta {
   };
 }
 
-const noDevArmy = () => null;
+const nullAgent = () => null;
 
 describe('appendGlobalIndexLine', () => {
   let tmpBase: string;
@@ -73,7 +73,7 @@ describe('appendGlobalIndexLine', () => {
     const meta = makeMeta();
     const turnDir = '/project/captures/2026-04-13T10-01-00Z_main_turn-001';
 
-    appendGlobalIndexLine(paths, '/project', meta, turnDir, noDevArmy);
+    appendGlobalIndexLine(paths, '/project', meta, turnDir, nullAgent);
 
     const indexPath = join(paths.globalProjectDir, 'index.jsonl');
     expect(existsSync(indexPath)).toBe(true);
@@ -93,7 +93,7 @@ describe('appendGlobalIndexLine', () => {
   });
 
   it('creates index file with mode 0600', () => {
-    appendGlobalIndexLine(paths, '/project', makeMeta(), '/dir', noDevArmy);
+    appendGlobalIndexLine(paths, '/project', makeMeta(), '/dir', nullAgent);
     const indexPath = join(paths.globalProjectDir, 'index.jsonl');
     if (!isWindows) {
       const mode = statSync(indexPath).mode & 0o777;
@@ -102,7 +102,7 @@ describe('appendGlobalIndexLine', () => {
   });
 
   it('creates target dir with mode 0700', () => {
-    appendGlobalIndexLine(paths, '/project', makeMeta(), '/dir', noDevArmy);
+    appendGlobalIndexLine(paths, '/project', makeMeta(), '/dir', nullAgent);
     if (!isWindows) {
       const dirMode = statSync(paths.globalProjectDir).mode & 0o777;
       expect(dirMode).toBe(0o700);
@@ -113,8 +113,8 @@ describe('appendGlobalIndexLine', () => {
     const meta1 = makeMeta({ turn_id: 'turn-001' });
     const meta2 = makeMeta({ turn_id: 'turn-002' });
 
-    appendGlobalIndexLine(paths, '/project', meta1, '/dir1', noDevArmy);
-    appendGlobalIndexLine(paths, '/project', meta2, '/dir2', noDevArmy);
+    appendGlobalIndexLine(paths, '/project', meta1, '/dir1', nullAgent);
+    appendGlobalIndexLine(paths, '/project', meta2, '/dir2', nullAgent);
 
     const raw = readFileSync(join(paths.globalProjectDir, 'index.jsonl'), 'utf8');
     const lines = raw.trim().split('\n');
@@ -125,13 +125,13 @@ describe('appendGlobalIndexLine', () => {
 
   it('auto-creates target dir when it does not exist', () => {
     expect(existsSync(paths.globalProjectDir)).toBe(false);
-    appendGlobalIndexLine(paths, '/project', makeMeta(), '/dir', noDevArmy);
+    appendGlobalIndexLine(paths, '/project', makeMeta(), '/dir', nullAgent);
     expect(existsSync(paths.globalProjectDir)).toBe(true);
   });
 
   it('uses "unknown" when finalization_reason is null', () => {
     const meta = makeMeta({ finalization_reason: null });
-    appendGlobalIndexLine(paths, '/project', meta, '/dir', noDevArmy);
+    appendGlobalIndexLine(paths, '/project', meta, '/dir', nullAgent);
     const raw = readFileSync(join(paths.globalProjectDir, 'index.jsonl'), 'utf8').trim();
     expect(JSON.parse(raw).finalization_reason).toBe('unknown');
   });

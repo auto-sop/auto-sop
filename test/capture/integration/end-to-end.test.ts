@@ -60,7 +60,7 @@ function listFinalizedTurnDirs(captureDir: string): string[] {
   return readdirSync(captureDir).filter(
     (name) =>
       !name.endsWith('.pending') &&
-      name !== 'yarim-kalan' &&
+      name !== 'pending-capture' &&
       statSync(join(captureDir, name)).isDirectory(),
   );
 }
@@ -152,7 +152,7 @@ describe('main-only', () => {
           assert: (r) => {
             if (!existsSync(r.captureDir)) return; // captures dir might not exist yet
             const entries = readdirSync(r.captureDir);
-            const finalized = entries.filter((n) => !n.endsWith('.pending') && n !== 'yarim-kalan');
+            const finalized = entries.filter((n) => !n.endsWith('.pending') && n !== 'pending-capture');
             expect(
               finalized.length,
               'W2: No finalized dirs should exist while turn is in-flight',
@@ -214,7 +214,7 @@ describe('main-only', () => {
     const finalized = entries.filter(
       (n) =>
         !n.endsWith('.pending') &&
-        n !== 'yarim-kalan' &&
+        n !== 'pending-capture' &&
         statSync(join(run.captureDir, n)).isDirectory(),
     );
     expect(pending.length).toBe(0);

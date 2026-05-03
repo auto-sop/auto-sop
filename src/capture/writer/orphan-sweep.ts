@@ -5,7 +5,7 @@
  *
  * Thresholds:
  *   - .pending with no activity > 30s → finalize with reason 'timeout'
- *   - .pending with no activity > 30min → quarantine to yarim-kalan/
+ *   - .pending with no activity > 30min → quarantine to pending-capture/
  *   - tmp payload files older than 1h → delete (max 50 per pass)
  */
 import { readdirSync, statSync, renameSync, unlinkSync, mkdirSync } from 'node:fs';
@@ -14,7 +14,7 @@ import { finalizeMeta } from './meta.js';
 import { finalizeTurnDir } from './turn-dir.js';
 
 export const STALE_TIMEOUT_MS = 30_000; // 30 seconds → finalize as timeout
-export const STALE_YARIM_KALAN_MS = 30 * 60_000; // 30 minutes → quarantine
+export const STALE_QUARANTINE_MS = 30 * 60_000; // 30 minutes → quarantine
 export const TMP_MAX_AGE_MS = 60 * 60_000; // 1 hour
 export const MAX_TMP_SWEEP_PER_PASS = 50;
 
@@ -62,15 +62,15 @@ function getLastMtime(dir: string): number {
 /**
  * Sweep orphaned .pending turn directories.
  *
- * - age > STALE_YARIM_KALAN_MS → move to yarim-kalan/ (quarantine)
+ * - age > STALE_QUARANTINE_MS → move to pending-capture/ (quarantine)
  * - age > STALE_TIMEOUT_MS → finalize with reason 'timeout'
  * - Otherwise skip (still active)
  *
- * Order matters: check yarim-kalan first (it's a superset of timeout threshold).
+ * Order matters: check pending-capture first (it's a superset of timeout threshold).
  */
 export function sweepOrphanedTurns(
   capturesDir: string,
-  yarimKalanDir: string,
+  pendingCaptureDir: string,
   now: number = Date.now(),
 ): SweepResult {
   const result: SweepResult = { finalized: 0, quarantined: 0, errors: 0 };
@@ -93,10 +93,10 @@ export function sweepOrphanedTurns(
 
       const age = now - lastMtime;
 
-      if (age > STALE_YARIM_KALAN_MS) {
-        // Quarantine: move entire dir to yarim-kalan/
-        mkdirSync(yarimKalanDir, { recursive: true, mode: 0o700 });
-        const dest = join(yarimKalanDir, pendingName);
+      if (age > STALE_QUARANTINE_MS) {
+        // Quarantine: move entire dir to pending-capture/
+        mkdirSync(pendingCaptureDir, { recursive: true, mode: 0o700 });
+        const dest = join(pendingCaptureDir, pendingName);
         renameSync(pendingPath, dest);
         result.quarantined++;
       } else if (age > STALE_TIMEOUT_MS) {

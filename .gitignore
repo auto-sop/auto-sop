@@ -8,3 +8,13 @@ coverage
 homebrew-tap/
 .auto-sop/
 tmp-test-*.ts
+
+# Environment and secrets
+.env
+.env.*
+.env.local
+
+# Internal tooling (never publish)
+.claude/
+.planning/
+plans/

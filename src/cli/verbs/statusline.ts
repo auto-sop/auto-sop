@@ -37,7 +37,7 @@ export function registerStatuslineVerb(program: Command): void {
  *   3. process.cwd() fallback
  *
  * Claude Code invokes statusline commands by piping a JSON payload on stdin,
- * e.g. `{"workspace":{"current_dir":"/path/to/project"}, …}`. In dev-army
+ * e.g. `{"workspace":{"current_dir":"/path/to/project"}, …}`. In agent
  * panes (and any other wrapper spawn) process.cwd() is the wrapper's dir,
  * not the target project — reading stdin is the only reliable signal.
  *

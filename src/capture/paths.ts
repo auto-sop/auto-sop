@@ -6,13 +6,13 @@ export interface CapturePaths {
   projectStateDir: string;
   projectErrorsLog: string;
   projectPausedFlag: string;
-  projectYarimKalan: string;
+  projectPendingCapture: string;
   tmpPayloadDir: string;
   globalSopHome: string;
   globalProjectDir: string;
   globalIndexJsonl: string;
   globalErrorsLog: string;
-  devArmyGlobalDir: (agent: string) => string;
+  agentGlobalDir: (agent: string) => string;
 }
 
 /**
@@ -33,29 +33,29 @@ export function getCapturePaths(projectRoot: string, projectId: string): Capture
     projectStateDir: join(claudeSopDir, 'state'),
     projectErrorsLog: join(claudeSopDir, 'errors.jsonl'),
     projectPausedFlag: join(claudeSopDir, 'paused.flag'),
-    projectYarimKalan: join(captureDir, 'yarim-kalan'),
+    projectPendingCapture: join(captureDir, 'pending-capture'),
     tmpPayloadDir: join(home, '.auto-sop', 'tmp'),
     globalSopHome,
     globalProjectDir,
     globalIndexJsonl: join(globalProjectDir, 'index.jsonl'),
     globalErrorsLog: join(globalProjectDir, 'errors.jsonl'),
-    devArmyGlobalDir: (agent: string) => join(globalSopHome, 'dev-army', agent),
+    agentGlobalDir: (agent: string) => join(globalSopHome, 'agents', agent),
   };
 }
 
 /**
- * Detect if the project is inside the dev-army workspace.
+ * Detect if the project is inside an agent workspace.
  * Returns the agent name (e.g. 'commander', 'architect') or null.
  */
-export function detectDevArmyAgent(projectRoot: string): string | null {
+export function detectAgent(projectRoot: string): string | null {
   const home = homedir();
-  const devArmyPrefix = join(home, '.claude', 'dev-army') + sep;
+  const agentWorkspacePrefix = join(home, '.claude', 'dev-army') + sep;
 
-  if (!projectRoot.startsWith(devArmyPrefix)) {
+  if (!projectRoot.startsWith(agentWorkspacePrefix)) {
     return null;
   }
 
-  const remainder = projectRoot.slice(devArmyPrefix.length);
+  const remainder = projectRoot.slice(agentWorkspacePrefix.length);
   const firstSegment = remainder.split(sep)[0];
   return firstSegment || null;
 }

@@ -2,6 +2,19 @@
 
 Thank you for your interest in contributing to auto-sop!
 
+## Reporting Bugs
+
+Please report bugs via [GitHub Issues](https://github.com/auto-sop/auto-sop/issues). Include:
+- auto-sop version (`auto-sop --version`)
+- Node.js version (`node --version`)
+- Operating system
+- Steps to reproduce
+- Expected vs actual behavior
+
+## Suggesting Features
+
+Open a [GitHub Issue](https://github.com/auto-sop/auto-sop/issues) with the "feature request" label. Describe the use case and expected behavior.
+
 ## Development Setup
 
 ```bash
@@ -12,48 +25,48 @@ npm run build
 npm test
 ```
 
-## Version Bump Convention
-
-Every plan/PR that ships code **must** bump the patch version before its final commit:
-
-```bash
-npm run version:bump-patch
-```
-
-This runs `npm version patch --no-git-tag-version`, which updates `package.json` (and `package-lock.json` if present) without creating a git tag. Tags are created only during the release workflow.
-
-### Why?
-
-- Every merged change gets a unique version number.
-- The publish workflow (`publish.yml`) matches the `package.json` version to the git tag.
-- Forgetting the bump means the release pipeline rejects the publish.
-
-## Workflow
-
-1. Create a feature branch from `master`.
-2. Make your changes.
-3. Run `npm run build && npm test` to verify.
-4. Run `npm run lint` to check code style.
-5. Run `npm run release-check` before opening a PR (some checks require a clean tree and built dist).
-6. Bump the version: `npm run version:bump-patch`.
-7. Commit and push.
-
 ## Code Style
 
-- TypeScript strict mode.
-- ESLint + Prettier enforced.
-- No `TODO` or `FIXME` in shipped `src/` code.
+- TypeScript strict mode
+- ESLint config included (`eslint.config.js`)
+- Prettier enforced
+- No `TODO` or `FIXME` in shipped `src/` code
+
+Run linting:
+```bash
+npm run lint
+```
+
+## Pull Request Process
+
+1. Fork the repository
+2. Create a feature branch from `main`
+3. Make your changes
+4. Run `npm run build && npm test` to verify
+5. Run `npm run lint` to check code style
+6. Submit a PR to `main`
+
+## Proprietary Modules
+
+The following modules are proprietary and **not** open for contribution:
+- `src/learner/` — pattern detection engine
+- `src/license/` — license validation
+- `src/metrics/` — telemetry and analytics
+- `src/scrubber/` — secret scrubbing logic
+
+Contributions are welcome for all other modules.
 
 ## Testing
 
-- All tests must pass: `npm test`
+- Unit tests: `npm test`
 - Smoke tests: `npm run test:smoke`
-- Benchmarks: `npm run bench:shim:ci`
+- Integration tests: `npm run test:integration`
+- Release checks: `npm run release-check`
 
-## Release Checklist
+## Documentation
 
-Run `npm run release-check` to verify all 28 pre-publish checks pass. See `scripts/release-check.sh` for the full list.
+Full documentation is available at [auto-sop.com/docs](https://auto-sop.com/docs).
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the Apache License 2.0.
+By contributing, you agree that your contributions will be licensed under the [Elastic License 2.0 (ELv2)](./LICENSE).

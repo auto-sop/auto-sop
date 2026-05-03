@@ -174,12 +174,12 @@ describe('errors.ts', () => {
         projectCaptureDir: '',
         projectStateDir: '',
         projectPausedFlag: '',
-        projectYarimKalan: '',
+        projectPendingCapture: '',
         tmpPayloadDir: '',
         globalSopHome: '',
         globalProjectDir: '',
         globalIndexJsonl: '',
-        devArmyGlobalDir: () => '',
+        agentGlobalDir: () => '',
       };
 
       const writer = initErrorWriter(paths);
@@ -202,12 +202,12 @@ describe('errors.ts', () => {
         projectCaptureDir: '',
         projectStateDir: '',
         projectPausedFlag: '',
-        projectYarimKalan: '',
+        projectPendingCapture: '',
         tmpPayloadDir: '',
         globalSopHome: '',
         globalProjectDir: '',
         globalIndexJsonl: '',
-        devArmyGlobalDir: () => '',
+        agentGlobalDir: () => '',
       };
 
       const writer = initErrorWriter(paths);
@@ -224,12 +224,12 @@ describe('errors.ts', () => {
         projectCaptureDir: '',
         projectStateDir: '',
         projectPausedFlag: '',
-        projectYarimKalan: '',
+        projectPendingCapture: '',
         tmpPayloadDir: '',
         globalSopHome: '',
         globalProjectDir: '',
         globalIndexJsonl: '',
-        devArmyGlobalDir: () => '',
+        agentGlobalDir: () => '',
       };
 
       const writer = initErrorWriter(paths);
