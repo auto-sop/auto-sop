@@ -41,11 +41,25 @@ import { fsyncFile } from '../atomic/safe-fsync.js';
 
 // ─── Constants ───────────────────────────────────────────
 
-/** Default time-to-live for directives, in days. */
+/** Default time-to-live for directives, in days (potential tier). */
 export const DEFAULT_TTL_DAYS = 30;
 
-/** Default maximum number of active directives. */
+/** Default maximum number of active directives (potential tier cap). */
 export const DEFAULT_MAX_DIRECTIVES = 25;
+
+// ─── V71: Two-tier constants ────────────────────────────
+
+/** Minimum confirmed fire count to graduate to proven tier. */
+export const PROVEN_FIRE_THRESHOLD = 1;
+
+/** TTL for proven-tier directives (days since last fire). */
+export const PROVEN_TTL_DAYS = 90;
+
+/** Safety cap for proven tier — prevents unbounded growth. */
+export const PROVEN_HARD_CAP = 50;
+
+/** Grace period: new potential directives are protected from cap eviction for this many days. */
+export const POTENTIAL_GRACE_DAYS = 7;
 
 /** Env var name overriding the TTL (new name; legacy CLAUDE_SOP_* also supported). */
 export const ENV_TTL_DAYS = 'AUTO_SOP_DIRECTIVE_TTL_DAYS';
@@ -91,6 +105,9 @@ export interface DirectiveHistoryEntry {
   pruned: boolean;
   /** ISO — when the entry was last pruned. Absent if never pruned. */
   pruned_at?: string;
+  /** V71: ISO timestamp of the most recent confirmed fire. Used by the
+   *  proven-tier TTL check. Absent when no fires have been recorded. */
+  last_fire_at?: string;
   /** V31: command fingerprint for error-prevention tracking. Optional — only set
    *  for bash-failure directives. */
   source_fingerprint?: string;
@@ -285,6 +302,10 @@ function coerceEntry(idKey: string, v: unknown): DirectiveHistoryEntry | null {
   if (typeof rec.pruned_at === 'string' && rec.pruned_at.length > 0) {
     entry.pruned_at = rec.pruned_at;
   }
+  // V71: load last_fire_at from persisted history
+  if (typeof rec.last_fire_at === 'string' && rec.last_fire_at.length > 0) {
+    entry.last_fire_at = rec.last_fire_at;
+  }
   // V31: load source_fingerprint from persisted history
   if (typeof rec.source_fingerprint === 'string' && rec.source_fingerprint.length > 0) {
     entry.source_fingerprint = rec.source_fingerprint;
@@ -416,29 +437,35 @@ const SEVERITY_RANK: Record<DirectiveSeverity, number> = {
 };
 
 /**
- * Compute the active set given a point in time, TTL, and cap. Any entries
- * that aged out or overflowed the cap are marked `pruned` in the returned
- * history (so the caller can persist them); active entries retain
- * `pruned: false`.
+ * Compute the active set given a point in time, TTL, and cap.
  *
- * Active selection:
- *   1. Filter entries where `now - last_reinforced <= ttlDays`. Entries
- *      already flagged `pruned` pass too when they've been refreshed — see
- *      the semantics in {@link updateFromProposals}.
- *   2. If more than `maxDirectives` entries remain, keep the ones with
- *      highest severity first, then most-recent reinforcement (i.e. drop
- *      oldest-low-severity first).
- *   3. Sort the final active set by (severity DESC, last_reinforced DESC,
- *      id ASC) for deterministic rendering.
+ * V71 two-tier system:
+ *   - **Proven tier** (≥1 confirmed fire): no cap, 90-day TTL since last fire.
+ *     Safety valve: PROVEN_HARD_CAP (50). If exceeded, lowest fire_count pruned.
+ *   - **Potential tier** (0 fires or fireCounts undefined): cap at maxDirectives
+ *     (default 25), 30-day TTL since last reinforced. 7-day grace: new entries
+ *     younger than POTENTIAL_GRACE_DAYS are protected from cap eviction.
+ *
+ * When fireCounts is undefined, ALL entries go to potential tier (backward compat).
+ *
+ * Any entries that aged out or overflowed their tier's cap are marked `pruned`
+ * in the returned history; active entries retain `pruned: false`.
+ *
+ * @param fireCounts     Optional map of directive_id → confirmed fire count.
+ * @param lastFireDates  Optional map of directive_id → ISO date of most recent fire.
  */
 export function applyTTLAndCap(
   history: DirectiveHistory,
   now: Date,
   ttlDays: number,
   maxDirectives: number,
+  fireCounts?: Record<string, number>,
+  lastFireDates?: Record<string, string>,
 ): ApplyTTLAndCapResult {
   const nowMs = now.getTime();
-  const ttlMs = ttlDays * MS_PER_DAY;
+  const potentialTtlMs = ttlDays * MS_PER_DAY;
+  const provenTtlMs = PROVEN_TTL_DAYS * MS_PER_DAY;
+  const graceMs = POTENTIAL_GRACE_DAYS * MS_PER_DAY;
   const nowIso = now.toISOString();
 
   // Work on a copy so we never mutate input.
@@ -449,11 +476,20 @@ export function applyTTLAndCap(
     nextEntries[k] = { ...v };
   }
 
+  // Enrich entries with last_fire_at from lastFireDates if provided.
+  if (lastFireDates !== undefined) {
+    for (const [k, entry] of Object.entries(nextEntries)) {
+      const lastFire = lastFireDates[k];
+      if (typeof lastFire === 'string' && lastFire.length > 0) {
+        entry.last_fire_at = lastFire;
+      }
+    }
+  }
+
   // SEC-002: evict entries whose `pruned_at` is older than 2×TTL so
-  // the history file cannot grow without bound over time. Pruned
-  // entries still reachable within 2×TTL window are preserved for
-  // audit + re-activation when the learner re-proposes them.
-  const maxPrunedAgeMs = 2 * ttlMs;
+  // the history file cannot grow without bound over time. Use potential
+  // TTL for backward compat (same eviction window as pre-v71).
+  const maxPrunedAgeMs = 2 * potentialTtlMs;
   for (const [k, entry] of Object.entries(nextEntries)) {
     if (entry.pruned && typeof entry.pruned_at === 'string') {
       const prunedMs = Date.parse(entry.pruned_at);
@@ -463,46 +499,78 @@ export function applyTTLAndCap(
     }
   }
 
-  // 1. TTL pass.
-  const stillFresh: DirectiveHistoryEntry[] = [];
+  // Helper: get the fire count for a directive.
+  const getFireCount = (id: string): number => {
+    if (fireCounts === undefined) return 0;
+    return fireCounts[id] ?? 0;
+  };
+
+  // Helper: determine if a directive is proven (has fires and fireCounts is provided).
+  const isProven = (entry: DirectiveHistoryEntry): boolean => {
+    if (fireCounts === undefined) return false; // backward compat: all potential
+    return getFireCount(entry.id) >= PROVEN_FIRE_THRESHOLD;
+  };
+
+  // 1. TTL pass — tier-aware. Proven uses last_fire_at (or last_reinforced fallback)
+  //    with PROVEN_TTL_DAYS. Potential uses last_reinforced with ttlDays.
+  const proven: DirectiveHistoryEntry[] = [];
+  const potential: DirectiveHistoryEntry[] = [];
+
   for (const entry of Object.values(nextEntries)) {
-    const last = Date.parse(entry.last_reinforced);
-    const isStale = !Number.isFinite(last) || nowMs - last > ttlMs;
-    if (isStale) {
-      if (!entry.pruned) {
-        entry.pruned = true;
-        entry.pruned_at = nowIso;
+    if (isProven(entry)) {
+      // Proven tier: TTL based on last_fire_at (fallback to last_reinforced).
+      const lastFireStr = entry.last_fire_at ?? entry.last_reinforced;
+      const lastMs = Date.parse(lastFireStr);
+      const isStale = !Number.isFinite(lastMs) || nowMs - lastMs > provenTtlMs;
+      if (isStale) {
+        if (!entry.pruned) {
+          entry.pruned = true;
+          entry.pruned_at = nowIso;
+        }
+        continue;
       }
-      continue;
+      if (entry.pruned) {
+        entry.pruned = false;
+        delete (entry as { pruned_at?: string }).pruned_at;
+      }
+      proven.push(entry);
+    } else {
+      // Potential tier: TTL based on last_reinforced with potentialTtlMs.
+      const last = Date.parse(entry.last_reinforced);
+      const isStale = !Number.isFinite(last) || nowMs - last > potentialTtlMs;
+      if (isStale) {
+        if (!entry.pruned) {
+          entry.pruned = true;
+          entry.pruned_at = nowIso;
+        }
+        continue;
+      }
+      if (entry.pruned) {
+        entry.pruned = false;
+        delete (entry as { pruned_at?: string }).pruned_at;
+      }
+      potential.push(entry);
     }
-    if (entry.pruned) {
-      // Still within TTL but carries a stale pruned flag — e.g. a previous
-      // cap pass marked it. Let the cap pass below decide whether it
-      // re-enters the active set.
-      entry.pruned = false;
-      delete (entry as { pruned_at?: string }).pruned_at;
-    }
-    stillFresh.push(entry);
   }
 
-  // 2. Cap pass. Sort by (severity ASC, last_reinforced ASC) ascending so
-  //    we can drop from the FRONT (lowest severity, oldest reinforcement).
-  //    Then the remainder is reversed for rendering order.
-  const byKeepPriority = [...stillFresh].sort((a, b) => {
-    const sevDiff = SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
-    if (sevDiff !== 0) return sevDiff; // higher severity sorts LATER (stays)
-    const aMs = Date.parse(a.last_reinforced);
-    const bMs = Date.parse(b.last_reinforced);
-    const tsDiff = aMs - bMs; // older first
-    if (tsDiff !== 0) return tsDiff;
-    return a.id.localeCompare(b.id);
-  });
-
-  let keep: DirectiveHistoryEntry[];
-  if (byKeepPriority.length > maxDirectives) {
-    const overflow = byKeepPriority.length - maxDirectives;
-    const toDrop = byKeepPriority.slice(0, overflow);
-    keep = byKeepPriority.slice(overflow);
+  // 2a. Proven cap pass — safety valve at PROVEN_HARD_CAP.
+  //     If exceeded, drop entries with lowest fire count.
+  let provenKeep: DirectiveHistoryEntry[];
+  if (proven.length > PROVEN_HARD_CAP) {
+    const sorted = [...proven].sort((a, b) => {
+      // Sort ascending by fire count — lowest first for dropping.
+      const fa = getFireCount(a.id);
+      const fb = getFireCount(b.id);
+      if (fa !== fb) return fa - fb;
+      // Tie-break: older last_reinforced first.
+      const aMs = Date.parse(a.last_reinforced);
+      const bMs = Date.parse(b.last_reinforced);
+      if (aMs !== bMs) return aMs - bMs;
+      return a.id.localeCompare(b.id);
+    });
+    const overflow = sorted.length - PROVEN_HARD_CAP;
+    const toDrop = sorted.slice(0, overflow);
+    provenKeep = sorted.slice(overflow);
     for (const entry of toDrop) {
       if (!entry.pruned) {
         entry.pruned = true;
@@ -510,11 +578,62 @@ export function applyTTLAndCap(
       }
     }
   } else {
-    keep = byKeepPriority;
+    provenKeep = proven;
   }
 
-  // 3. Final sort: severity DESC, then last_reinforced DESC, then id ASC.
-  const active = [...keep].sort((a, b) => {
+  // 2b. Potential cap pass — cap at maxDirectives.
+  //     Grace: entries < POTENTIAL_GRACE_DAYS old are protected from eviction.
+  let potentialKeep: DirectiveHistoryEntry[];
+  if (potential.length > maxDirectives) {
+    // Partition into grace-protected and evictable.
+    const graceProtected: DirectiveHistoryEntry[] = [];
+    const evictable: DirectiveHistoryEntry[] = [];
+    for (const entry of potential) {
+      const firstSeenMs = Date.parse(entry.first_seen);
+      const inGrace = Number.isFinite(firstSeenMs) && nowMs - firstSeenMs < graceMs;
+      if (inGrace) {
+        graceProtected.push(entry);
+      } else {
+        evictable.push(entry);
+      }
+    }
+
+    // Sort evictable by keep priority: lowest severity + oldest first (drop from front).
+    evictable.sort((a, b) => {
+      const sevDiff = SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
+      if (sevDiff !== 0) return sevDiff;
+      const aMs = Date.parse(a.last_reinforced);
+      const bMs = Date.parse(b.last_reinforced);
+      const tsDiff = aMs - bMs;
+      if (tsDiff !== 0) return tsDiff;
+      return a.id.localeCompare(b.id);
+    });
+
+    // How many evictable entries we need to drop.
+    const slotsForEvictable = Math.max(0, maxDirectives - graceProtected.length);
+    let keptEvictable: DirectiveHistoryEntry[];
+    if (evictable.length > slotsForEvictable) {
+      const overflow = evictable.length - slotsForEvictable;
+      const toDrop = evictable.slice(0, overflow);
+      keptEvictable = evictable.slice(overflow);
+      for (const entry of toDrop) {
+        if (!entry.pruned) {
+          entry.pruned = true;
+          entry.pruned_at = nowIso;
+        }
+      }
+    } else {
+      keptEvictable = evictable;
+    }
+
+    potentialKeep = [...graceProtected, ...keptEvictable];
+  } else {
+    potentialKeep = potential;
+  }
+
+  // 3. Merge and final sort: severity DESC, last_reinforced DESC, id ASC.
+  const allKeep = [...provenKeep, ...potentialKeep];
+  const active = allKeep.sort((a, b) => {
     const sevDiff = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
     if (sevDiff !== 0) return sevDiff;
     const aMs = Date.parse(a.last_reinforced);
@@ -547,6 +666,10 @@ export function applyDirectiveHistory(
   options?: {
     now?: Date;
     config?: DirectiveConfig;
+    /** V71: directive_id → confirmed fire count. Undefined = backward compat (all potential). */
+    fireCounts?: Record<string, number> | undefined;
+    /** V71: directive_id → ISO date of most recent fire. */
+    lastFireDates?: Record<string, string> | undefined;
   },
 ): ApplyTTLAndCapResult {
   const now = options?.now ?? new Date();
@@ -577,7 +700,14 @@ export function applyDirectiveHistory(
   });
 
   const afterUpdate = updateFromProposals(history, dedupedProposals, now.toISOString());
-  const result = applyTTLAndCap(afterUpdate, now, config.ttlDays, config.maxDirectives);
+  const result = applyTTLAndCap(
+    afterUpdate,
+    now,
+    config.ttlDays,
+    config.maxDirectives,
+    options?.fireCounts,
+    options?.lastFireDates,
+  );
   try {
     saveHistory(projectRoot, result.history);
   } catch {
