@@ -7,7 +7,7 @@ import pc from 'picocolors';
 export function registerResumeVerb(program: Command): void {
   program
     .command('resume')
-    .description('re-enable capture + learner')
+    .description('re-enable capture + learner (deprecated: use auto-sop on)')
     .option('--project <path>', 'project root', process.cwd())
     .action(async (opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
@@ -20,7 +20,10 @@ export function registerResumeVerb(program: Command): void {
       } catch (e: unknown) {
         if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
       }
-      if (jsonMode) emit({ ok: true, verb: 'resume', removed });
-      else process.stdout.write(pc.green(removed ? '\u2713 resumed\n' : '(already resumed)\n'));
+      if (jsonMode) emit({ ok: true, verb: 'resume', removed, deprecated: true });
+      else {
+        process.stderr.write(pc.yellow('Deprecated: use auto-sop on instead\n'));
+        process.stdout.write(pc.green(removed ? '\u2713 resumed\n' : '(already resumed)\n'));
+      }
     });
 }

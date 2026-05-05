@@ -8,6 +8,8 @@ import { registerStatusVerb } from './status.js';
 import { registerDoctorVerb } from './doctor.js';
 import { registerPauseVerb } from './pause.js';
 import { registerResumeVerb } from './resume.js';
+import { registerOnVerb } from './on.js';
+import { registerOffVerb } from './off.js';
 import { registerErrorsVerb } from './errors.js';
 import { registerRecapVerb } from './recap.js';
 import { registerStatuslineVerb } from './statusline.js';
@@ -19,6 +21,8 @@ import { registerMigrateVerb } from './migrate.js';
 import { registerRepairVerb } from './repair.js';
 import { registerCandidatesVerb } from './candidates.js';
 import { registerStatsVerb } from './stats.js';
+import { registerLoginVerb } from './login.js';
+import { registerUpdateVerb } from './update.js';
 
 export function registerVerbs(program: Command): void {
   // @@VERBS_REGISTER@@  <-- Wave 2 plans insert register calls here, one per verb
@@ -29,6 +33,8 @@ export function registerVerbs(program: Command): void {
   registerDoctorVerb(program);
   registerPauseVerb(program);
   registerResumeVerb(program);
+  registerOnVerb(program);
+  registerOffVerb(program);
   registerErrorsVerb(program);
   registerRecapVerb(program);
   registerStatuslineVerb(program);
@@ -40,4 +46,6 @@ export function registerVerbs(program: Command): void {
   registerRepairVerb(program);
   registerCandidatesVerb(program);
   registerStatsVerb(program);
+  registerLoginVerb(program);
+  registerUpdateVerb(program);
 }

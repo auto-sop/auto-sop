@@ -84,7 +84,8 @@ function buildPosixPath(claudeBinDir?: string): string {
 }
 
 /**
- * Build the Windows CMD PATH value. Always includes %USERPROFILE%\.local\bin.
+ * Build the Windows CMD PATH value. Always includes %USERPROFILE%\.local\bin
+ * and common Node.js install locations (%APPDATA%\npm, %LOCALAPPDATA%\Programs\nodejs).
  * If claudeBinDir is provided, it is inserted after the user-local dir.
  */
 function buildCmdPath(claudeBinDir?: string): string {
@@ -93,6 +94,9 @@ function buildCmdPath(claudeBinDir?: string): string {
   if (safe) {
     segments.push(safe.replace(/\//g, '\\'));
   }
+  // V73: Include common Node.js install locations so scheduled tasks
+  // can find node.exe and npm even without the full user PATH.
+  segments.push('%APPDATA%\\npm', '%LOCALAPPDATA%\\Programs\\nodejs');
   segments.push('%PATH%');
   return segments.join(';');
 }

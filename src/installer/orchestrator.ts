@@ -10,6 +10,7 @@ import { mergeGlobalMarketplace, mergeProjectHooks } from './merge-settings.js';
 import { buildHookEntries } from './hook-entries.js';
 import { writeTickScript } from '../scheduler/tick-wrapper.js';
 import { pickBackend, type SchedulerBackend } from '../scheduler/index.js';
+import { getPlatform } from '../platform/index.js';
 import { ensureGitignore } from './gitignore.js';
 import { recordLicenseOnInstall } from '../license/storage.js';
 import { getMachineId } from '../config/machine-id.js';
@@ -66,7 +67,7 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
   const claudeSopHome = path.join(opts.homeDir, '.auto-sop');
   const marketplaceDir = path.join(claudeSopHome, 'marketplace', 'auto-sop');
   const binDir = path.join(claudeSopHome, 'bin');
-  const tickScriptPath = path.join(binDir, 'tick.sh');
+  const tickScriptPath = path.join(binDir, `tick${getPlatform().tickScriptExtension()}`);
   const versionTxtPath = path.join(claudeSopHome, 'version.txt');
   const secretsEncPath = path.join(claudeSopHome, 'secrets.enc');
   const logDir = path.join(claudeSopHome, 'logs');

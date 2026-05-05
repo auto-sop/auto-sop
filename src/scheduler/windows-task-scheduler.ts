@@ -1,17 +1,85 @@
 import { execa } from 'execa';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import type { SchedulerBackend, SchedulerInstallOpts, SchedulerStatus } from './types.js';
 
 export const TASK_NAME = 'auto-sop-learner';
+
+/** Escape a string for safe interpolation into XML text content. */
+export function xmlEscape(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Build an XML task definition for Windows Task Scheduler.
+ * XML format gives us control over power management settings
+ * that are not available via schtasks /Create command-line flags.
+ */
+export function buildTaskXml(opts: SchedulerInstallOpts): string {
+  const user = xmlEscape(opts.user || process.env.USERNAME || process.env.USER || 'SYSTEM');
+  const command = xmlEscape(opts.tickScriptPath);
+  return [
+    '<?xml version="1.0" encoding="UTF-16"?>',
+    '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">',
+    '  <Triggers>',
+    '    <TimeTrigger>',
+    '      <Repetition>',
+    '        <Interval>PT1H</Interval>',
+    '        <StopAtDurationEnd>false</StopAtDurationEnd>',
+    '      </Repetition>',
+    '      <StartBoundary>2000-01-01T00:00:00</StartBoundary>',
+    '      <Enabled>true</Enabled>',
+    '    </TimeTrigger>',
+    '  </Triggers>',
+    '  <Principals>',
+    '    <Principal id="Author">',
+    `      <UserId>${user}</UserId>`,
+    '      <LogonType>InteractiveToken</LogonType>',
+    '      <RunLevel>LeastPrivilege</RunLevel>',
+    '    </Principal>',
+    '  </Principals>',
+    '  <Settings>',
+    '    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>',
+    '    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>',
+    '    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>',
+    '    <AllowHardTerminate>true</AllowHardTerminate>',
+    '    <StartWhenAvailable>true</StartWhenAvailable>',
+    '    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>',
+    '    <AllowStartOnDemand>true</AllowStartOnDemand>',
+    '    <Enabled>true</Enabled>',
+    '    <Hidden>false</Hidden>',
+    '    <RunOnlyIfIdle>false</RunOnlyIfIdle>',
+    '    <ExecutionTimeLimit>PT1H</ExecutionTimeLimit>',
+    '    <Priority>7</Priority>',
+    '  </Settings>',
+    '  <Actions Context="Author">',
+    '    <Exec>',
+    `      <Command>${command}</Command>`,
+    '    </Exec>',
+    '  </Actions>',
+    '</Task>',
+  ].join('\r\n');
+}
 
 export const windowsTaskScheduler: SchedulerBackend = {
   name: 'task-scheduler',
 
   async install(opts: SchedulerInstallOpts): Promise<void> {
-    // schtasks /Create with /F (force-overwrite if exists)
-    // /SC HOURLY runs every hour. /TR is the command to execute.
-    // Task Scheduler handles .cmd natively; no need for node.exe or cmd.exe wrapper.
-    const tr = `"${opts.tickScriptPath}"`;
-    await execa('schtasks', ['/Create', '/TN', TASK_NAME, '/SC', 'HOURLY', '/TR', tr, '/F']);
+    // V73: Use XML-based task definition for power management control.
+    // DisallowStartIfOnBatteries=false ensures the task runs on laptops.
+    const xmlContent = buildTaskXml(opts);
+    const xmlPath = path.join(opts.logDir, 'auto-sop-task.xml');
+
+    // Ensure log directory exists for temp XML file
+    await fs.mkdir(opts.logDir, { recursive: true });
+    await fs.writeFile(xmlPath, xmlContent, 'utf-16le');
+
+    try {
+      await execa('schtasks', ['/Create', '/TN', TASK_NAME, '/XML', xmlPath, '/F']);
+    } finally {
+      // Clean up temp XML file regardless of success/failure
+      await fs.unlink(xmlPath).catch(() => {});
+    }
   },
 
   async uninstall(): Promise<{ warnings: string[] }> {
