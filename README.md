@@ -1,5 +1,5 @@
 <p align='center'>
-  <img src='https://auto-sop.com/images/mascot/logo.webp' alt='auto-sop owl' width='100' />
+  <img src='https://auto-sop.com/images/mascot/logo.webp' alt='auto-sop owl' width='200' />
 </p>
 
 <h1 align='center'>auto-sop</h1>
