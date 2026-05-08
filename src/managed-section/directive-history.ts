@@ -115,6 +115,10 @@ export interface DirectiveHistoryEntry {
    *  Used by error-prevention tracker to exclude false positives from the
    *  original failure sessions. */
   evidence_sessions?: string[];
+  /** V75: approximate token cost to create this directive. Computed from the
+   *  total_input_bytes + total_output_bytes of evidence sessions, divided by
+   *  CHARS_PER_TOKEN (4). null for directives created before V75. */
+  creation_cost_tokens?: number | null;
 }
 
 export interface DirectiveHistory {
@@ -137,6 +141,20 @@ export interface DirectiveProposalLike {
   };
   created_at?: string;
 }
+
+/**
+ * V75: Minimal subset of a session summary needed for creation cost
+ * calculation. Structural typing accepts the full SessionSummary from
+ * session-metrics.ts.
+ */
+export interface SessionSummaryLike {
+  session_id: string;
+  total_input_bytes: number;
+  total_output_bytes: number;
+}
+
+/** V75: Industry-standard approximation: 1 token ≈ 4 characters. */
+const CHARS_PER_TOKEN = 4;
 
 export interface ApplyTTLAndCapResult {
   /**
@@ -319,6 +337,12 @@ function coerceEntry(idKey: string, v: unknown): DirectiveHistoryEntry | null {
       entry.evidence_sessions = filtered;
     }
   }
+  // V75: load creation_cost_tokens from persisted history
+  if (typeof rec.creation_cost_tokens === 'number' && Number.isFinite(rec.creation_cost_tokens)) {
+    entry.creation_cost_tokens = Math.floor(rec.creation_cost_tokens);
+  } else if (rec.creation_cost_tokens === null) {
+    entry.creation_cost_tokens = null;
+  }
   return entry;
 }
 
@@ -362,6 +386,38 @@ export function saveHistory(projectRoot: string, history: DirectiveHistory): voi
 // ─── Update from proposals ───────────────────────────────
 
 /**
+ * V75: Compute the creation cost of a directive from its evidence sessions.
+ * Sums total_input_bytes + total_output_bytes from matching session summaries,
+ * then converts to approximate tokens via CHARS_PER_TOKEN.
+ *
+ * Returns null when no matching sessions are found (cost unknown).
+ */
+export function computeCreationCost(
+  evidenceSessionIds: string[],
+  sessionSummaries: ReadonlyArray<SessionSummaryLike>,
+): number | null {
+  if (evidenceSessionIds.length === 0 || sessionSummaries.length === 0) return null;
+
+  const summaryBySession = new Map<string, SessionSummaryLike>();
+  for (const s of sessionSummaries) {
+    summaryBySession.set(s.session_id, s);
+  }
+
+  let totalBytes = 0;
+  let matchCount = 0;
+  for (const sid of evidenceSessionIds) {
+    const summary = summaryBySession.get(sid);
+    if (summary) {
+      totalBytes += summary.total_input_bytes + summary.total_output_bytes;
+      matchCount++;
+    }
+  }
+
+  if (matchCount === 0) return null;
+  return Math.ceil(totalBytes / CHARS_PER_TOKEN);
+}
+
+/**
  * Apply a tick's proposals to the history. For each proposal:
  *   - If the id is already tracked: bump `last_reinforced` to now, increment
  *     `occurrence_count`, clear `pruned` (if set), and refresh
@@ -370,11 +426,16 @@ export function saveHistory(projectRoot: string, history: DirectiveHistory): voi
  *
  * Returns a NEW DirectiveHistory object (the input is not mutated), so
  * callers can diff state across ticks if they want to.
+ *
+ * @param sessionSummaries  V75: optional session summaries for computing
+ *   creation_cost_tokens on newly created directives. When absent (or
+ *   empty), new entries get creation_cost_tokens = null (unknown cost).
  */
 export function updateFromProposals(
   history: DirectiveHistory,
   proposals: DirectiveProposalLike[],
   now: string = new Date().toISOString(),
+  sessionSummaries?: ReadonlyArray<SessionSummaryLike>,
 ): DirectiveHistory {
   const entries: Record<string, DirectiveHistoryEntry> = { ...history.entries };
   for (const p of proposals) {
@@ -421,6 +482,13 @@ export function updateFromProposals(
       // V31: store evidence_sessions on first insert for error-prevention tracking
       if (Array.isArray(p.evidence.session_ids) && p.evidence.session_ids.length > 0) {
         newEntry.evidence_sessions = [...p.evidence.session_ids];
+      }
+      // V75: compute creation cost from evidence session byte counts
+      if (sessionSummaries && sessionSummaries.length > 0) {
+        const evidenceSids = Array.isArray(p.evidence.session_ids) ? p.evidence.session_ids : [];
+        newEntry.creation_cost_tokens = computeCreationCost(evidenceSids, sessionSummaries);
+      } else {
+        newEntry.creation_cost_tokens = null;
       }
       entries[p.id] = newEntry;
     }
@@ -670,6 +738,8 @@ export function applyDirectiveHistory(
     fireCounts?: Record<string, number> | undefined;
     /** V71: directive_id → ISO date of most recent fire. */
     lastFireDates?: Record<string, string> | undefined;
+    /** V75: session summaries for computing creation_cost_tokens on new directives. */
+    sessionSummaries?: ReadonlyArray<SessionSummaryLike> | undefined;
   },
 ): ApplyTTLAndCapResult {
   const now = options?.now ?? new Date();
@@ -699,7 +769,12 @@ export function applyDirectiveHistory(
     return true;
   });
 
-  const afterUpdate = updateFromProposals(history, dedupedProposals, now.toISOString());
+  const afterUpdate = updateFromProposals(
+    history,
+    dedupedProposals,
+    now.toISOString(),
+    options?.sessionSummaries,
+  );
   const result = applyTTLAndCap(
     afterUpdate,
     now,
