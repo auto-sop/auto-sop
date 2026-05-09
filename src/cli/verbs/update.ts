@@ -1,48 +1,44 @@
 /**
- * `auto-sop update` — check for and perform self-update from global npm package.
- * Does NOT run npm update — that is the user's responsibility.
+ * `auto-sop update` — check for and perform self-update from npm registry
+ * or global npm package.
  */
 import type { Command } from 'commander';
 import { homedir } from 'node:os';
 import pc from 'picocolors';
-import { checkForUpdate, performUpdate } from '../../learner/self-update.js';
+import { checkForUpdate, performUpdate, findGlobalPackagePath } from '../../learner/self-update.js';
 import { emit } from '../output/json.js';
 
 export function registerUpdateVerb(program: Command): void {
   program
     .command('update')
-    .description('update auto-sop from global npm package')
+    .description('update auto-sop from npm registry or global package')
     .action(async (_opts, cmd) => {
       const jsonMode = cmd.parent?.opts().json ?? false;
       const home = homedir();
 
-      if (jsonMode) {
-        await runUpdate(home, true);
-      } else {
-        await runUpdate(home, false);
-      }
+      await runUpdate(home, jsonMode);
     });
 }
 
 async function runUpdate(home: string, jsonMode: boolean): Promise<void> {
   if (!jsonMode) {
-    process.stdout.write('Checking for updates...\n');
+    process.stdout.write('Checking npm registry...\n');
   }
 
-  const info = checkForUpdate(home);
+  const info = checkForUpdate(home, { forceFresh: true });
 
   if (info === null) {
-    // Either already up to date or global package not found
-    const { findGlobalPackagePath } = await import('../../learner/self-update.js');
     const globalPath = findGlobalPackagePath();
 
     if (!globalPath) {
       if (jsonMode) {
-        emit({ verb: 'update', ok: true, status: 'no_global' });
+        emit({ verb: 'update', ok: true, status: 'no_source' });
         return;
       }
       process.stdout.write(
-        pc.cyan('ℹ No global package found. Run: npm update -g auto-sop\n'),
+        pc.cyan(
+          'i No updates available. Check your internet connection or run: npx auto-sop@latest install\n',
+        ),
       );
       return;
     }
@@ -65,9 +61,12 @@ async function runUpdate(home: string, jsonMode: boolean): Promise<void> {
     return;
   }
 
-  // Update available
+  const sourceLabel = info.source === 'registry' ? 'from npm registry' : 'from global package';
+
   if (!jsonMode) {
-    process.stdout.write(`Updating ${info.installedVersion ?? 'none'} → ${info.globalVersion}...\n`);
+    process.stdout.write(
+      `Updating ${info.installedVersion ?? 'none'} → ${info.globalVersion} (${sourceLabel})...\n`,
+    );
   }
 
   try {
@@ -90,9 +89,10 @@ async function runUpdate(home: string, jsonMode: boolean): Promise<void> {
       status: 'updated',
       from: info.installedVersion ?? 'none',
       to: info.globalVersion,
+      source: info.source,
     });
     return;
   }
 
-  process.stdout.write(pc.green(`✓ Updated to ${info.globalVersion}\n`));
+  process.stdout.write(pc.green(`✓ Updated to ${info.globalVersion} (${sourceLabel})\n`));
 }
