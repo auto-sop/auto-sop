@@ -1,5 +1,4 @@
 import * as readline from 'node:readline/promises';
-import { APP_BASE_URL } from '../config/environment.js';
 import { browserAuth } from './browser-auth.js';
 
 export async function promptLicense(): Promise<string> {
@@ -14,9 +13,7 @@ export async function promptLicense(): Promise<string> {
     output: process.stdout,
   });
   try {
-    const answer = await rl.question(
-      `Press Enter to open browser, or paste license key: `,
-    );
+    const answer = await rl.question(`Press Enter to open browser, or paste license key: `);
     const trimmed = answer.trim();
     if (trimmed.length > 0) {
       // User pasted a key directly
