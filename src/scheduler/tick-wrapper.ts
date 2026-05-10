@@ -1,6 +1,12 @@
 import { writeFileAtomic } from '../atomic/write.js';
 import { getPlatform } from '../platform/index.js';
 
+/** dirname that handles both POSIX and Windows separators regardless of host platform. */
+function nodeBinDirname(nodeBin: string): string {
+  const lastSep = Math.max(nodeBin.lastIndexOf('/'), nodeBin.lastIndexOf('\\'));
+  return lastSep > 0 ? nodeBin.substring(0, lastSep) : '';
+}
+
 export interface TickScriptOpts {
   homeDir: string;
   nodeBin: string; // process.execPath at install time
@@ -21,7 +27,7 @@ export function renderTickScript(opts: TickScriptOpts): string {
     '',
     '# Minimal, deterministic env — $HOME/.local/bin always included as',
     '# safe default; detected claude binary dir inserted when available.',
-    `export PATH="${buildPosixPath(opts.claudeBinDir)}"`,
+    `export PATH="${buildPosixPath(opts.claudeBinDir, nodeBinDirname(opts.nodeBin))}"`,
     `export HOME=${shellQuote(opts.homeDir)}`,
     '# Suppress Phase-2 capture inside the scheduled learner tick so it',
     '# does not record its own turns. Legacy CLAUDE_SOP_* vars are kept',
@@ -54,7 +60,7 @@ export function renderTickScriptCmd(opts: TickScriptOpts): string {
     'setlocal',
     '',
     'REM Minimal, deterministic PATH',
-    `set "PATH=${buildCmdPath(opts.claudeBinDir)}"`,
+    `set "PATH=${buildCmdPath(opts.claudeBinDir, nodeBinDirname(opts.nodeBin))}"`,
     '',
     'REM Suppress capture inside scheduled tick',
     'set AUTO_SOP_CAPTURE_SUPPRESS=1',
@@ -73,12 +79,15 @@ export function renderTickScriptCmd(opts: TickScriptOpts): string {
 /**
  * Build the POSIX PATH value. Always includes $HOME/.local/bin as a safe
  * default. If claudeBinDir is provided (detected at install time), it is
- * inserted after $HOME/.local/bin.
+ * inserted after $HOME/.local/bin. nodeBinDir (dirname of the node binary)
+ * is inserted next so that npm/npx are discoverable during self-update.
  */
-function buildPosixPath(claudeBinDir?: string): string {
+function buildPosixPath(claudeBinDir?: string, nodeBinDir?: string): string {
   const segments = ['$HOME/.local/bin'];
-  const safe = validatePathSegment(claudeBinDir);
-  if (safe) segments.push(safe);
+  const safeClaude = validatePathSegment(claudeBinDir);
+  if (safeClaude) segments.push(safeClaude);
+  const safeNode = validatePathSegment(nodeBinDir);
+  if (safeNode && !segments.includes(safeNode)) segments.push(safeNode);
   segments.push('/usr/local/bin', '/usr/bin', '/bin', '${PATH:-}');
   return segments.join(':');
 }
@@ -87,12 +96,18 @@ function buildPosixPath(claudeBinDir?: string): string {
  * Build the Windows CMD PATH value. Always includes %USERPROFILE%\.local\bin
  * and common Node.js install locations (%APPDATA%\npm, %LOCALAPPDATA%\Programs\nodejs).
  * If claudeBinDir is provided, it is inserted after the user-local dir.
+ * nodeBinDir (dirname of node.exe) is inserted next for npm/npx discovery.
  */
-function buildCmdPath(claudeBinDir?: string): string {
+function buildCmdPath(claudeBinDir?: string, nodeBinDir?: string): string {
   const segments = ['%USERPROFILE%\\.local\\bin'];
-  const safe = validatePathSegment(claudeBinDir);
-  if (safe) {
-    segments.push(safe.replace(/\//g, '\\'));
+  const safeClaude = validatePathSegment(claudeBinDir);
+  if (safeClaude) {
+    segments.push(safeClaude.replace(/\//g, '\\'));
+  }
+  const safeNode = validatePathSegment(nodeBinDir);
+  const safeNodeWin = safeNode?.replace(/\//g, '\\');
+  if (safeNode && safeNodeWin && !segments.includes(safeNodeWin)) {
+    segments.push(safeNodeWin);
   }
   // V73: Include common Node.js install locations so scheduled tasks
   // can find node.exe and npm even without the full user PATH.
