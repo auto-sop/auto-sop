@@ -28,6 +28,8 @@
 
 auto-sop captures every Claude Code interaction, detects recurring mistakes (3+ evidence threshold), and writes enforced directives to your project's `CLAUDE.md` — automatically. Zero manual upkeep. Claude Code reads these directives on every session, so the same mistake never happens again.
 
+Beyond directives, auto-sop tracks **metrics** — confirmed directive fires, estimated token savings — and syncs aggregate stats to the [cloud dashboard](https://auto-sop.com/dashboard) so you can see your gains over time. The CLI also **self-updates** via an hourly tick that checks the npm registry, so you always run the latest version without manual upgrades.
+
 ## Install
 
 ```bash
@@ -73,16 +75,16 @@ cat CLAUDE.md                 # directives appear in the managed section
   |               |  rule-based detectors (N>=3 evidence)
   |               |  + LLM analysis (claude -p, $0 via Max)
   +-------+-------+
-          |  validated directives
-          v
-  +---------------+
-  |  CLAUDE.md    |  managed section: hash-checked, git-aware,
-  |  Editor       |  revertible, TTL pruning, drift detection
-  +---------------+
-          |
-          v
-    Claude Code reads CLAUDE.md on every session
-    -> same mistake never happens again
+          |  validated directives        |  aggregate stats
+          v                              v
+  +---------------+              +---------------+
+  |  CLAUDE.md    |              |  Stats Sync   |
+  |  Editor       |              |  → Cloud      |
+  +---------------+              +-------+-------+
+          |                              |
+          v                              v
+    Claude Code reads CLAUDE.md    Dashboard shows
+    -> same mistake never again    gains over time
 ```
 
 ## Pricing
@@ -102,6 +104,21 @@ cat CLAUDE.md                 # directives appear in the managed section
 - Cross-machine directives
 - Priority support
 - No credit card on trial
+
+### Earn Free Pro Trial Days
+
+Not ready to pay? Earn Pro trial days for free:
+
+- **Referral** — share your link, both you and your friend get +14 days
+- **GitHub Star** — [star the repo](https://github.com/auto-sop/auto-sop) for +7 days (one-time)
+- **Tweet / LinkedIn** — share about auto-sop for +3 days each (monthly)
+- **CLAUDE.md Badge** — add the auto-sop badge for +7 trial days
+
+See the full [Rewards documentation](https://auto-sop.com/docs/dashboard/rewards) for details.
+
+## Self-Update
+
+auto-sop keeps itself current automatically. The hourly scheduler tick checks the npm registry for new versions and installs updates in the background — no manual `npm install` needed after your initial setup. Run `auto-sop status` to see your current version at any time.
 
 ## Compatibility
 

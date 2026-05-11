@@ -88,7 +88,7 @@ export interface ProjectStats {
   /** V32-P7: token savings percentage. Null if insufficient data. */
   token_savings_pct: number | null;
   /** V44: estimation method used for token savings. */
-  token_estimation_method: 'byte_counted' | 'tool_call_heuristic' | 'hybrid' | null;
+  token_estimation_method: 'byte_counted' | 'tool_call_heuristic' | 'hybrid' | 'directive_heuristic' | null;
   /** V46: total confirmed directive fires from Claude self-reports. */
   confirmed_fires_total: number;
   /** V46: per-directive confirmed fire counts with rule text. */
