@@ -22,6 +22,10 @@
   <a href='https://auto-sop.com/docs/quickstart'>Quickstart</a>
 </p>
 
+<p align='center'>
+  <a href='https://www.producthunt.com/products/auto-sop?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-auto-sop' target='_blank' rel='noopener noreferrer'><img src='https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1145178&theme=light' alt='auto-sop - Your Claude Code learns from its mistakes automatically | Product Hunt' width='250' height='54' /></a>
+</p>
+
 ---
 
 ## What It Does
