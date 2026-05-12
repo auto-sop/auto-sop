@@ -161,7 +161,7 @@ export function registerOnVerb(program: Command): void {
         return;
       }
 
-      process.stdout.write(pc.green(`✓ ${ctx.slug} will be active at next tick (within ~1 hour)\n`));
+      process.stdout.write(pc.green(`✓ ${ctx.slug} will be active at the next learner run or daily sweep\n`));
       if (result.deactivated_slug) {
         process.stdout.write(pc.dim(`  ↳ ${result.deactivated_slug} will be deactivated\n`));
       }

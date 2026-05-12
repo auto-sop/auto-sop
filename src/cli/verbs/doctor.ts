@@ -181,7 +181,7 @@ async function schedulerEffectiveCheck(homeDir: string): Promise<Check> {
     return {
       name: 'scheduler effective',
       ok: false,
-      detail: `never fired in ${installAgeMin}min (expected hourly fires)`,
+      detail: `never fired in ${installAgeMin}min (expected at least one daily fire)`,
     };
   }
   if (runs === 0 && installAgeMin <= 90) {

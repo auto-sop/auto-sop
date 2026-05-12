@@ -28,7 +28,7 @@
 
 auto-sop captures every Claude Code interaction, detects recurring mistakes (3+ evidence threshold), and writes enforced directives to your project's `CLAUDE.md` — automatically. Zero manual upkeep. Claude Code reads these directives on every session, so the same mistake never happens again.
 
-Beyond directives, auto-sop tracks **metrics** — confirmed directive fires, estimated token savings — and syncs aggregate stats to the [cloud dashboard](https://auto-sop.com/dashboard) so you can see your gains over time. The CLI also **self-updates** via an hourly tick that checks the npm registry, so you always run the latest version without manual upgrades.
+Beyond directives, auto-sop tracks **metrics** — confirmed directive fires, estimated token savings — and syncs aggregate stats to the [cloud dashboard](https://auto-sop.com/dashboard) so you can see your gains over time. The CLI also **self-updates** by checking the npm registry during learner runs, so you always run the latest version without manual upgrades.
 
 ## Install
 
@@ -47,9 +47,9 @@ brew install auto-sop/tap/auto-sop
 ## Quick Start
 
 ```bash
-npx auto-sop install          # set up hooks + hourly learner
+npx auto-sop install          # set up hooks + event-driven learner
 # ... use Claude Code normally — captures happen silently ...
-auto-sop learn-now            # trigger learning now (or wait for the hourly scheduler)
+auto-sop learn-now            # trigger learning now (or wait for the automatic learner)
 cat CLAUDE.md                 # directives appear in the managed section
 ```
 
@@ -71,7 +71,7 @@ cat CLAUDE.md                 # directives appear in the managed section
           |
           v
   +---------------+
-  |    Learner    |  hourly (launchd/systemd) or on-demand
+  |    Learner    |  event-driven + daily sweep, or on-demand
   |               |  rule-based detectors (N>=3 evidence)
   |               |  + LLM analysis (claude -p, $0 via Max)
   +-------+-------+
@@ -118,7 +118,7 @@ See the full [Rewards documentation](https://auto-sop.com/docs/dashboard/rewards
 
 ## Self-Update
 
-auto-sop keeps itself current automatically. The hourly scheduler tick checks the npm registry for new versions and installs updates in the background — no manual `npm install` needed after your initial setup. Run `auto-sop status` to see your current version at any time.
+auto-sop keeps itself current automatically. The learner checks the npm registry for new versions during each run and installs updates in the background — no manual `npm install` needed after your initial setup. Run `auto-sop status` to see your current version at any time.
 
 ## Compatibility
 

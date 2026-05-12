@@ -60,7 +60,7 @@ export function registerOffVerb(program: Command): void {
         return;
       }
 
-      process.stdout.write(pc.green(`✓ ${ctx.slug} will be deactivated at next tick\n`));
+      process.stdout.write(pc.green(`✓ ${ctx.slug} will be deactivated at the next learner run\n`));
       process.stdout.write(pc.dim('  ↳ Directives will be preserved and restored when reactivated\n'));
     });
 }

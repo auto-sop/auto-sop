@@ -8,6 +8,7 @@ import { handleUserPromptSubmit, handleStop } from './main-thread-route.js';
 import { handlePreToolUse, handlePostToolUse } from './tool-calls-route.js';
 import { handleSubagentStop } from './subagent-route.js'; // 01-07: subagent lifecycle + orphan sweep hooks
 import './global-mirror-hook.js'; // side-effect import — registers finalize + pre-start hooks
+import './realtime-learner-hook.js'; // side-effect import — registers finalize hook for real-time learner trigger
 
 export const routes: Partial<Record<HookEventName, Handler>> = {
   UserPromptSubmit: handleUserPromptSubmit as Handler,

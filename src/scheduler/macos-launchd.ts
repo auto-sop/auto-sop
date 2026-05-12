@@ -41,11 +41,16 @@ function xmlEscape(s: string): string {
 export function renderPlist(opts: {
   label: string;
   tickScriptPath: string;
-  /** @deprecated Ignored on macOS — fires at :00 top of hour via StartCalendarInterval. */
   intervalSec: number;
   stdoutLog: string;
   stderrLog: string;
+  /** Hour (0-23) for daily scheduling. Defaults to 0. */
+  dailyHour?: number;
+  /** Minute (0-59) for daily scheduling. Defaults to 0. */
+  dailyMinute?: number;
 }): string {
+  const hour = opts.dailyHour ?? 0;
+  const minute = opts.dailyMinute ?? 0;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -62,8 +67,10 @@ export function renderPlist(opts: {
 
   <key>StartCalendarInterval</key>
   <dict>
+    <key>Hour</key>
+    <integer>${hour}</integer>
     <key>Minute</key>
-    <integer>0</integer>
+    <integer>${minute}</integer>
   </dict>
 
   <key>StandardOutPath</key>
@@ -117,6 +124,8 @@ export const macosLaunchd: SchedulerBackend = {
       intervalSec: opts.intervalSec,
       stdoutLog: join(opts.logDir, 'launchd.out.log'),
       stderrLog: join(opts.logDir, 'launchd.err.log'),
+      dailyHour: opts.dailyHour,
+      dailyMinute: opts.dailyMinute,
     });
     await writeFileAtomic(plist, content);
 

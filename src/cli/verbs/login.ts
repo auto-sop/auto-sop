@@ -136,7 +136,7 @@ export function registerLoginVerb(program: Command): void {
       }
 
       process.stdout.write(pc.green(`✓ Logged in as ${email} (plan: ${plan})\n`));
-      process.stdout.write(pc.dim('  License key stored. Your projects will sync at next tick.\n'));
+      process.stdout.write(pc.dim('  License key stored. Your projects will sync at the next learner run.\n'));
     });
 }
 

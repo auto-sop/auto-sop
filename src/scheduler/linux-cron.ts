@@ -13,7 +13,9 @@ export const linuxCron: SchedulerBackend = {
       .split('\n')
       .filter((l) => !l.includes(MARKER) && !l.includes(LEGACY_MARKER))
       .join('\n');
-    const entry = `0 * * * * ${opts.tickScriptPath} ${MARKER}`;
+    const minute = opts.dailyMinute ?? 0;
+    const hour = opts.dailyHour ?? 0;
+    const entry = `${minute} ${hour} * * * ${opts.tickScriptPath} ${MARKER}`;
     const next = (stripped.trimEnd() + '\n' + entry + '\n').replace(/\n\n+/g, '\n');
     await execa('crontab', ['-'], { input: next });
   },

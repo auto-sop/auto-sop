@@ -18,7 +18,7 @@ export async function pickBackend(
     return {
       backend: linuxCron,
       fallbackWarning:
-        "systemd --user is unavailable on this system. auto-sop installed an hourly cron entry as a fallback. Reboot-persistence depends on your distribution's cron daemon configuration. For best reliability, enable systemd --user or use a system with lingering support.",
+        "systemd --user is unavailable on this system. auto-sop installed a daily cron entry as a fallback. Reboot-persistence depends on your distribution's cron daemon configuration. For best reliability, enable systemd --user or use a system with lingering support.",
     };
   }
   throw new Error(`unsupported platform: ${platform}`);

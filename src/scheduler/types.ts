@@ -1,9 +1,13 @@
 export interface SchedulerInstallOpts {
   tickScriptPath: string; // absolute path to tick.sh or tick.cmd
-  intervalSec: number; // 3600 default
+  intervalSec: number; // 86400 (daily)
   logDir: string; // absolute path to ~/.auto-sop/logs
   homeDir: string; // absolute path to $HOME / %USERPROFILE%
   user: string; // process.env.USER or USERNAME
+  /** Hour (0-23) for daily scheduling. Derived from install time for distribution. */
+  dailyHour?: number | undefined;
+  /** Minute (0-59) for daily scheduling. Derived from install time for distribution. */
+  dailyMinute?: number | undefined;
 }
 
 export interface SchedulerStatus {

@@ -31,6 +31,38 @@ import {
 import { writeManagedSection } from '../managed-section/editor.js';
 import { shortDirectiveId } from '../learner/directive-builder.js';
 
+/** Seconds in one day — scheduler fires once per day. */
+export const DAILY_INTERVAL_SEC = 86_400;
+
+export interface RegisterSchedulerOpts {
+  tickScriptPath: string;
+  intervalSec: number;
+  dailyHour: number;
+  dailyMinute: number;
+  logDir: string;
+  homeDir: string;
+  user: string;
+}
+
+/**
+ * Register (or re-register) the scheduler backend. Extracted from the install
+ * flow so self-update can re-register when migrating hourly→daily.
+ */
+export async function registerScheduler(
+  backend: SchedulerBackend,
+  opts: RegisterSchedulerOpts,
+): Promise<void> {
+  await backend.install({
+    tickScriptPath: opts.tickScriptPath,
+    intervalSec: opts.intervalSec,
+    logDir: opts.logDir,
+    homeDir: opts.homeDir,
+    user: opts.user,
+    dailyHour: opts.dailyHour,
+    dailyMinute: opts.dailyMinute,
+  });
+}
+
 export interface InstallOptions {
   projectRoot: string;
   homeDir: string;
@@ -211,9 +243,14 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
       errorsLog,
       claudeBinDir,
     });
-    await schedulerBackend.install({
+    const now = new Date();
+    const dailyHour = now.getHours();
+    const dailyMinute = now.getMinutes();
+    await registerScheduler(schedulerBackend, {
       tickScriptPath,
-      intervalSec: 3600,
+      intervalSec: DAILY_INTERVAL_SEC,
+      dailyHour,
+      dailyMinute,
       logDir,
       homeDir: opts.homeDir,
       user: process.env.USER ?? process.env.USERNAME ?? '',

@@ -18,16 +18,21 @@ export function xmlEscape(s: string): string {
 export function buildTaskXml(opts: SchedulerInstallOpts): string {
   const user = xmlEscape(opts.user || process.env.USERNAME || process.env.USER || 'SYSTEM');
   const command = xmlEscape(opts.tickScriptPath);
+  const hour = opts.dailyHour ?? 0;
+  const minute = opts.dailyMinute ?? 0;
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
   return [
     '<?xml version="1.0" encoding="UTF-16"?>',
     '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">',
     '  <Triggers>',
     '    <TimeTrigger>',
     '      <Repetition>',
-    '        <Interval>PT1H</Interval>',
+    '        <Interval>PT24H</Interval>',
     '        <StopAtDurationEnd>false</StopAtDurationEnd>',
     '      </Repetition>',
-    '      <StartBoundary>2000-01-01T00:00:00</StartBoundary>',
+    `      <StartBoundary>${dateStr}T${timeStr}</StartBoundary>`,
     '      <Enabled>true</Enabled>',
     '    </TimeTrigger>',
     '  </Triggers>',

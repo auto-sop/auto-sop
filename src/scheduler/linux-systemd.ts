@@ -19,7 +19,7 @@ export function renderServiceUnit(opts: {
   homeDir: string;
 }): string {
   return `[Unit]
-Description=auto-sop hourly learner
+Description=auto-sop daily learner
 After=default.target
 
 [Service]
@@ -38,9 +38,9 @@ IOSchedulingPriority=6
 }
 
 export function renderTimerUnit(opts?: { intervalSec?: number }): string {
-  const sec = opts?.intervalSec ?? 3600;
+  const sec = opts?.intervalSec ?? 86_400;
   return `[Unit]
-Description=auto-sop hourly learner timer
+Description=auto-sop daily learner timer
 
 [Timer]
 OnBootSec=5min
