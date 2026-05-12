@@ -122,7 +122,12 @@ export default defineConfig([
     clean: false,
     target: 'node18',
     bundle: true,
-    minify: true,
+    // FIX(v0.1.19): Disabled minify to prevent esbuild mangle collisions.
+    // esbuild renames variables from different code paths (stats-only vs active)
+    // that share the same for-loop block scope to identical short names, causing
+    // let-hoisting TDZ crashes at runtime (v0.1.18 bug). Bundle size increases
+    // ~100KB but correctness is non-negotiable.
+    minify: false,
     // FIX: treeshake was stripping saveMetricsState + loadMetricsState because
     // every call site is inside try/catch with empty catch blocks. The tree-shaker
     // treats those as dead code (side-effect-free). Disabling tree-shake for
