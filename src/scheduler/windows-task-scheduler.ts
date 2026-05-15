@@ -24,7 +24,7 @@ export function buildTaskXml(opts: SchedulerInstallOpts): string {
   const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
   return [
-    '<?xml version="1.0" encoding="UTF-16"?>',
+    '<?xml version="1.0" encoding="UTF-8"?>',
     '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">',
     '  <Triggers>',
     '    <TimeTrigger>',
@@ -77,7 +77,7 @@ export const windowsTaskScheduler: SchedulerBackend = {
 
     // Ensure log directory exists for temp XML file
     await fs.mkdir(opts.logDir, { recursive: true });
-    await fs.writeFile(xmlPath, xmlContent, 'utf-16le');
+    await fs.writeFile(xmlPath, xmlContent, 'utf8');
 
     try {
       await execa('schtasks', ['/Create', '/TN', TASK_NAME, '/XML', xmlPath, '/F']);
