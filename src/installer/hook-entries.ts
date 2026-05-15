@@ -16,6 +16,7 @@ export interface HookEntry {
   hooks: Array<{
     type: 'command';
     command: string;
+    args?: string[];
     timeout: number;
     id: string;
   }>;
@@ -23,7 +24,8 @@ export interface HookEntry {
 
 /**
  * Build hook entry objects for all 5 Claude Code hook events.
- * Each entry invokes the shim at `shimAbsPath` with a 10s timeout.
+ * Each entry invokes the shim at `shimAbsPath` via explicit `node` command
+ * with the shim path as an arg — works cross-platform (Windows lacks shebang support).
  * Caller is responsible for ensuring shimAbsPath is absolute.
  */
 export function buildHookEntries(shimAbsPath: string): Record<HookEvent, HookEntry> {
@@ -31,7 +33,8 @@ export function buildHookEntries(shimAbsPath: string): Record<HookEvent, HookEnt
     hooks: [
       {
         type: 'command',
-        command: shimAbsPath,
+        command: 'node',
+        args: [shimAbsPath],
         timeout: 10,
         id: CLAUDE_SOP_HOOK_ID,
       },
