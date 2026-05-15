@@ -4,6 +4,7 @@
  * opens the browser, and polls until the user approves.
  */
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { platform } from 'node:os';
 import { API_BASE_URL } from '../config/environment.js';
 
@@ -15,6 +16,33 @@ const POLL_INTERVAL_MS = 3_000;
 
 /** Maximum number of polls before timeout (~10 minutes). */
 const MAX_POLLS = 200;
+
+/** Cached WSL detection result. */
+let _isWSL: boolean | undefined;
+
+/**
+ * Detect whether the current environment is Windows Subsystem for Linux.
+ * Reads /proc/version once and caches the result for subsequent calls.
+ */
+export function isWSL(): boolean {
+  if (_isWSL !== undefined) return _isWSL;
+  try {
+    const version = readFileSync('/proc/version', 'utf8');
+    _isWSL = /microsoft/i.test(version);
+  } catch {
+    // /proc/version doesn't exist on macOS/Windows — not WSL
+    _isWSL = false;
+  }
+  return _isWSL;
+}
+
+/**
+ * Reset the cached WSL detection (for testing only).
+ * @internal
+ */
+export function _resetWSLCache(): void {
+  _isWSL = undefined;
+}
 
 interface DeviceCodeResponse {
   code: string;
@@ -31,7 +59,7 @@ interface PollResponse {
  * Uses platform-specific commands; fails silently if browser can't be opened.
  * Uses spawn() with args array to prevent command injection via malicious URLs.
  */
-function openBrowser(url: string): void {
+export function openBrowser(url: string): void {
   const os = platform();
   let bin: string;
   let args: string[];
@@ -42,6 +70,13 @@ function openBrowser(url: string): void {
   } else if (os === 'win32') {
     bin = 'cmd';
     args = ['/c', 'start', '', url];
+  } else if (isWSL()) {
+    // WSL: xdg-open is typically absent; open in Windows host browser.
+    // Single-quote the URL in the PowerShell command string so that
+    // special characters like & and $ are not interpreted as operators.
+    const safeUrl = url.replace(/'/g, "''");
+    bin = 'powershell.exe';
+    args = ['-NoProfile', '-Command', `Start-Process '${safeUrl}'`];
   } else {
     bin = 'xdg-open';
     args = [url];
@@ -49,6 +84,10 @@ function openBrowser(url: string): void {
 
   // spawn() with args array bypasses shell interpretation entirely
   const child = spawn(bin, args, { detached: true, stdio: 'ignore' });
+  child.on('error', () => {
+    // Intentionally silent — browser open is best-effort.
+    // The caller prints a manual fallback URL.
+  });
   child.unref();
 }
 
