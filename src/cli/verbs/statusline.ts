@@ -2,6 +2,13 @@ import type { Command } from 'commander';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+/** Display prefix for statusline output */
+const OWL_PREFIX = '\u{1F989}'; // owl emoji
+
+/** Branded statusline labels */
+export const STATUSLINE_ON = `[${OWL_PREFIX}sop:on]`;
+export const STATUSLINE_OFF = `[${OWL_PREFIX}sop:off]`;
+
 /**
  * Synchronous statusline verb — must stay <50ms on a warm box.
  * No async, no child processes, no network, no logging.
@@ -18,14 +25,16 @@ export function registerStatuslineVerb(program: Command): void {
 
       if (jsonFlag) {
         const slug = deriveSlug(projectRoot);
+        const display = on ? STATUSLINE_ON : STATUSLINE_OFF;
         const payload = JSON.stringify({
           on,
+          display,
           project_slug: slug,
           project_root: projectRoot,
         });
         process.stdout.write(payload);
       } else {
-        process.stdout.write(on ? '[sop:on]' : '[sop:off]');
+        process.stdout.write(on ? STATUSLINE_ON : STATUSLINE_OFF);
       }
     });
 }
@@ -77,14 +86,54 @@ function getProjectRoot(opts: { project?: string }): string {
   return process.cwd();
 }
 
+/** Hook identifier used by auto-sop */
+const HOOK_ID = 'auto-sop';
+
+/** Substrings that identify an auto-sop hook in command or args fields */
+const HOOK_COMMAND_MARKERS = ['auto-sop', 'claude-sop'] as const;
+
 /**
- * Check if .claude/settings.json has any hook with 'auto-sop' or 'claude-sop' in command.
+ * Check whether a single hook object matches auto-sop.
+ * Returns true if ANY of the following signals match:
+ *   - hook.id === 'auto-sop' (simplest and most reliable)
+ *   - hook.command contains 'auto-sop' or 'claude-sop' (legacy)
+ *   - any element in hook.args contains 'auto-sop' or 'claude-sop'
+ */
+function isAutoSopHook(hook: unknown): boolean {
+  if (typeof hook !== 'object' || hook === null) return false;
+  const h = hook as Record<string, unknown>;
+
+  // Signal 1: hook.id
+  if (typeof h.id === 'string' && h.id === HOOK_ID) return true;
+
+  // Signal 2: hook.command substring match
+  if (typeof h.command === 'string') {
+    for (const marker of HOOK_COMMAND_MARKERS) {
+      if (h.command.includes(marker)) return true;
+    }
+  }
+
+  // Signal 3: hook.args array — any element containing a marker
+  if (Array.isArray(h.args)) {
+    for (const arg of h.args) {
+      if (typeof arg !== 'string') continue;
+      for (const marker of HOOK_COMMAND_MARKERS) {
+        if (arg.includes(marker)) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if .claude/settings.json has any hook matching auto-sop.
  * Fail-closed: any error → false.
  *
  * Real Claude Code settings.json structure (three levels deep):
- *   { "hooks": { "<EventName>": [ { "hooks": [ { "command": "..." } ] } ] } }
+ *   { "hooks": { "<EventName>": [ { "hooks": [ { "command": "...", "args": [...], "id": "..." } ] } ] } }
  */
-function detectHooks(projectRoot: string): boolean {
+export function detectHooks(projectRoot: string): boolean {
   try {
     const settingsPath = path.join(projectRoot, '.claude', 'settings.json');
     const raw = readFileSync(settingsPath, 'utf8');
@@ -109,15 +158,7 @@ function detectHooks(projectRoot: string): boolean {
         )
           continue;
         for (const hook of (entry as Record<string, unknown>).hooks as unknown[]) {
-          if (
-            typeof hook === 'object' &&
-            hook !== null &&
-            typeof (hook as Record<string, unknown>).command === 'string' &&
-            (((hook as Record<string, unknown>).command as string).includes('auto-sop') ||
-              ((hook as Record<string, unknown>).command as string).includes('claude-sop'))
-          ) {
-            return true;
-          }
+          if (isAutoSopHook(hook)) return true;
         }
       }
     }

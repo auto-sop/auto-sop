@@ -5,8 +5,8 @@
  * MUST never crash Claude Code. Everything is wrapped in try/catch → exit 0.
  * Single-writer-per-process-invocation: one writer process handles one event.
  *
- * **FROZEN AFTER PLAN 01-03** — no downstream plan edits this file.
- * All extension happens via routes/index.ts one-line adds and hook registries.
+ * Kept intentionally minimal — route handlers live in routes/ and are
+ * registered via routes/index.ts. This file should rarely need changes.
  */
 import { readFileSync, unlinkSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,6 +18,7 @@ import { PathResolver } from '../../path-resolver/index.js';
 import { routes } from './routes/index.js';
 import { runPreStartHooks } from './routes/pre-start-hooks.js';
 import { initErrorWriter } from './errors.js';
+import { findProjectRoot } from './find-project-root.js';
 import type { ErrorWriter, HandlerContext } from './routes/types.js';
 
 const HOOK_SHIM_VERSION = '0.1.0';
@@ -72,8 +73,8 @@ async function run(): Promise<void> {
       return; // unreachable, satisfies TS
     }
 
-    // Build context
-    const projectRoot = event.cwd;
+    // Build context — resolve true project root in case agent cd'd into a subdirectory
+    const projectRoot = findProjectRoot(event.cwd);
     const resolver = new PathResolver();
     const { identity } = await resolver.resolve(projectRoot);
     const paths = getCapturePaths(projectRoot, identity.projectId);
