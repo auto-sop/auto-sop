@@ -6,6 +6,11 @@ import type { HookPayloadType } from '../../events.js';
 import type { HandlerContext } from './types.js';
 import { enforceDiskBudget, isPaused } from '../disk-budget.js';
 import { getErrorWriter } from '../errors.js';
+import {
+  cleanStaleMarkers,
+  cleanNestedStateDir,
+  compactSyncQueueIfNeeded,
+} from '../state-hygiene.js';
 
 export type PreStartHook = (event: HookPayloadType, ctx: HandlerContext) => { abort: boolean };
 
@@ -50,5 +55,32 @@ registerPreStartHook((event, ctx) => {
     }
     return { abort: true };
   }
+  return { abort: false };
+});
+
+// ── State hygiene hook ───────────────────────────────────
+// Cleans stale turn markers, nested state dirs, and oversized sync queues.
+// Runs on every event — each operation is <5ms and swallows all errors.
+let hygieneRanThisInvocation = false;
+
+registerPreStartHook((_event, ctx) => {
+  if (hygieneRanThisInvocation) return { abort: false };
+  hygieneRanThisInvocation = true;
+
+  const stateDir = ctx.paths.projectStateDir;
+
+  const markers = cleanStaleMarkers(stateDir);
+  const nested = cleanNestedStateDir(stateDir);
+  const compacted = compactSyncQueueIfNeeded(stateDir);
+
+  const ew = getErrorWriter();
+  if (ew && (markers.removed > 0 || nested || compacted !== null)) {
+    ew(
+      'state_hygiene',
+      null,
+      `markers=${markers.removed} nested=${nested} compacted=${compacted ? `${compacted.removed}/${compacted.kept}` : 'skip'}`,
+    );
+  }
+
   return { abort: false };
 });

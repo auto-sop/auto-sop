@@ -8,9 +8,12 @@
  *      If no managed section markers exist, clears the hash store.
  *   2. Clean stale current-turn markers — removes current-turn-*.json
  *      files in state/ older than 1 hour (orphaned session markers).
+ *   3. Remove nested state/state directory (legacy bug artifact).
+ *   4. Compact sync queue entries older than 7 days.
+ *   5. Remove stray .auto-sop directories without binding.json.
  */
 import type { Command } from 'commander';
-import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import pc from 'picocolors';
 import { emit } from '../output/json.js';
@@ -21,24 +24,53 @@ import {
   clearLastHash,
   sha256,
 } from '../../managed-section/hash-store.js';
+import {
+  cleanStaleMarkers,
+  cleanNestedStateDir,
+  cleanStrayAutoSopDirs,
+  STALE_MARKER_MAX_AGE_MS,
+  SYNC_QUEUE_MAX_AGE_DAYS,
+} from '../../capture/writer/state-hygiene.js';
+import { compactSyncQueue } from '../../learner/sync-queue.js';
 
 export interface RepairResult {
   hashResynced: boolean;
   hashCleared: boolean;
+  /** @deprecated Use markersRemoved. Kept for JSON API backward compatibility. */
   staleTurnMarkersRemoved: number;
+  /** Number of stale turn markers removed. */
+  markersRemoved: number;
+  nestedStateRemoved: boolean;
+  syncCompacted: { removed: number; kept: number } | null;
+  strayDirsRemoved: string[];
   details: string[];
 }
 
 const STALE_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
 
+export interface RepairFlags {
+  cleanMarkers?: boolean;
+  compactSync?: boolean;
+  cleanStray?: boolean;
+}
+
 /**
  * Core repair logic — exported for testing.
+ *
+ * When flags is undefined or empty, all hygiene actions run (default).
+ * When flags has explicit boolean values, only the flagged actions run.
  */
-export function runRepair(projectRoot: string): RepairResult {
+export function runRepair(projectRoot: string, flags?: RepairFlags): RepairResult {
+  const runAll = !flags || (!flags.cleanMarkers && !flags.compactSync && !flags.cleanStray);
+
   const result: RepairResult = {
     hashResynced: false,
     hashCleared: false,
     staleTurnMarkersRemoved: 0,
+    markersRemoved: 0,
+    nestedStateRemoved: false,
+    syncCompacted: null,
+    strayDirsRemoved: [],
     details: [],
   };
 
@@ -88,31 +120,62 @@ export function runRepair(projectRoot: string): RepairResult {
   }
 
   // ── 2. Clean stale current-turn markers ──────────────────
+  // Uses cleanStaleMarkers with repair's 1h threshold by default.
+  // When --clean-markers flag is used alone, uses the 24h threshold
+  // matching the pre-start hook behavior.
   const stateDir = path.join(projectRoot, '.auto-sop', 'state');
-  if (existsSync(stateDir)) {
+  if (runAll) {
+    const markerResult = cleanStaleMarkers(stateDir, STALE_THRESHOLD_MS);
+    result.staleTurnMarkersRemoved = markerResult.removed;
+    result.markersRemoved = markerResult.removed;
+    if (markerResult.removed > 0) {
+      result.details.push(
+        `Removed ${markerResult.removed} stale current-turn marker(s)`,
+      );
+    }
+  } else if (flags?.cleanMarkers) {
+    const markerResult = cleanStaleMarkers(stateDir, STALE_MARKER_MAX_AGE_MS);
+    result.staleTurnMarkersRemoved = markerResult.removed;
+    result.markersRemoved = markerResult.removed;
+    if (markerResult.removed > 0) {
+      result.details.push(
+        `Cleaned ${markerResult.removed} orphan marker(s) older than 24h`,
+      );
+    }
+  }
+
+  // ── 3. State hygiene: nested state/state dir ──────────
+  if (runAll) {
+    const nested = cleanNestedStateDir(stateDir);
+    result.nestedStateRemoved = nested;
+    if (nested) {
+      result.details.push('Removed nested state/state directory');
+    }
+  }
+
+  // ── 4. State hygiene: compact sync queue ──────────────
+  if (runAll || flags?.compactSync) {
     try {
-      const entries = readdirSync(stateDir);
-      const now = Date.now();
-      for (const entry of entries) {
-        if (!entry.startsWith('current-turn-') || !entry.endsWith('.json')) continue;
-        const fullPath = path.join(stateDir, entry);
-        try {
-          const stat = statSync(fullPath);
-          if (now - stat.mtimeMs > STALE_THRESHOLD_MS) {
-            unlinkSync(fullPath);
-            result.staleTurnMarkersRemoved++;
-          }
-        } catch {
-          // best-effort per file
-        }
-      }
-      if (result.staleTurnMarkersRemoved > 0) {
+      const compactResult = compactSyncQueue(stateDir, SYNC_QUEUE_MAX_AGE_DAYS);
+      result.syncCompacted = compactResult;
+      if (compactResult.removed > 0) {
         result.details.push(
-          `Removed ${result.staleTurnMarkersRemoved} stale current-turn marker(s)`,
+          `Compacted sync queue: removed ${compactResult.removed}, kept ${compactResult.kept}`,
         );
       }
     } catch {
-      // best-effort — state dir read can fail
+      // best-effort
+    }
+  }
+
+  // ── 5. State hygiene: stray .auto-sop directories ────
+  if (runAll || flags?.cleanStray) {
+    const strayResult = cleanStrayAutoSopDirs(projectRoot);
+    result.strayDirsRemoved = strayResult.removed;
+    if (strayResult.removed.length > 0) {
+      result.details.push(
+        `Removed ${strayResult.removed.length} stray .auto-sop director${strayResult.removed.length === 1 ? 'y' : 'ies'}`,
+      );
     }
   }
 
@@ -124,6 +187,9 @@ export function registerRepairVerb(program: Command): void {
     .command('repair')
     .description('fix managed-section drift deadlock and clean stale state')
     .option('--project <path>', 'project root', process.cwd())
+    .option('--clean-markers', 'clean orphan turn markers older than 24h')
+    .option('--compact-sync', 'compact sync queue entries older than 7 days')
+    .option('--clean-stray', 'remove stray .auto-sop directories without binding.json')
     .action(async (opts, cmd) => {
       const jsonMode: boolean = cmd.parent?.opts().json ?? false;
       const root = path.resolve(opts.project as string);
@@ -139,8 +205,13 @@ export function registerRepairVerb(program: Command): void {
         return;
       }
 
+      const flags: RepairFlags = {};
+      if (opts.cleanMarkers) flags.cleanMarkers = true;
+      if (opts.compactSync) flags.compactSync = true;
+      if (opts.cleanStray) flags.cleanStray = true;
+
       try {
-        const result = runRepair(root);
+        const result = runRepair(root, flags);
 
         if (jsonMode) {
           emit({
@@ -149,6 +220,10 @@ export function registerRepairVerb(program: Command): void {
             hash_resynced: result.hashResynced,
             hash_cleared: result.hashCleared,
             stale_turn_markers_removed: result.staleTurnMarkersRemoved,
+            markers_removed: result.markersRemoved,
+            nested_state_removed: result.nestedStateRemoved,
+            sync_compacted: result.syncCompacted,
+            stray_dirs_removed: result.strayDirsRemoved,
             details: result.details,
           });
         } else {

@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import os from 'node:os';
 import path from 'node:path';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import pc from 'picocolors';
 import { execa } from 'execa';
@@ -11,6 +12,14 @@ import { TASK_NAME } from '../../scheduler/windows-task-scheduler.js';
 import { emit } from '../output/json.js';
 import { renderTable } from '../output/human.js';
 import { PreconditionError } from '../errors.js';
+import {
+  STALE_MARKER_MAX_AGE_MS,
+  SYNC_QUEUE_MAX_ENTRIES,
+  BINDING_FILE,
+  TURN_MARKER_PREFIX,
+  TURN_MARKER_SUFFIX,
+} from '../../capture/writer/state-hygiene.js';
+import { readSyncEntries } from '../../learner/sync-queue.js';
 
 interface Check {
   name: string;
@@ -94,6 +103,7 @@ export function registerDoctorVerb(program: Command): void {
           ok: await scrubberRulesLoadable(),
           detail: 'secretlint preset',
         },
+        ...runStateHygieneChecks(projectRoot),
       ];
       const failed = checks.filter((c) => !c.ok);
 
@@ -230,5 +240,132 @@ async function scrubberRulesLoadable(): Promise<boolean> {
     return typeof mod.loadRulePack === 'function';
   } catch {
     return false;
+  }
+}
+
+// ── State hygiene checks ─────────────────────────────────
+
+/** Threshold for warning about stale markers (more than 10 is suspicious). */
+export const STALE_MARKER_WARN_THRESHOLD = 10;
+
+/**
+ * Run state-hygiene doctor checks synchronously.
+ * Each check is best-effort — errors produce a passing check with a note.
+ */
+function runStateHygieneChecks(projectRoot: string): Check[] {
+  const stateDir = path.join(projectRoot, '.auto-sop', 'state');
+  const checks: Check[] = [];
+
+  // 1. Stale turn markers
+  checks.push(checkStaleMarkers(stateDir));
+
+  // 2. Nested state/state directory
+  checks.push(checkNestedStateDir(stateDir));
+
+  // 3. Sync queue size
+  checks.push(checkSyncQueueSize(stateDir));
+
+  // 4. Stray .auto-sop directories
+  checks.push(checkStrayAutoSopDirs(projectRoot));
+
+  return checks;
+}
+
+function checkStaleMarkers(stateDir: string): Check {
+  try {
+    if (!existsSync(stateDir)) {
+      return { name: 'stale turn markers', ok: true, detail: 'no state dir' };
+    }
+    const entries = readdirSync(stateDir);
+    const now = Date.now();
+    let staleCount = 0;
+    for (const entry of entries) {
+      if (!entry.startsWith(TURN_MARKER_PREFIX) || !entry.endsWith(TURN_MARKER_SUFFIX)) continue;
+      try {
+        const stat = statSync(path.join(stateDir, entry));
+        if (now - stat.mtimeMs > STALE_MARKER_MAX_AGE_MS) staleCount++;
+      } catch {
+        // skip unreadable files
+      }
+    }
+    if (staleCount > STALE_MARKER_WARN_THRESHOLD) {
+      return {
+        name: 'stale turn markers',
+        ok: false,
+        detail: `${staleCount} orphan markers (>24h old) — run auto-sop repair`,
+      };
+    }
+    return {
+      name: 'stale turn markers',
+      ok: true,
+      detail: staleCount === 0 ? 'none' : `${staleCount} (below threshold)`,
+    };
+  } catch {
+    return { name: 'stale turn markers', ok: true, detail: 'check skipped (read error)' };
+  }
+}
+
+function checkNestedStateDir(stateDir: string): Check {
+  try {
+    const nested = path.join(stateDir, 'state');
+    if (existsSync(nested) && statSync(nested).isDirectory()) {
+      return {
+        name: 'nested state dir',
+        ok: false,
+        detail: 'state/state exists — run auto-sop repair',
+      };
+    }
+    return { name: 'nested state dir', ok: true, detail: 'clean' };
+  } catch {
+    return { name: 'nested state dir', ok: true, detail: 'check skipped (read error)' };
+  }
+}
+
+function checkSyncQueueSize(stateDir: string): Check {
+  try {
+    const entries = readSyncEntries(stateDir);
+    if (entries.length > SYNC_QUEUE_MAX_ENTRIES) {
+      return {
+        name: 'sync queue size',
+        ok: false,
+        detail: `${entries.length} entries (>${SYNC_QUEUE_MAX_ENTRIES}) — run auto-sop repair --compact-sync`,
+      };
+    }
+    return {
+      name: 'sync queue size',
+      ok: true,
+      detail: `${entries.length} entries`,
+    };
+  } catch {
+    return { name: 'sync queue size', ok: true, detail: 'check skipped (read error)' };
+  }
+}
+
+function checkStrayAutoSopDirs(projectRoot: string): Check {
+  try {
+    const entries = readdirSync(projectRoot, { withFileTypes: true });
+    const stray: string[] = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const subdirAutoSop = path.join(projectRoot, entry.name, '.auto-sop');
+      try {
+        if (!existsSync(subdirAutoSop)) continue;
+        if (!statSync(subdirAutoSop).isDirectory()) continue;
+        if (existsSync(path.join(subdirAutoSop, BINDING_FILE))) continue;
+        stray.push(entry.name);
+      } catch {
+        // skip unreadable subdirectories
+      }
+    }
+    if (stray.length > 0) {
+      return {
+        name: 'stray .auto-sop dirs',
+        ok: false,
+        detail: `${stray.length} stray dir(s): ${stray.join(', ')} — run auto-sop repair --clean-stray`,
+      };
+    }
+    return { name: 'stray .auto-sop dirs', ok: true, detail: 'none' };
+  } catch {
+    return { name: 'stray .auto-sop dirs', ok: true, detail: 'check skipped (read error)' };
   }
 }
