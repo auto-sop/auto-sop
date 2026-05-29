@@ -90,8 +90,8 @@ export async function collectStatus(opts: CollectOptions): Promise<StatusReport>
   const learner = await readLastLearnerRun(opts.projectRoot);
   const pendingCaptures = await countPendingCaptures(capturesDir, learner.lastRunAt);
   const directives = await countDirectives(claudeMdPath, opts.projectRoot);
-  const license = await readLicenseStatus(secretsEnc);
   const serverValidation = await collectServerValidation(opts.homeDir);
+  const license = await readLicenseStatus(secretsEnc, serverValidation);
   const binding = await collectBindingStatus(opts.projectRoot, secretsEnc);
   const errors = { last24h: await count24hErrors(errorsJsonl) };
   const disk = await diskUsage(capturesDir);
@@ -222,11 +222,22 @@ async function countDirectives(
   }
 }
 
-async function readLicenseStatus(secretsEnc: string): Promise<StatusReport['license']> {
+async function readLicenseStatus(
+  secretsEnc: string,
+  serverValidation: StatusReport['serverValidation'],
+): Promise<StatusReport['license']> {
   try {
     const payload = await readSecrets(secretsEnc);
     if (payload == null) return { status: 'none', daysRemaining: null };
     const t = trialStatus(payload);
+
+    // Cross-reference server validation when trial shows expired.
+    // A user who upgraded from trial to paid Pro still has expired local
+    // trial dates, but the server knows they have an active subscription.
+    if (t.status === 'expired' && serverValidation.plan === 'pro') {
+      return { status: 'user', daysRemaining: null };
+    }
+
     return {
       status: t.status === 'user' ? 'user' : t.status,
       daysRemaining: Number.isFinite(t.daysRemaining)

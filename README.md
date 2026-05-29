@@ -23,10 +23,6 @@
 </p>
 
 <p align='center'>
-  <a href='https://auto-sop.com'><img src='https://auto-sop.com/images/badge.svg' alt='Powered by auto-sop'/></a>
-</p>
-
-<p align='center'>
   <a href='https://www.producthunt.com/products/auto-sop?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-auto-sop' target='_blank' rel='noopener noreferrer'><img src='https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1145178&theme=light' alt='auto-sop - Your Claude Code learns from its mistakes automatically | Product Hunt' width='250' height='54' /></a>
 </p>
 

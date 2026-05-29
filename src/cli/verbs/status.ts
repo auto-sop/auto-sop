@@ -90,7 +90,7 @@ export function registerStatusVerb(program: Command): void {
         const serverLabel = sv.lastValidated
           ? `validated ${formatTimeAgo(sv.lastValidated)}`
           : 'never validated';
-        const graceLabel = formatGrace(sv.graceRemaining);
+        const graceLabel = formatGrace(sv.graceRemaining, report.license.status, sv.plan);
         const boundLabel = `${sv.boundProjects}/${sv.maxProjects ?? '?'}`;
         const bindingLabel = report.binding.exists
           ? report.binding.valid
@@ -144,7 +144,18 @@ function formatTimeAgo(isoString: string): string {
   return `${days}d ago`;
 }
 
-function formatGrace(graceRemainingMs: number | null): string {
+function formatGrace(
+  graceRemainingMs: number | null,
+  licenseStatus?: 'dev-key' | 'trial' | 'expired' | 'user' | 'none',
+  serverPlan?: string | null,
+): string {
+  // Paid Pro users don't need a grace countdown — it's not applicable.
+  // Server plan may report 'pro' even during an active trial period;
+  // this ensures paid users always see the correct grace display
+  // regardless of local trial state.
+  if (licenseStatus === 'user' || serverPlan === 'pro') {
+    return pc.green('n/a (paid)');
+  }
   if (graceRemainingMs === null) return pc.green('7 days remaining');
   if (graceRemainingMs <= 0) return pc.red('EXPIRED');
   const days = graceRemainingMs / (24 * 60 * 60 * 1000);
