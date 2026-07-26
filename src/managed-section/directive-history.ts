@@ -521,6 +521,8 @@ const SEVERITY_RANK: Record<DirectiveSeverity, number> = {
  *
  * @param fireCounts     Optional map of directive_id → confirmed fire count.
  * @param lastFireDates  Optional map of directive_id → ISO date of most recent fire.
+ * @param lastCaptureAt  Optional timestamp of the most recently captured turn for
+ *                       the project. When omitted, TTL behaves exactly as before.
  */
 export function applyTTLAndCap(
   history: DirectiveHistory,
@@ -529,6 +531,7 @@ export function applyTTLAndCap(
   maxDirectives: number,
   fireCounts?: Record<string, number>,
   lastFireDates?: Record<string, string>,
+  lastCaptureAt?: Date,
 ): ApplyTTLAndCapResult {
   const nowMs = now.getTime();
   const potentialTtlMs = ttlDays * MS_PER_DAY;
@@ -579,12 +582,36 @@ export function applyTTLAndCap(
     return getFireCount(entry.id) >= PROVEN_FIRE_THRESHOLD;
   };
 
+  // A project whose most recent captured turn is older than the potential TTL
+  // has simply not been worked on. Directives look "stale" only because the
+  // wall clock kept running, not because the rules stopped mattering — pruning
+  // them would erase everything the project ever learned while it sat idle.
+  // So freeze staleness while the project is quiet; it thaws on the next tick
+  // that sees fresh captures.
+  const lastCaptureMs = lastCaptureAt?.getTime();
+  const isDormant =
+    lastCaptureMs !== undefined &&
+    Number.isFinite(lastCaptureMs) &&
+    nowMs - lastCaptureMs > potentialTtlMs;
+
   // 1. TTL pass — tier-aware. Proven uses last_fire_at (or last_reinforced fallback)
   //    with PROVEN_TTL_DAYS. Potential uses last_reinforced with ttlDays.
+  //    Skipped entirely while dormant; the cap passes below still run.
   const proven: DirectiveHistoryEntry[] = [];
   const potential: DirectiveHistoryEntry[] = [];
 
   for (const entry of Object.values(nextEntries)) {
+    if (isDormant) {
+      // Keep the existing active/pruned split exactly as it is. An entry that
+      // was already pruned stays pruned — dormancy never resurrects a directive.
+      if (entry.pruned) continue;
+      if (isProven(entry)) {
+        proven.push(entry);
+      } else {
+        potential.push(entry);
+      }
+      continue;
+    }
     if (isProven(entry)) {
       // Proven tier: TTL based on last_fire_at (fallback to last_reinforced).
       const lastFireStr = entry.last_fire_at ?? entry.last_reinforced;
@@ -740,6 +767,12 @@ export function applyDirectiveHistory(
     lastFireDates?: Record<string, string> | undefined;
     /** V75: session summaries for computing creation_cost_tokens on new directives. */
     sessionSummaries?: ReadonlyArray<SessionSummaryLike> | undefined;
+    /**
+     * Timestamp of the most recent captured turn for this project. Lets the TTL
+     * pass distinguish a genuinely stale directive from a project nobody has
+     * touched in a while. Omit to keep the pre-existing TTL behaviour.
+     */
+    lastCaptureAt?: Date | undefined;
   },
 ): ApplyTTLAndCapResult {
   const now = options?.now ?? new Date();
@@ -782,6 +815,7 @@ export function applyDirectiveHistory(
     config.maxDirectives,
     options?.fireCounts,
     options?.lastFireDates,
+    options?.lastCaptureAt,
   );
   try {
     saveHistory(projectRoot, result.history);
