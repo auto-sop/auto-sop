@@ -80,6 +80,15 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MAX_TTL_DAYS = 3650; // ~10 years
 const MAX_DIRECTIVES_CAP = 1000;
 
+/**
+ * Hard ceiling for the dormancy ledger, mirroring the TTL clamp above. The
+ * ledger is an integer read from an untrusted on-disk file; without a bound a
+ * corrupt or hostile value (e.g. 1e18) would subtract "forever" from every age
+ * comparison and freeze pruning permanently. Cap it at the same ~10-year
+ * horizon the TTL uses.
+ */
+const MAX_DORMANT_MS = MAX_TTL_DAYS * MS_PER_DAY;
+
 /** SEC-L01: cap string lengths when reading untrusted JSON. */
 const MAX_ID_LENGTH = 256;
 const MAX_RULE_TEXT_LENGTH = 2048;
@@ -108,6 +117,13 @@ export interface DirectiveHistoryEntry {
   /** V71: ISO timestamp of the most recent confirmed fire. Used by the
    *  proven-tier TTL check. Absent when no fires have been recorded. */
   last_fire_at?: string;
+  /** High-water mark of the confirmed fire count ever observed for this
+   *  directive. Fire JSONL records are compacted on a wall-clock schedule, so
+   *  a project left idle past the compaction window would lose the live fire
+   *  count and silently demote a proven directive back to potential. Persisting
+   *  the peak count here lets the proven check survive fire-record loss and
+   *  dormancy. Monotonic — never lowered by compaction. */
+  proven_fire_count?: number;
   /** V31: command fingerprint for error-prevention tracking. Optional — only set
    *  for bash-failure directives. */
   source_fingerprint?: string;
@@ -124,6 +140,17 @@ export interface DirectiveHistoryEntry {
 export interface DirectiveHistory {
   entries: Record<string, DirectiveHistoryEntry>;
   updated_at: string;
+  /** Total time (ms) the project has been dormant — i.e. idle beyond the point
+   *  where its directives would otherwise start aging out. Staleness is measured
+   *  in project-activity time (wall age minus this), so a project nobody has
+   *  touched does not lose its learned rules while it sits quiet. Monotonic and
+   *  hard-bounded. Absent on files written before this feature → treated as 0,
+   *  which makes activity age identical to wall age (pre-existing behaviour). */
+  accumulated_dormant_ms?: number;
+  /** ISO — the newest captured turn observed as of the last tick. Used to seed
+   *  the dormancy computation on migration and as a fallback capture clock when
+   *  a caller does not supply one. Absent on pre-feature files. */
+  last_seen_capture_at?: string;
 }
 
 /**
@@ -224,6 +251,19 @@ function parsePositiveInt(raw: unknown, fallback: number, cap: number): number {
   return n;
 }
 
+/**
+ * Coerce a raw dormancy-ledger value into a safe, bounded number of
+ * milliseconds. Anything non-numeric, non-finite, or negative collapses to 0
+ * (which makes activity age equal wall age — the pre-feature behaviour);
+ * anything above the hard ceiling is clamped. This runs both when reading the
+ * untrusted file and after each tick's recomputation, so no path can slip an
+ * out-of-range value into the age math.
+ */
+function clampDormantMs(raw: unknown): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return 0;
+  return Math.min(raw, MAX_DORMANT_MS);
+}
+
 // ─── Empty / default ─────────────────────────────────────
 
 export function emptyHistory(now: string = new Date().toISOString()): DirectiveHistory {
@@ -279,7 +319,21 @@ export function loadHistory(projectRoot: string): DirectiveHistory {
   const updated = (parsed as { updated_at?: unknown }).updated_at;
   const updated_at =
     typeof updated === 'string' && updated.length > 0 ? updated : new Date().toISOString();
-  return { entries: entriesOut, updated_at };
+
+  const history: DirectiveHistory = { entries: entriesOut, updated_at };
+
+  // Dormancy ledger — fail-open. A missing/corrupt value degrades to "absent",
+  // which the age math treats as zero dormancy (wall-clock behaviour).
+  const rawDormant = (parsed as { accumulated_dormant_ms?: unknown }).accumulated_dormant_ms;
+  if (typeof rawDormant === 'number' && Number.isFinite(rawDormant) && rawDormant > 0) {
+    history.accumulated_dormant_ms = clampDormantMs(rawDormant);
+  }
+  const rawLastSeen = (parsed as { last_seen_capture_at?: unknown }).last_seen_capture_at;
+  if (typeof rawLastSeen === 'string' && rawLastSeen.length > 0) {
+    history.last_seen_capture_at = rawLastSeen;
+  }
+
+  return history;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -323,6 +377,15 @@ function coerceEntry(idKey: string, v: unknown): DirectiveHistoryEntry | null {
   // V71: load last_fire_at from persisted history
   if (typeof rec.last_fire_at === 'string' && rec.last_fire_at.length > 0) {
     entry.last_fire_at = rec.last_fire_at;
+  }
+  // Load the persisted proven-tier fire-count high-water mark. Guard as an
+  // untrusted numeric: finite, non-negative integer only.
+  if (
+    typeof rec.proven_fire_count === 'number' &&
+    Number.isFinite(rec.proven_fire_count) &&
+    rec.proven_fire_count >= 0
+  ) {
+    entry.proven_fire_count = Math.floor(rec.proven_fire_count);
   }
   // V31: load source_fingerprint from persisted history
   if (typeof rec.source_fingerprint === 'string' && rec.source_fingerprint.length > 0) {
@@ -493,7 +556,10 @@ export function updateFromProposals(
       entries[p.id] = newEntry;
     }
   }
-  return { entries, updated_at: now };
+  // Spread the input first so the dormancy ledger (accumulated_dormant_ms /
+  // last_seen_capture_at) rides through to applyTTLAndCap instead of being
+  // dropped; entries and updated_at are then overridden with this tick's values.
+  return { ...history, entries, updated_at: now };
 }
 
 // ─── Apply TTL & cap ─────────────────────────────────────
@@ -514,15 +580,23 @@ const SEVERITY_RANK: Record<DirectiveSeverity, number> = {
  *     (default 25), 30-day TTL since last reinforced. 7-day grace: new entries
  *     younger than POTENTIAL_GRACE_DAYS are protected from cap eviction.
  *
- * When fireCounts is undefined, ALL entries go to potential tier (backward compat).
+ * A directive is proven when its live fire count OR its persisted fire-count
+ * high-water mark meets the threshold; the persisted mark keeps a proven
+ * directive proven after its fire records are compacted or during dormancy.
+ * When neither is present, the entry stays in the potential tier.
  *
  * Any entries that aged out or overflowed their tier's cap are marked `pruned`
  * in the returned history; active entries retain `pruned: false`.
  *
+ * Staleness (all tiers, tombstone eviction, and the grace window) is measured in
+ * project-activity time — wall-clock age minus the dormancy ledger — so a
+ * project nobody has touched does not age out its directives while idle.
+ *
  * @param fireCounts     Optional map of directive_id → confirmed fire count.
  * @param lastFireDates  Optional map of directive_id → ISO date of most recent fire.
  * @param lastCaptureAt  Optional timestamp of the most recently captured turn for
- *                       the project. When omitted, TTL behaves exactly as before.
+ *                       the project. Drives the dormancy ledger. When omitted, the
+ *                       ledger falls back to the persisted last_seen_capture_at.
  */
 export function applyTTLAndCap(
   history: DirectiveHistory,
@@ -557,14 +631,73 @@ export function applyTTLAndCap(
     }
   }
 
+  // Advance each entry's persisted fire-count high-water mark from the live
+  // count. Fire JSONL records are compacted on a wall-clock schedule, so a
+  // project idle past that window would otherwise lose its live count and
+  // demote a proven directive back to potential. Only ever raise it (max
+  // semantics) so compaction can never lower a directive's earned tier.
+  if (fireCounts !== undefined) {
+    for (const [k, entry] of Object.entries(nextEntries)) {
+      const live = fireCounts[k] ?? 0;
+      const persisted = entry.proven_fire_count ?? 0;
+      if (live > persisted) entry.proven_fire_count = live;
+    }
+  }
+
+  // ─── Dormancy ledger ─────────────────────────────────────
+  // Staleness is measured in project-activity time, not wall-clock time: a
+  // project nobody has touched should not have its hard-won directives age out
+  // while it sits idle. `activityAge` subtracts the accumulated dormant span
+  // from the raw wall-clock age at every comparison below.
+  //
+  // A project is dormant when its newest capture predates the potential-TTL
+  // window (the same signal the previous one-tick bypass used). While dormant
+  // we credit the ENTIRE span since that last capture, so when work resumes a
+  // directive resumes aging from where it left off instead of being counted
+  // stale for the whole idle stretch — which is what let the old bypass prune
+  // everything one tick after wake. The ledger only ever grows (max), so a
+  // project keeps its dormancy credit across ticks within a dormancy; separate
+  // dormancy episodes take the max, not the sum — a deliberate, fail-open
+  // simplification. It is hard-bounded so a corrupt/hostile on-disk value can
+  // never freeze pruning.
+  const priorDormantMs = clampDormantMs(history.accumulated_dormant_ms);
+  const paramCaptureMs = lastCaptureAt?.getTime();
+  const historyCaptureMs = Date.parse(history.last_seen_capture_at ?? '');
+  const captureMs =
+    paramCaptureMs !== undefined && Number.isFinite(paramCaptureMs)
+      ? paramCaptureMs
+      : Number.isFinite(historyCaptureMs)
+        ? historyCaptureMs
+        : undefined;
+
+  let accumulatedDormantMs = priorDormantMs;
+  if (captureMs !== undefined) {
+    const gapMs = nowMs - captureMs;
+    // A far-future capture timestamp yields gapMs < 0 → not dormant → grant no
+    // freeze (falls through to normal TTL). A finite positive gap beyond the TTL
+    // window is genuine dormancy; credit the full span.
+    if (gapMs > potentialTtlMs) {
+      accumulatedDormantMs = Math.max(accumulatedDormantMs, gapMs);
+    }
+  }
+  accumulatedDormantMs = clampDormantMs(accumulatedDormantMs);
+
+  // Record the newest capture we observed for the next tick / for callers that
+  // do not pass one. Seed on migration to the incoming capture (or now).
+  const lastSeenCaptureAt = captureMs !== undefined ? new Date(captureMs).toISOString() : nowIso;
+
+  // Age in project-activity time: raw wall-clock age minus accumulated dormancy.
+  const activityAge = (tsMs: number): number => nowMs - tsMs - accumulatedDormantMs;
+
   // SEC-002: evict entries whose `pruned_at` is older than 2×TTL so
   // the history file cannot grow without bound over time. Use potential
-  // TTL for backward compat (same eviction window as pre-v71).
+  // TTL for backward compat (same eviction window as pre-v71). Measured in
+  // activity time so a dormant project does not evict its tombstones early.
   const maxPrunedAgeMs = 2 * potentialTtlMs;
   for (const [k, entry] of Object.entries(nextEntries)) {
     if (entry.pruned && typeof entry.pruned_at === 'string') {
       const prunedMs = Date.parse(entry.pruned_at);
-      if (Number.isFinite(prunedMs) && nowMs - prunedMs > maxPrunedAgeMs) {
+      if (Number.isFinite(prunedMs) && activityAge(prunedMs) > maxPrunedAgeMs) {
         delete nextEntries[k];
       }
     }
@@ -576,47 +709,26 @@ export function applyTTLAndCap(
     return fireCounts[id] ?? 0;
   };
 
-  // Helper: determine if a directive is proven (has fires and fireCounts is provided).
+  // Helper: determine if a directive is proven. Falls back to the persisted
+  // high-water mark so a directive that earned proven status stays proven even
+  // after its fire records are compacted away (or the live count is missing).
   const isProven = (entry: DirectiveHistoryEntry): boolean => {
-    if (fireCounts === undefined) return false; // backward compat: all potential
-    return getFireCount(entry.id) >= PROVEN_FIRE_THRESHOLD;
+    const effective = Math.max(getFireCount(entry.id), entry.proven_fire_count ?? 0);
+    return effective >= PROVEN_FIRE_THRESHOLD;
   };
 
-  // A project whose most recent captured turn is older than the potential TTL
-  // has simply not been worked on. Directives look "stale" only because the
-  // wall clock kept running, not because the rules stopped mattering — pruning
-  // them would erase everything the project ever learned while it sat idle.
-  // So freeze staleness while the project is quiet; it thaws on the next tick
-  // that sees fresh captures.
-  const lastCaptureMs = lastCaptureAt?.getTime();
-  const isDormant =
-    lastCaptureMs !== undefined &&
-    Number.isFinite(lastCaptureMs) &&
-    nowMs - lastCaptureMs > potentialTtlMs;
-
   // 1. TTL pass — tier-aware. Proven uses last_fire_at (or last_reinforced fallback)
-  //    with PROVEN_TTL_DAYS. Potential uses last_reinforced with ttlDays.
-  //    Skipped entirely while dormant; the cap passes below still run.
+  //    with PROVEN_TTL_DAYS. Potential uses last_reinforced with ttlDays. All age
+  //    comparisons use activity time, so a dormant project ages nothing out.
   const proven: DirectiveHistoryEntry[] = [];
   const potential: DirectiveHistoryEntry[] = [];
 
   for (const entry of Object.values(nextEntries)) {
-    if (isDormant) {
-      // Keep the existing active/pruned split exactly as it is. An entry that
-      // was already pruned stays pruned — dormancy never resurrects a directive.
-      if (entry.pruned) continue;
-      if (isProven(entry)) {
-        proven.push(entry);
-      } else {
-        potential.push(entry);
-      }
-      continue;
-    }
     if (isProven(entry)) {
       // Proven tier: TTL based on last_fire_at (fallback to last_reinforced).
       const lastFireStr = entry.last_fire_at ?? entry.last_reinforced;
       const lastMs = Date.parse(lastFireStr);
-      const isStale = !Number.isFinite(lastMs) || nowMs - lastMs > provenTtlMs;
+      const isStale = !Number.isFinite(lastMs) || activityAge(lastMs) > provenTtlMs;
       if (isStale) {
         if (!entry.pruned) {
           entry.pruned = true;
@@ -632,7 +744,7 @@ export function applyTTLAndCap(
     } else {
       // Potential tier: TTL based on last_reinforced with potentialTtlMs.
       const last = Date.parse(entry.last_reinforced);
-      const isStale = !Number.isFinite(last) || nowMs - last > potentialTtlMs;
+      const isStale = !Number.isFinite(last) || activityAge(last) > potentialTtlMs;
       if (isStale) {
         if (!entry.pruned) {
           entry.pruned = true;
@@ -685,7 +797,11 @@ export function applyTTLAndCap(
     const evictable: DirectiveHistoryEntry[] = [];
     for (const entry of potential) {
       const firstSeenMs = Date.parse(entry.first_seen);
-      const inGrace = Number.isFinite(firstSeenMs) && nowMs - firstSeenMs < graceMs;
+      // Grace is measured in activity time, so it is PRESERVED through dormancy
+      // rather than consumed by it: a directive created just before the project
+      // went quiet keeps its grace window and can still graduate (fire → proven)
+      // once work resumes, instead of being cap-evicted before it had the chance.
+      const inGrace = Number.isFinite(firstSeenMs) && activityAge(firstSeenMs) < graceMs;
       if (inGrace) {
         graceProtected.push(entry);
       } else {
@@ -740,7 +856,12 @@ export function applyTTLAndCap(
 
   return {
     active,
-    history: { entries: nextEntries, updated_at: nowIso },
+    history: {
+      entries: nextEntries,
+      updated_at: nowIso,
+      accumulated_dormant_ms: accumulatedDormantMs,
+      last_seen_capture_at: lastSeenCaptureAt,
+    },
   };
 }
 
