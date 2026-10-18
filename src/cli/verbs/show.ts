@@ -43,6 +43,12 @@ const UNSAFE_CHARS_RE = /[.\\/\0]/;
 export type IdKind = 'turn' | 'session';
 
 /**
+ * Shown wherever a lightweight turn is displayed, so a tool count of zero is
+ * read as "not recorded" rather than "nothing happened".
+ */
+export const LIGHTWEIGHT_LABEL = 'lightweight (multi-session mode: tool calls were not recorded)';
+
+/**
  * Classify the input as turn_id, session_id, or invalid.
  * Rejects inputs containing `..`, `/`, `\`, null bytes.
  */
@@ -300,6 +306,9 @@ function printTurnFull(
     ['Files changed:', String(filesChanged.length)],
     ['Tool calls:', String(toolCalls.length)],
   ];
+  if (meta.capture_mode === 'lightweight') {
+    headerRows.push(['Capture:', LIGHTWEIGHT_LABEL]);
+  }
 
   process.stdout.write(renderTable(headerRows) + '\n');
 
@@ -363,6 +372,13 @@ function printSessionCompact(
     const line = row.map((cell, i) => cell.padEnd(maxLens[i]!)).join('  ');
     process.stdout.write(line + '\n');
   }
+
+  const lightweightTurns = turns.filter(({ meta }) => meta.capture_mode === 'lightweight').length;
+  if (lightweightTurns > 0) {
+    process.stdout.write(
+      pc.dim(`\n${lightweightTurns} of ${turns.length} turn(s) captured ${LIGHTWEIGHT_LABEL}\n`),
+    );
+  }
 }
 
 // ── JSON builders ─────────────────────────────────────────
@@ -385,6 +401,7 @@ function buildTurnJson(meta: TurnMeta, turnDir: string): Record<string, unknown>
     subagent_type: meta.subagent_type,
     started_at: meta.started_at,
     finalized_at: meta.finalized_at,
+    capture_mode: meta.capture_mode ?? 'full',
     duration_ms: durationMs,
     prompt: prompt ?? null,
     response: response ?? null,

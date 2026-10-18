@@ -12,6 +12,7 @@ import { readFileSync, unlinkSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { HookPayload } from '../events.js';
 import { isCaptureDisabled } from '../kill-switch.js';
+import { isEventCapturedInMode, resolveCaptureMode } from '../concurrency-mode.js';
 import { getCapturePaths } from '../paths.js';
 import { createScrubber } from '../../scrubber/index.js';
 import { PathResolver } from '../../path-resolver/index.js';
@@ -64,6 +65,20 @@ async function run(): Promise<void> {
       event = HookPayload.parse(JSON.parse(raw));
     } catch (err) {
       errorWriter?.('zod_parse_failed', null, err);
+      try {
+        unlinkSync(tmpPath);
+      } catch {
+        /* ignore */
+      }
+      process.exit(0);
+      return; // unreachable, satisfies TS
+    }
+
+    // In lightweight multi-session mode, drop per-tool-call events here,
+    // before project resolution and scrubber setup — that work (and the git
+    // processes it starts) is most of what each writer costs. Nothing has
+    // been written for the event, so there is nothing to scrub.
+    if (!isEventCapturedInMode(event.hook_event_name, resolveCaptureMode(process.env))) {
       try {
         unlinkSync(tmpPath);
       } catch {

@@ -14,6 +14,7 @@ import { handleSubagentUserPromptSubmit } from './subagent-route.js';
 import { loadHistory } from '../../../managed-section/directive-history.js';
 import { detectDirectiveFires, appendFires, detectSelfReportedFires } from '../directive-fire.js';
 import type { DirectiveInput } from '../directive-fire.js';
+import { resolveCaptureMode } from '../../concurrency-mode.js';
 
 export const handleUserPromptSubmit: Handler<UserPromptSubmitPayload> = (event, ctx): void => {
   // Delegate to subagent handler if agent_id is present
@@ -44,6 +45,12 @@ export const handleUserPromptSubmit: Handler<UserPromptSubmitPayload> = (event, 
       event.agent_type !== undefined && event.agent_type !== 'main' ? event.agent_type : null,
     hookShimVersion: ctx.hookShimVersion,
   });
+  // Mark turns whose tool calls were deliberately not recorded, so a reader
+  // does not mistake reduced detail for a session that did nothing. Full mode
+  // adds nothing, keeping single-session meta.json unchanged.
+  if (resolveCaptureMode(process.env) === 'lightweight') {
+    meta.capture_mode = 'lightweight';
+  }
   writeMeta(pendingDir, meta);
 
   const { hitCount } = writePromptMd(pendingDir, event.prompt, ctx.scrubber);

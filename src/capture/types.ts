@@ -19,6 +19,12 @@ export interface TurnMeta {
   scrubber_hit_count: number;
   /** V46: directive IDs self-reported by Claude via [sop:applied:ID] markers. */
   self_reported_fires?: string[];
+  /**
+   * Present only when the turn was captured in lightweight multi-session
+   * mode, where per-tool-call events are not recorded. Absent means full
+   * capture, so single-session meta.json stays exactly as it always was.
+   */
+  capture_mode?: 'lightweight';
 }
 
 export interface ToolCallLinePre {

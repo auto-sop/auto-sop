@@ -29,6 +29,10 @@ import { finalizeHooks } from './finalize-hooks.js';
 import { registerPreStartHook } from './pre-start-hooks.js';
 import { sweepOrphanedTurns, sweepOrphanTmpPayloads } from '../orphan-sweep.js';
 import { getErrorWriter } from '../errors.js';
+import { resolveCaptureMode } from '../../concurrency-mode.js';
+
+/** Prompt recorded for a subagent turn opened by something other than its prompt. */
+const NO_PROMPT_OBSERVED = '[no UserPromptSubmit observed for this subagent]';
 
 // ── Orphan sweep pre-start hook (runs on UserPromptSubmit only) ──────
 registerPreStartHook((event, ctx) => {
@@ -71,7 +75,13 @@ function openSubagentTurn(
     hookShimVersion: ctx.hookShimVersion,
   });
   // Set parent_turn_id for bidirectional linking
-  writeMeta(pendingDir, { ...meta, parent_turn_id: parentTurnId });
+  writeMeta(pendingDir, {
+    ...meta,
+    parent_turn_id: parentTurnId,
+    ...(resolveCaptureMode(process.env) === 'lightweight'
+      ? { capture_mode: 'lightweight' as const }
+      : {}),
+  });
 
   writePromptMd(pendingDir, promptText, ctx.scrubber);
 
@@ -115,13 +125,7 @@ export const handleSubagentPreToolUse: Handler<PreToolUsePayload> = async (
   if (!current) {
     const parentCurrent = resolveCurrentTurn(ctx.paths.projectStateDir, event.session_id);
     const parentTurnId = parentCurrent?.turnId ?? null;
-    const created = openSubagentTurn(
-      event,
-      event.agent_id,
-      ctx,
-      parentTurnId,
-      '[no UserPromptSubmit observed for this subagent]',
-    );
+    const created = openSubagentTurn(event, event.agent_id, ctx, parentTurnId, NO_PROMPT_OBSERVED);
     current = { turnDir: created.turnDir, turnId: created.turnId };
   }
 
@@ -145,7 +149,21 @@ export const handleSubagentPostToolUse: Handler<PostToolUsePayload> = async (
 export const handleSubagentStop: Handler<SubagentStopPayload> = (event, ctx): void => {
   if (!event.agent_id) return;
 
-  const child = resolveSubagentTurn(ctx.paths.projectStateDir, event.session_id, event.agent_id);
+  let child = resolveSubagentTurn(ctx.paths.projectStateDir, event.session_id, event.agent_id);
+
+  // A subagent's turn is normally opened by its first tool call. Lightweight
+  // mode does not record tool calls, so open the turn here instead — otherwise
+  // the subagent's result, the part worth keeping, would be thrown away.
+  if (!child && resolveCaptureMode(process.env) === 'lightweight') {
+    const parentCurrent = resolveCurrentTurn(ctx.paths.projectStateDir, event.session_id);
+    child = openSubagentTurn(
+      event,
+      event.agent_id,
+      ctx,
+      parentCurrent?.turnId ?? null,
+      NO_PROMPT_OBSERVED,
+    );
+  }
 
   if (!child) {
     // SubagentStop without a corresponding open turn

@@ -126,11 +126,11 @@ auto-sop keeps itself current automatically. The learner checks the npm registry
 
 ## Compatibility
 
-| Requirement | Version |
-| ----------- | ------- |
-| Claude Code | >= 2.1.107 |
-| Node.js | >= 20 |
-| OS | macOS, Linux, Windows |
+| Requirement | Version               |
+| ----------- | --------------------- |
+| Claude Code | >= 2.1.107            |
+| Node.js     | >= 20                 |
+| OS          | macOS, Linux, Windows |
 
 ## Privacy
 
@@ -141,6 +141,8 @@ For full details, see our [Privacy Documentation](https://auto-sop.com/docs/priv
 ## Documentation
 
 Full documentation is available at [auto-sop.com/docs](https://auto-sop.com/docs).
+
+Running several Claude Code sessions in one project, such as a multi-agent army? See [Multi-session capture](docs/multi-session-capture.md).
 
 ## Star History
 
